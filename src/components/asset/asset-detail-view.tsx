@@ -55,7 +55,7 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
   const activeCount = asset.trackings.filter((t: any) => t.lifecycleStatus === "ACTIVE").length;
   const droppedCount = asset.trackings.filter((t: any) => t.lifecycleStatus === "DROPPED").length;
 
-  const relationshipTypes = [...new Set(asset.trackings.map((t: any) => t.relationshipType))];
+  const relationshipTypes = Array.from(new Set(asset.trackings.map((t: any) => t.relationshipType)));
 
   function handleExportCSV() {
     const headers = ["Company", "Type", "Lifecycle", "Current Stage", ...stages.map((s) => s.label), "Comment"];
