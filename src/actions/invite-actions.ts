@@ -6,6 +6,11 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 
+function generatePassword(length = 12): string {
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
 export async function sendInvestorInvite({
   companyId,
   assetId,
@@ -17,60 +22,111 @@ export async function sendInvestorInvite({
 }) {
   const user = await requireRole("EDITOR");
 
-  const token = Array.from({ length: 32 }, () => Math.random().toString(36).charAt(2)).join("");
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
   const [asset, company] = await Promise.all([
     prisma.asset.findUniqueOrThrow({ where: { id: assetId } }),
     prisma.company.findUniqueOrThrow({ where: { id: companyId } }),
   ]);
 
+  // Check if an INVESTOR user already exists for this company+email
+  let investorUser = await prisma.user.findFirst({
+    where: { email, companyId, role: "INVESTOR" },
+  });
+
+  let plainPassword: string | null = null;
+
+  if (!investorUser) {
+    // Auto-create investor account
+    plainPassword = generatePassword();
+    const passwordHash = await bcrypt.hash(plainPassword, 12);
+
+    investorUser = await prisma.user.create({
+      data: {
+        email,
+        name: company.contactName || company.name,
+        passwordHash,
+        role: "INVESTOR",
+        companyId,
+      },
+    });
+  } else {
+    // User exists — generate a new password so they get fresh credentials
+    plainPassword = generatePassword();
+    const passwordHash = await bcrypt.hash(plainPassword, 12);
+    await prisma.user.update({
+      where: { id: investorUser.id },
+      data: { passwordHash },
+    });
+  }
+
+  // Create invite record for tracking
+  const token = Array.from({ length: 32 }, () => Math.random().toString(36).charAt(2)).join("");
   const invite = await prisma.investorInvite.create({
     data: {
       companyId,
       assetId,
       email,
       token,
-      expiresAt,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      acceptedAt: new Date(), // auto-accepted since account is created
       createdById: user.id,
     },
   });
 
-  const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/${token}`;
+  const loginUrl = `${process.env.NEXTAUTH_URL}/login`;
 
   try {
     await sendEmail({
       to: email,
-      subject: `You're invited to review ${asset.title}`,
+      subject: `Your access to ${asset.title} — Investment Portal`,
       html: `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #b8860b, #daa520); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">Investment Tracker</h1>
+            <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">Investment Portal</h1>
           </div>
-          <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <h2 style="color: #1a1a1a; margin-top: 0;">You've been invited</h2>
+          <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
+            <h2 style="color: #1a1a1a; margin-top: 0;">Welcome, ${company.name}</h2>
             <p style="color: #4b5563; line-height: 1.6;">
-              <strong>${company.name}</strong> has invited you to review the investment opportunity
-              <strong>${asset.title}</strong>.
+              You have been granted access to review the investment opportunity
+              <strong>${asset.title}</strong> in <strong>${asset.city}, ${asset.country}</strong>.
             </p>
             <p style="color: #4b5563; line-height: 1.6;">
-              Click the button below to access your investor portal and view deal materials.
+              Use the credentials below to log in to your investor portal:
             </p>
+
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 24px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="color: #6b7280; padding: 6px 0; font-size: 14px; width: 80px;">Email</td>
+                  <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600;">${email}</td>
+                </tr>
+                <tr>
+                  <td style="color: #6b7280; padding: 6px 0; font-size: 14px;">Password</td>
+                  <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600; font-family: monospace; letter-spacing: 1px;">${plainPassword}</td>
+                </tr>
+              </table>
+            </div>
+
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${inviteUrl}"
+              <a href="${loginUrl}"
                  style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
-                View Investment Opportunity
+                Log in to Portal
               </a>
             </div>
-            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 0;">
-              This invitation expires in 30 days. If you did not expect this email, you can safely ignore it.
+
+            <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">
+              Keep these credentials secure. If you need assistance, contact the deal team directly.
+            </p>
+          </div>
+          <div style="background: #f9fafb; padding: 16px 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center;">
+              ${asset.title} &middot; ${asset.city}, ${asset.country}
             </p>
           </div>
         </div>
       `,
     });
   } catch (e) {
-    console.error("Email send failed (invite still created):", e);
+    console.error("Email send failed (account still created):", e);
   }
 
   await prisma.activityLog.create({
@@ -82,69 +138,17 @@ export async function sendInvestorInvite({
         email,
         assetId,
         companyId,
-        assetName: asset.title,
+        assetTitle: asset.title,
         companyName: company.name,
       },
       userId: user.id,
     },
   });
 
-  revalidatePath("/invites");
+  revalidatePath("/admin/invites");
   revalidatePath(`/assets/${assetId}`);
 
   return invite;
-}
-
-export async function acceptInvite(token: string, password?: string) {
-  const invite = await prisma.investorInvite.findUnique({
-    where: { token },
-    include: { company: true },
-  });
-
-  if (!invite) throw new Error("Invalid invite token");
-  if (invite.expiresAt < new Date()) throw new Error("Invite has expired");
-  if (invite.acceptedAt) throw new Error("Invite already accepted");
-
-  // Check if an INVESTOR user already exists for this company
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      companyId: invite.companyId,
-      role: "INVESTOR",
-      email: invite.email,
-    },
-  });
-
-  let userId: string;
-
-  if (existingUser) {
-    userId = existingUser.id;
-  } else {
-    const pw = password || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    const passwordHash = await bcrypt.hash(pw, 12);
-
-    const newUser = await prisma.user.create({
-      data: {
-        email: invite.email,
-        name: invite.company.contactName || invite.company.name,
-        passwordHash,
-        role: "INVESTOR",
-        companyId: invite.companyId,
-      },
-    });
-
-    userId = newUser.id;
-  }
-
-  await prisma.investorInvite.update({
-    where: { id: invite.id },
-    data: { acceptedAt: new Date() },
-  });
-
-  return {
-    userId,
-    email: invite.email,
-    companyId: invite.companyId,
-  };
 }
 
 export async function getInvites(assetId?: string) {
@@ -155,6 +159,7 @@ export async function getInvites(assetId?: string) {
     include: {
       company: true,
       asset: true,
+      createdBy: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
