@@ -141,7 +141,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           const Icon = config.icon;
 
           const stageDocs = tracking.documents.filter((d: any) => d.stage.key === ss.stage.key);
-          const stageContent = contents.filter((c: any) => c.stageKey === ss.stage.key);
+          // Don't show AssetContent for stages that have per-company Document records
+          // (avoids duplicate NDA showing from both Document + AssetContent)
+          const stageContent = stageDocs.length > 0
+            ? []
+            : contents.filter((c: any) => c.stageKey === ss.stage.key);
           const isExpanded = state !== "locked";
           const description = STAGE_DESCRIPTIONS[ss.stage.key] || "";
 
@@ -211,6 +215,9 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                   {/* Documents */}
                   {stageDocs.map((doc: any) => {
                     const activeToken = doc.signingTokens?.[0]?.token;
+                    const stageAlreadyDone = ss.status === "COMPLETED";
+                    const canSign = doc.status === "PENDING" && activeToken && !stageAlreadyDone;
+
                     return (
                       <div key={doc.id} className="rounded-lg border bg-white p-4">
                         <div className="flex items-center justify-between">
@@ -221,6 +228,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                               <p className="text-[11px] text-muted-foreground">
                                 {doc.status === "SIGNED"
                                   ? `Signed by ${doc.signedByName} on ${formatDate(doc.signedAt)}`
+                                  : stageAlreadyDone
+                                  ? "Stage completed"
                                   : doc.status === "PENDING"
                                   ? "Awaiting your signature"
                                   : doc.status}
@@ -229,7 +238,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {doc.status === "PENDING" && activeToken && (
+                            {canSign && (
                               <Button
                                 size="sm"
                                 onClick={() => {
