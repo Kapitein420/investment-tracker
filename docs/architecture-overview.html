@@ -16,7 +16,7 @@
   html{scroll-behavior:smooth}
   body{
     font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
-    background:var(--bg);color:var(--white);line-height:1.6;
+    background:var(--bg);color:var(--white);line-height:1.7;
     -webkit-font-smoothing:antialiased;
   }
 
@@ -27,14 +27,16 @@
     border-bottom:1px solid var(--bg3);padding:12px 0;
   }
   nav ul{
-    display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
-    list-style:none;max-width:1100px;margin:0 auto;padding:0 20px;
+    display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
+    list-style:none;max-width:1200px;margin:0 auto;padding:0 20px;
   }
   nav a{
     color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;
     padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap;
   }
   nav a:hover{color:var(--gold);background:var(--bg3)}
+  nav a.ext{color:var(--gold-dim);border:1px solid var(--bg4)}
+  nav a.ext:hover{color:var(--gold);border-color:var(--gold-dim)}
 
   /* LAYOUT */
   .container{max-width:1100px;margin:0 auto;padding:0 24px}
@@ -50,38 +52,27 @@
     margin-bottom:8px;
   }
   section h2{font-size:28px;font-weight:700;margin-bottom:28px}
-  .divider{
-    width:60px;height:3px;background:var(--gold);border-radius:2px;
-    margin:8px 0 20px;
-  }
+  .divider{width:60px;height:3px;background:var(--gold);border-radius:2px;margin:8px 0 20px}
 
   /* CARDS */
   .card{
     background:var(--bg2);border:1px solid var(--bg3);
     border-radius:var(--radius);padding:28px;margin-bottom:24px;
   }
+  .card h3{font-size:18px;font-weight:600;color:var(--gold-light);margin-bottom:12px}
+  .card p,.card li{font-size:14px;color:var(--gray)}
+  .card ul{list-style:none;padding:0}
+  .card li{padding:4px 0;padding-left:18px;position:relative}
+  .card li::before{content:'';position:absolute;left:0;top:12px;width:6px;height:6px;border-radius:50%;background:var(--gold-dim)}
 
-  /* SECTION 1 — ARCH DIAGRAM */
-  .arch-svg{width:100%;max-width:960px;margin:0 auto;display:block}
+  /* SVG */
+  .arch-svg,.erd-svg,.flow-svg{width:100%;max-width:1000px;margin:0 auto;display:block}
 
-  /* SECTION 2 — ERD */
-  .erd-svg{width:100%;max-width:960px;margin:0 auto;display:block}
+  /* TWO-COL */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:768px){.two-col{grid-template-columns:1fr}}
 
-  /* SECTION 3 — TIMELINE */
-  .timeline{position:relative;padding-left:40px}
-  .timeline::before{
-    content:'';position:absolute;left:15px;top:0;bottom:0;
-    width:2px;background:var(--bg4);
-  }
-  .timeline-item{position:relative;margin-bottom:20px}
-  .timeline-dot{
-    position:absolute;left:-33px;top:6px;width:14px;height:14px;
-    border-radius:50%;border:2px solid var(--gold);background:var(--bg);
-  }
-  .timeline-item h3{font-size:15px;font-weight:600;color:var(--gold-light)}
-  .timeline-item p{font-size:13px;color:var(--gray);margin-top:2px}
-
-  /* SECTION 4 — PIPELINE */
+  /* PIPELINE */
   .pipeline-flow{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:32px}
   .stage-box{
     background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius);
@@ -98,491 +89,754 @@
   .s-amber{background:rgba(240,160,48,.15);color:var(--amber)}
   .s-red{background:rgba(232,69,60,.15);color:var(--red)}
   .arrow-right{
-    display:flex;align-items:center;font-size:22px;color:var(--gray-dim);
-    flex:0 0 24px;justify-content:center;
-  }
-  .pipeline-note{
-    text-align:center;color:var(--gray);font-size:13px;
-    max-width:680px;margin:0 auto;
+    display:flex;align-items:center;color:var(--bg4);font-size:22px;
+    padding:0 2px;user-select:none;
   }
 
-  /* SECTION 5 — TECH GRID */
-  .tech-grid{
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;
+  /* ROLE TABLE */
+  .role-table{width:100%;border-collapse:collapse;font-size:13px}
+  .role-table th{
+    background:var(--bg3);color:var(--gold);font-weight:600;
+    padding:12px 14px;text-align:left;border-bottom:2px solid var(--bg4);
   }
+  .role-table td{
+    padding:10px 14px;border-bottom:1px solid var(--bg3);color:var(--gray);
+  }
+  .role-table tr:hover td{background:var(--bg2)}
+  .check{color:var(--green)}
+  .cross{color:var(--red);opacity:.4}
+
+  /* TECH GRID */
+  .tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
   .tech-card{
     background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius);
-    padding:18px;transition:.2s;
+    padding:20px;text-align:center;transition:.2s;
   }
   .tech-card:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
-  .tech-card h4{font-size:14px;font-weight:700;color:var(--white);margin-bottom:4px}
+  .tech-icon{font-size:28px;margin-bottom:8px}
+  .tech-card h4{font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px}
   .tech-card p{font-size:12px;color:var(--gray)}
 
-  /* SECTION 6 — PERMISSIONS TABLE */
-  .perm-table{width:100%;border-collapse:collapse;font-size:13px}
-  .perm-table th{
-    text-align:left;padding:12px 16px;font-size:11px;
-    text-transform:uppercase;letter-spacing:1px;color:var(--gold);
-    border-bottom:2px solid var(--bg4);background:var(--bg2);
-  }
-  .perm-table td{
-    padding:10px 16px;border-bottom:1px solid var(--bg3);
-  }
-  .perm-table tr:hover td{background:var(--bg3)}
-  .check{color:var(--green);font-weight:700}
-  .dash{color:var(--gray-dim)}
-
-  /* RESPONSIVE */
-  @media(max-width:700px){
-    header h1{font-size:28px}
-    section h2{font-size:22px}
-    .pipeline-flow{flex-direction:column;align-items:center}
-    .arrow-right{transform:rotate(90deg)}
-    .stage-box{max-width:260px}
+  /* FOOTER */
+  footer{
+    text-align:center;padding:40px 20px;color:var(--gray-dim);
+    font-size:12px;border-top:1px solid var(--bg3);margin-top:40px;
   }
 </style>
 </head>
 <body>
 
-<!-- NAVIGATION -->
 <nav>
   <ul>
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#data-model">Data Model</a></li>
-    <li><a href="#build-process">Build Process</a></li>
-    <li><a href="#pipeline">Pipeline Flow</a></li>
+    <li><a href="#portals">Two Portals</a></li>
+    <li><a href="#investor-journey">Investor Journey</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#pipeline">Pipeline Stages</a></li>
+    <li><a href="#roles">Role Permissions</a></li>
     <li><a href="#tech-stack">Tech Stack</a></li>
-    <li><a href="#permissions">Permissions</a></li>
+    <li><a href="vendor-guide.html" class="ext">Vendor Guide &rarr;</a></li>
   </ul>
 </nav>
 
-<!-- HEADER -->
 <header>
   <h1>Investment <span>Tracker</span></h1>
-  <p>Full-stack deal pipeline management &mdash; Architecture &amp; Build Overview</p>
+  <p>Architecture Overview &mdash; Full-stack deal pipeline with Admin + Investor portals</p>
 </header>
 
 <div class="container">
 
-<!-- ============================================================ -->
-<!-- SECTION 1: SYSTEM ARCHITECTURE -->
-<!-- ============================================================ -->
-<section id="architecture">
-  <span class="section-label">Section 1</span>
-  <h2>What We Built &mdash; System Architecture</h2>
-  <div class="divider"></div>
-  <div class="card" style="padding:32px 16px">
-    <svg class="arch-svg" viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg">
-      <!-- defs -->
-      <defs>
-        <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#d4a843"/>
-        </marker>
-        <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#555a6e"/>
-        </marker>
-        <linearGradient id="boxGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#1e2130"/><stop offset="100%" stop-color="#161921"/>
-        </linearGradient>
-      </defs>
+  <!-- ============================================================ -->
+  <!-- SECTION 1: SYSTEM ARCHITECTURE -->
+  <!-- ============================================================ -->
+  <section id="architecture">
+    <span class="section-label">Section 1</span>
+    <h2>System Architecture</h2>
+    <div class="divider"></div>
 
-      <!-- BROWSER -->
-      <rect x="40" y="50" width="210" height="130" rx="10" fill="url(#boxGrad)" stroke="#252838" stroke-width="1.5"/>
-      <rect x="40" y="50" width="210" height="4" rx="2" fill="#4a9eff"/>
-      <text x="145" y="85" text-anchor="middle" fill="#f0f0f4" font-size="15" font-weight="700">Browser</text>
-      <text x="145" y="108" text-anchor="middle" fill="#8b8fa3" font-size="11">Next.js Frontend</text>
-      <text x="145" y="125" text-anchor="middle" fill="#555a6e" font-size="10">React &middot; TanStack Table</text>
-      <text x="145" y="140" text-anchor="middle" fill="#555a6e" font-size="10">shadcn/ui &middot; Tailwind</text>
+    <svg class="arch-svg" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <!-- Background -->
+      <rect width="960" height="620" rx="12" fill="#161921"/>
 
-      <!-- SERVER -->
-      <rect x="345" y="50" width="210" height="130" rx="10" fill="url(#boxGrad)" stroke="#252838" stroke-width="1.5"/>
-      <rect x="345" y="50" width="210" height="4" rx="2" fill="#d4a843"/>
-      <text x="450" y="85" text-anchor="middle" fill="#f0f0f4" font-size="15" font-weight="700">Server</text>
-      <text x="450" y="108" text-anchor="middle" fill="#8b8fa3" font-size="11">Next.js App Router</text>
-      <text x="450" y="125" text-anchor="middle" fill="#555a6e" font-size="10">Server Actions &middot; NextAuth</text>
-      <text x="450" y="140" text-anchor="middle" fill="#555a6e" font-size="10">Middleware &middot; Zod Validation</text>
+      <!-- TIER: Browser -->
+      <rect x="30" y="20" width="900" height="140" rx="10" fill="#1c1f2b" stroke="#252838" stroke-width="1.5"/>
+      <text x="50" y="50" fill="#d4a843" font-size="13" font-weight="700" font-family="system-ui" letter-spacing="2">BROWSER</text>
 
-      <!-- DATABASE -->
-      <rect x="650" y="50" width="210" height="130" rx="10" fill="url(#boxGrad)" stroke="#252838" stroke-width="1.5"/>
-      <rect x="650" y="50" width="210" height="4" rx="2" fill="#3ecf6e"/>
-      <text x="755" y="85" text-anchor="middle" fill="#f0f0f4" font-size="15" font-weight="700">Database</text>
-      <text x="755" y="108" text-anchor="middle" fill="#8b8fa3" font-size="11">Supabase PostgreSQL</text>
-      <text x="755" y="125" text-anchor="middle" fill="#555a6e" font-size="10">Prisma ORM</text>
-      <text x="755" y="140" text-anchor="middle" fill="#555a6e" font-size="10">10 Tables</text>
+      <!-- Admin Portal -->
+      <rect x="60" y="65" width="400" height="80" rx="8" fill="#252838" stroke="#d4a843" stroke-width="1" opacity=".7"/>
+      <text x="80" y="90" fill="#f0d080" font-size="14" font-weight="600" font-family="system-ui">Admin Portal</text>
+      <text x="80" y="110" fill="#8b8fa3" font-size="11" font-family="system-ui">React + TanStack Table + shadcn/ui</text>
+      <text x="80" y="126" fill="#8b8fa3" font-size="11" font-family="system-ui">Pipeline table, KPIs, document mgmt, user admin</text>
 
-      <!-- Arrows: Browser <-> Server -->
-      <line x1="250" y1="105" x2="340" y2="105" stroke="#d4a843" stroke-width="1.5" marker-end="url(#ah)"/>
-      <line x1="345" y1="125" x2="255" y2="125" stroke="#d4a843" stroke-width="1.5" marker-end="url(#ah)"/>
-      <text x="297" y="99" text-anchor="middle" fill="#8b8fa3" font-size="9">requests</text>
-      <text x="297" y="140" text-anchor="middle" fill="#8b8fa3" font-size="9">responses</text>
+      <!-- Investor Portal -->
+      <rect x="500" y="65" width="400" height="80" rx="8" fill="#252838" stroke="#d4a843" stroke-width="1" opacity=".7"/>
+      <text x="520" y="90" fill="#f0d080" font-size="14" font-weight="600" font-family="system-ui">Investor Portal</text>
+      <text x="520" y="110" fill="#8b8fa3" font-size="11" font-family="system-ui">Guided journey + Signing modal</text>
+      <text x="520" y="126" fill="#8b8fa3" font-size="11" font-family="system-ui">Deal dashboard, NDA signing, gated IM content</text>
 
-      <!-- Arrows: Server <-> Database -->
-      <line x1="555" y1="105" x2="645" y2="105" stroke="#d4a843" stroke-width="1.5" marker-end="url(#ah)"/>
-      <line x1="650" y1="125" x2="560" y2="125" stroke="#d4a843" stroke-width="1.5" marker-end="url(#ah)"/>
-      <text x="602" y="99" text-anchor="middle" fill="#8b8fa3" font-size="9">queries</text>
-      <text x="602" y="140" text-anchor="middle" fill="#8b8fa3" font-size="9">results</text>
+      <!-- Arrows down -->
+      <line x1="260" y1="160" x2="260" y2="195" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4"/>
+      <polygon points="255,195 265,195 260,205" fill="#d4a843"/>
+      <line x1="700" y1="160" x2="700" y2="195" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4"/>
+      <polygon points="695,195 705,195 700,205" fill="#d4a843"/>
 
-      <!-- GITHUB -->
-      <rect x="120" y="270" width="170" height="90" rx="10" fill="url(#boxGrad)" stroke="#252838" stroke-width="1.5"/>
-      <rect x="120" y="270" width="170" height="4" rx="2" fill="#8b8fa3"/>
-      <text x="205" y="305" text-anchor="middle" fill="#f0f0f4" font-size="14" font-weight="700">GitHub</text>
-      <text x="205" y="325" text-anchor="middle" fill="#8b8fa3" font-size="11">Source Control</text>
-      <text x="205" y="342" text-anchor="middle" fill="#555a6e" font-size="10">Push to main</text>
+      <!-- TIER: Server -->
+      <rect x="30" y="205" width="900" height="150" rx="10" fill="#1c1f2b" stroke="#252838" stroke-width="1.5"/>
+      <text x="50" y="235" fill="#d4a843" font-size="13" font-weight="700" font-family="system-ui" letter-spacing="2">SERVER</text>
 
-      <!-- VERCEL -->
-      <rect x="365" y="270" width="170" height="90" rx="10" fill="url(#boxGrad)" stroke="#252838" stroke-width="1.5"/>
-      <rect x="365" y="270" width="170" height="4" rx="2" fill="#f0f0f4"/>
-      <text x="450" y="305" text-anchor="middle" fill="#f0f0f4" font-size="14" font-weight="700">Vercel</text>
-      <text x="450" y="325" text-anchor="middle" fill="#8b8fa3" font-size="11">Deployment</text>
-      <text x="450" y="342" text-anchor="middle" fill="#555a6e" font-size="10">Auto-deploy from GitHub</text>
+      <rect x="60" y="250" width="190" height="52" rx="8" fill="#252838"/>
+      <text x="82" y="272" fill="#f0f0f4" font-size="12" font-weight="600" font-family="system-ui">Next.js 14</text>
+      <text x="82" y="288" fill="#8b8fa3" font-size="10" font-family="system-ui">App Router + Server Actions</text>
 
-      <!-- GitHub -> Vercel -->
-      <line x1="290" y1="315" x2="360" y2="315" stroke="#555a6e" stroke-width="1.5" marker-end="url(#ah-gray)"/>
-      <text x="325" y="308" text-anchor="middle" fill="#555a6e" font-size="9">webhook</text>
+      <rect x="270" y="250" width="190" height="52" rx="8" fill="#252838"/>
+      <text x="292" y="272" fill="#f0f0f4" font-size="12" font-weight="600" font-family="system-ui">NextAuth (JWT)</text>
+      <text x="292" y="288" fill="#8b8fa3" font-size="10" font-family="system-ui">4 roles: ADMIN/EDITOR/VIEWER/INVESTOR</text>
 
-      <!-- Vercel -> Server -->
-      <line x1="450" y1="270" x2="450" y2="185" stroke="#555a6e" stroke-width="1.5" marker-end="url(#ah-gray)"/>
-      <text x="462" y="230" fill="#555a6e" font-size="9">deploys</text>
+      <rect x="480" y="250" width="190" height="52" rx="8" fill="#252838"/>
+      <text x="502" y="272" fill="#f0f0f4" font-size="12" font-weight="600" font-family="system-ui">Middleware</text>
+      <text x="502" y="288" fill="#8b8fa3" font-size="10" font-family="system-ui">Role-based route protection</text>
+
+      <rect x="690" y="250" width="210" height="52" rx="8" fill="#252838"/>
+      <text x="712" y="272" fill="#f0f0f4" font-size="12" font-weight="600" font-family="system-ui">Zod Validation</text>
+      <text x="712" y="288" fill="#8b8fa3" font-size="10" font-family="system-ui">Server-side schema validation</text>
+
+      <!-- Prisma ORM label -->
+      <rect x="60" y="315" width="840" height="28" rx="6" fill="#252838" stroke="#a8852f" stroke-width="1" opacity=".5"/>
+      <text x="400" y="334" fill="#d4a843" font-size="11" font-weight="600" font-family="system-ui" text-anchor="middle">Prisma ORM &mdash; Type-safe database client</text>
+
+      <!-- Arrows down -->
+      <line x1="200" y1="355" x2="200" y2="395" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4"/>
+      <polygon points="195,395 205,395 200,405" fill="#d4a843"/>
+      <line x1="480" y1="355" x2="480" y2="395" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4"/>
+      <polygon points="475,395 485,395 480,405" fill="#d4a843"/>
+      <line x1="760" y1="355" x2="760" y2="395" stroke="#d4a843" stroke-width="1.5" stroke-dasharray="4"/>
+      <polygon points="755,395 765,395 760,405" fill="#d4a843"/>
+
+      <!-- TIER: Data / Services -->
+      <rect x="30" y="405" width="900" height="195" rx="10" fill="#1c1f2b" stroke="#252838" stroke-width="1.5"/>
+      <text x="50" y="435" fill="#d4a843" font-size="13" font-weight="700" font-family="system-ui" letter-spacing="2">DATA &amp; SERVICES</text>
+
+      <!-- Database -->
+      <rect x="60" y="450" width="260" height="70" rx="8" fill="#252838" stroke="#3ecf6e" stroke-width="1" opacity=".6"/>
+      <text x="82" y="475" fill="#3ecf6e" font-size="13" font-weight="600" font-family="system-ui">Supabase PostgreSQL</text>
+      <text x="82" y="493" fill="#8b8fa3" font-size="11" font-family="system-ui">14 tables via Prisma ORM</text>
+      <text x="82" y="509" fill="#8b8fa3" font-size="11" font-family="system-ui">Connection pooling + migrations</text>
+
+      <!-- Storage -->
+      <rect x="350" y="450" width="260" height="70" rx="8" fill="#252838" stroke="#4a9eff" stroke-width="1" opacity=".6"/>
+      <text x="372" y="475" fill="#4a9eff" font-size="13" font-weight="600" font-family="system-ui">Supabase Storage</text>
+      <text x="372" y="493" fill="#8b8fa3" font-size="11" font-family="system-ui">Private bucket for PDFs</text>
+      <text x="372" y="509" fill="#8b8fa3" font-size="11" font-family="system-ui">Signed URLs (2-hour expiry)</text>
+
+      <!-- Email -->
+      <rect x="640" y="450" width="260" height="70" rx="8" fill="#252838" stroke="#f0a030" stroke-width="1" opacity=".6"/>
+      <text x="662" y="475" fill="#f0a030" font-size="13" font-weight="600" font-family="system-ui">Resend Email API</text>
+      <text x="662" y="493" fill="#8b8fa3" font-size="11" font-family="system-ui">Investor invitation emails</text>
+      <text x="662" y="509" fill="#8b8fa3" font-size="11" font-family="system-ui">Login credentials delivery</text>
+
+      <!-- Deployment -->
+      <rect x="60" y="540" width="840" height="45" rx="8" fill="#252838"/>
+      <text x="400" y="566" fill="#8b8fa3" font-size="12" font-family="system-ui" text-anchor="middle">
+        Deployment: GitHub &rarr; Vercel auto-deploy (preview URLs on PRs, production on main)
+      </text>
     </svg>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================ -->
-<!-- SECTION 2: DATA MODEL / ERD -->
-<!-- ============================================================ -->
-<section id="data-model">
-  <span class="section-label">Section 2</span>
-  <h2>Data Model &mdash; Entity Relationship Overview</h2>
-  <div class="divider"></div>
-  <div class="card" style="padding:32px 16px;overflow-x:auto">
-    <svg class="erd-svg" viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <marker id="dot" markerWidth="6" markerHeight="6" refX="3" refY="3">
-          <circle cx="3" cy="3" r="2.5" fill="#d4a843"/>
-        </marker>
-      </defs>
+  <!-- ============================================================ -->
+  <!-- SECTION 2: DATA MODEL -->
+  <!-- ============================================================ -->
+  <section id="data-model">
+    <span class="section-label">Section 2</span>
+    <h2>Data Model</h2>
+    <div class="divider"></div>
 
-      <!-- Helper: entity box -->
-      <!-- USER -->
-      <rect x="30" y="120" width="140" height="48" rx="8" fill="#1e2130" stroke="#d4a843" stroke-width="1.2"/>
-      <text x="100" y="150" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="700">User</text>
+    <svg class="erd-svg" viewBox="0 0 960 700" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <rect width="960" height="700" rx="12" fill="#161921"/>
 
-      <!-- ASSET -->
-      <rect x="30" y="290" width="140" height="48" rx="8" fill="#1e2130" stroke="#d4a843" stroke-width="1.2"/>
-      <text x="100" y="320" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="700">Asset</text>
-
-      <!-- COMPANY -->
-      <rect x="30" y="450" width="140" height="48" rx="8" fill="#1e2130" stroke="#d4a843" stroke-width="1.2"/>
-      <text x="100" y="480" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="700">Company</text>
-
-      <!-- PIPELINE STAGE -->
-      <rect x="700" y="120" width="160" height="48" rx="8" fill="#1e2130" stroke="#d4a843" stroke-width="1.2"/>
-      <text x="780" y="150" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="700">PipelineStage</text>
+      <!-- Styles for entity boxes -->
+      <style>
+        .ent{fill:#252838;stroke:#3a3d50;stroke-width:1;rx:8}
+        .ent-head{fill:#d4a843;font-size:12px;font-weight:700;font-family:system-ui}
+        .ent-field{fill:#8b8fa3;font-size:10px;font-family:system-ui}
+        .ent-center{fill:#1c1f2b;stroke:#d4a843;stroke-width:1.5;rx:8}
+        .rel-line{stroke:#3a3d50;stroke-width:1;stroke-dasharray:4}
+      </style>
 
       <!-- CENTER: AssetCompanyTracking -->
-      <rect x="330" y="280" width="220" height="56" rx="8" fill="#1e2130" stroke="#d4a843" stroke-width="2"/>
-      <text x="440" y="313" text-anchor="middle" fill="#d4a843" font-size="13" font-weight="700">AssetCompanyTracking</text>
+      <rect class="ent-center" x="340" y="280" width="280" height="100"/>
+      <text class="ent-head" x="400" y="310">AssetCompanyTracking</text>
+      <text class="ent-field" x="360" y="332">assetId, companyId, currentStageId</text>
+      <text class="ent-field" x="360" y="348">assignedUserId, nboAmount, notes</text>
+      <text class="ent-field" x="360" y="364">createdAt, updatedAt</text>
 
-      <!-- STAGE STATUS -->
-      <rect x="690" y="280" width="160" height="48" rx="8" fill="#1e2130" stroke="#252838" stroke-width="1.2"/>
-      <text x="770" y="310" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="600">StageStatus</text>
+      <!-- TOP ROW -->
+      <!-- User -->
+      <rect class="ent" x="30" y="30" width="200" height="80"/>
+      <text class="ent-head" x="50" y="55">User</text>
+      <text class="ent-field" x="50" y="73">id, name, email, password</text>
+      <text class="ent-field" x="50" y="88">role, companyId, isActive</text>
 
-      <!-- COMMENT -->
-      <rect x="360" y="420" width="140" height="48" rx="8" fill="#1e2130" stroke="#252838" stroke-width="1.2"/>
-      <text x="430" y="450" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="600">Comment</text>
+      <!-- Asset -->
+      <rect class="ent" x="380" y="30" width="200" height="80"/>
+      <text class="ent-head" x="400" y="55">Asset</text>
+      <text class="ent-field" x="400" y="73">id, name, description</text>
+      <text class="ent-field" x="400" y="88">sector, askingPrice, status</text>
 
-      <!-- STAGE HISTORY -->
-      <rect x="560" y="420" width="150" height="48" rx="8" fill="#1e2130" stroke="#252838" stroke-width="1.2"/>
-      <text x="635" y="450" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="600">StageHistory</text>
+      <!-- Company -->
+      <rect class="ent" x="730" y="30" width="200" height="80"/>
+      <text class="ent-head" x="750" y="55">Company</text>
+      <text class="ent-field" x="750" y="73">id, name, type</text>
+      <text class="ent-field" x="750" y="88">contactEmail</text>
 
-      <!-- ACTIVITY LOG -->
-      <rect x="220" y="120" width="140" height="48" rx="8" fill="#1e2130" stroke="#252838" stroke-width="1.2"/>
-      <text x="290" y="150" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="600">ActivityLog</text>
+      <!-- LEFT COLUMN -->
+      <!-- PipelineStage -->
+      <rect class="ent" x="30" y="180" width="200" height="70"/>
+      <text class="ent-head" x="50" y="205">PipelineStage</text>
+      <text class="ent-field" x="50" y="223">id, name, order, color</text>
 
-      <!-- SAVED VIEW -->
-      <rect x="220" y="30" width="140" height="48" rx="8" fill="#1e2130" stroke="#252838" stroke-width="1.2"/>
-      <text x="290" y="60" text-anchor="middle" fill="#f0f0f4" font-size="12" font-weight="600">SavedView</text>
+      <!-- StageStatus -->
+      <rect class="ent" x="30" y="300" width="200" height="70"/>
+      <text class="ent-head" x="50" y="325">StageStatus</text>
+      <text class="ent-field" x="50" y="343">id, label, color, stageId</text>
 
-      <!-- LINES -->
-      <!-- User -> ActivityLog -->
-      <line x1="170" y1="144" x2="220" y2="144" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <!-- User -> AssetCompanyTracking -->
-      <line x1="100" y1="168" x2="100" y2="220" stroke="#555a6e" stroke-width="1"/>
-      <line x1="100" y1="220" x2="330" y2="300" stroke="#555a6e" stroke-width="1" marker-end="url(#dot)"/>
-      <!-- User -> Comment (via ACT) -->
-      <line x1="60" y1="168" x2="60" y2="444" stroke="#555a6e" stroke-width="1"/>
-      <line x1="60" y1="444" x2="360" y2="444" stroke="#555a6e" stroke-width="1" marker-end="url(#dot)"/>
-      <!-- User -> StageHistory -->
-      <line x1="140" y1="168" x2="140" y2="200" stroke="#555a6e" stroke-width="1"/>
-      <line x1="140" y1="200" x2="600" y2="200" stroke="#555a6e" stroke-width="1"/>
-      <line x1="600" y1="200" x2="635" y2="420" stroke="#555a6e" stroke-width="1" marker-end="url(#dot)"/>
+      <!-- Comment -->
+      <rect class="ent" x="30" y="420" width="200" height="70"/>
+      <text class="ent-head" x="50" y="445">Comment</text>
+      <text class="ent-field" x="50" y="463">id, text, userId, trackingId</text>
 
+      <!-- RIGHT COLUMN -->
+      <!-- StageHistory -->
+      <rect class="ent" x="730" y="180" width="200" height="70"/>
+      <text class="ent-head" x="750" y="205">StageHistory</text>
+      <text class="ent-field" x="750" y="223">id, trackingId, stageId, changedBy</text>
+
+      <!-- ActivityLog -->
+      <rect class="ent" x="730" y="300" width="200" height="80"/>
+      <text class="ent-head" x="750" y="325">ActivityLog</text>
+      <text class="ent-field" x="750" y="343">id, action, entityType</text>
+      <text class="ent-field" x="750" y="358">entityId, userId, metadata</text>
+
+      <!-- SavedView -->
+      <rect class="ent" x="730" y="420" width="200" height="70"/>
+      <text class="ent-head" x="750" y="445">SavedView</text>
+      <text class="ent-field" x="750" y="463">id, name, filters, userId</text>
+
+      <!-- BOTTOM ROW -->
+      <!-- Document -->
+      <rect class="ent" x="30" y="560" width="200" height="80"/>
+      <text class="ent-head" x="50" y="585">Document</text>
+      <text class="ent-field" x="50" y="603">id, name, type, url</text>
+      <text class="ent-field" x="50" y="618">trackingId, uploadedBy</text>
+
+      <!-- SigningToken -->
+      <rect class="ent" x="280" y="560" width="200" height="80"/>
+      <text class="ent-head" x="300" y="585">SigningToken</text>
+      <text class="ent-field" x="300" y="603">id, token, documentId</text>
+      <text class="ent-field" x="300" y="618">usedAt, expiresAt</text>
+
+      <!-- InvestorInvite -->
+      <rect class="ent" x="530" y="560" width="200" height="80"/>
+      <text class="ent-head" x="550" y="585">InvestorInvite</text>
+      <text class="ent-field" x="550" y="603">id, email, companyId</text>
+      <text class="ent-field" x="550" y="618">invitedBy, sentAt, acceptedAt</text>
+
+      <!-- AssetContent -->
+      <rect class="ent" x="730" y="560" width="200" height="80"/>
+      <text class="ent-head" x="750" y="585">AssetContent</text>
+      <text class="ent-field" x="750" y="603">id, assetId, stage, type</text>
+      <text class="ent-field" x="750" y="618">content, gatedByNDA</text>
+
+      <!-- RELATIONSHIP LINES to center -->
+      <!-- User -> ACT -->
+      <line class="rel-line" x1="130" y1="110" x2="400" y2="280"/>
       <!-- Asset -> ACT -->
-      <line x1="170" y1="314" x2="330" y2="308" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <!-- Asset -> SavedView -->
-      <line x1="100" y1="290" x2="100" y2="210" stroke="#555a6e" stroke-width="1"/>
-      <line x1="100" y1="210" x2="240" y2="60" stroke="#555a6e" stroke-width="1"/>
-      <line x1="240" y1="60" x2="220" y2="54" stroke="#555a6e" stroke-width="1" marker-end="url(#dot)"/>
-
+      <line class="rel-line" x1="480" y1="110" x2="480" y2="280"/>
       <!-- Company -> ACT -->
-      <line x1="170" y1="474" x2="370" y2="336" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-
-      <!-- ACT -> StageStatus -->
-      <line x1="550" y1="304" x2="690" y2="304" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <!-- ACT -> Comment -->
-      <line x1="430" y1="336" x2="430" y2="420" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <!-- ACT -> StageHistory -->
-      <line x1="500" y1="336" x2="610" y2="420" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-
-      <!-- PipelineStage -> StageStatus -->
-      <line x1="780" y1="168" x2="770" y2="280" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <!-- PipelineStage -> StageHistory -->
-      <line x1="740" y1="168" x2="660" y2="420" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+      <line class="rel-line" x1="830" y1="110" x2="560" y2="280"/>
+      <!-- PipelineStage -> ACT -->
+      <line class="rel-line" x1="230" y1="215" x2="340" y2="310"/>
+      <!-- StageStatus -> ACT -->
+      <line class="rel-line" x1="230" y1="335" x2="340" y2="335"/>
+      <!-- Comment -> ACT -->
+      <line class="rel-line" x1="230" y1="450" x2="400" y2="380"/>
+      <!-- StageHistory -> ACT -->
+      <line class="rel-line" x1="730" y1="215" x2="620" y2="310"/>
+      <!-- ActivityLog -> ACT -->
+      <line class="rel-line" x1="730" y1="335" x2="620" y2="335"/>
+      <!-- SavedView -> User (indirect) -->
+      <line class="rel-line" x1="730" y1="455" x2="620" y2="370"/>
+      <!-- Document -> ACT -->
+      <line class="rel-line" x1="130" y1="560" x2="400" y2="380"/>
+      <!-- SigningToken -> Document -->
+      <line class="rel-line" x1="380" y1="560" x2="340" y2="500" stroke="#d4a843" stroke-dasharray="4"/>
+      <!-- InvestorInvite -> Company -->
+      <line class="rel-line" x1="630" y1="560" x2="830" y2="110"/>
+      <!-- AssetContent -> Asset -->
+      <line class="rel-line" x1="830" y1="560" x2="530" y2="110"/>
 
       <!-- Legend -->
-      <circle cx="40" cy="520" r="3" fill="#d4a843"/>
-      <text x="50" y="524" fill="#8b8fa3" font-size="10">Core entity (gold border)</text>
-      <circle cx="240" cy="520" r="3" fill="#555a6e"/>
-      <text x="250" y="524" fill="#8b8fa3" font-size="10">Junction / leaf entity</text>
-      <line x1="430" y1="520" x2="470" y2="520" stroke="#555a6e" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
-      <text x="480" y="524" fill="#8b8fa3" font-size="10">Relationship</text>
+      <rect x="30" y="665" width="900" height="24" rx="4" fill="#1c1f2b"/>
+      <line x1="50" y1="677" x2="90" y2="677" stroke="#3a3d50" stroke-width="1" stroke-dasharray="4"/>
+      <text x="98" y="681" fill="#8b8fa3" font-size="10" font-family="system-ui">Relationship</text>
+      <rect x="180" y="670" width="14" height="14" rx="3" fill="#252838" stroke="#3a3d50" stroke-width="1"/>
+      <text x="200" y="681" fill="#8b8fa3" font-size="10" font-family="system-ui">Entity</text>
+      <rect x="260" y="670" width="14" height="14" rx="3" fill="#1c1f2b" stroke="#d4a843" stroke-width="1.5"/>
+      <text x="280" y="681" fill="#8b8fa3" font-size="10" font-family="system-ui">Junction table (center)</text>
+      <text x="750" y="681" fill="#555a6e" font-size="10" font-family="system-ui">14 tables total</text>
     </svg>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================ -->
-<!-- SECTION 3: BUILD PROCESS TIMELINE -->
-<!-- ============================================================ -->
-<section id="build-process">
-  <span class="section-label">Section 3</span>
-  <h2>Build Process &mdash; Step by Step</h2>
-  <div class="divider"></div>
-  <div class="card">
-    <div class="timeline">
+  <!-- ============================================================ -->
+  <!-- SECTION 3: TWO PORTALS -->
+  <!-- ============================================================ -->
+  <section id="portals">
+    <span class="section-label">Section 3</span>
+    <h2>Two Portals</h2>
+    <div class="divider"></div>
 
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>1. Config Files</h3>
-        <p>package.json, tsconfig.json, tailwind.config.ts, next.config.js, postcss.config</p>
+    <div class="two-col">
+      <div class="card">
+        <h3>Admin Portal</h3>
+        <p style="color:var(--gray-dim);font-size:12px;margin-bottom:16px">Routes: <code style="color:var(--gold);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px">/</code> <code style="color:var(--gold);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px">/assets/[id]</code> <code style="color:var(--gold);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px">/admin/*</code></p>
+        <ul>
+          <li>Pipeline table with inline stage editing</li>
+          <li>Stage summary KPIs + Pipeline Overview funnel</li>
+          <li>Document upload + signing link generation</li>
+          <li>NDA approval workflow</li>
+          <li>User management and stage configuration</li>
+          <li>Investor invitations with login credentials</li>
+          <li>Timeline view of all activity</li>
+          <li>CSV export of pipeline data</li>
+        </ul>
       </div>
 
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>2. Prisma Schema</h3>
-        <p>10 models, enums (Role, StatusValue), all relations and indexes defined</p>
+      <div class="card">
+        <h3>Investor Portal</h3>
+        <p style="color:var(--gray-dim);font-size:12px;margin-bottom:16px">Routes: <code style="color:var(--gold);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px">/portal</code> <code style="color:var(--gold);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px">/portal/[assetId]</code></p>
+        <ul>
+          <li>Deal dashboard showing active opportunities</li>
+          <li>Guided step-by-step journey (Teaser, NDA, IM, Viewing, NBO)</li>
+          <li>Inline document signing (modal with PDF + signature pad)</li>
+          <li>Download signed documents</li>
+          <li>Gated content: IM unlocks only after NDA approval</li>
+          <li>Progress tracking per deal</li>
+        </ul>
       </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>3. Auth System</h3>
-        <p>NextAuth credentials provider, JWT strategy, middleware route guards, role-based access</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>4. Lib Utilities</h3>
-        <p>Zod validators, stage derivation logic, permission helpers, date/currency formatters</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>5. UI Components</h3>
-        <p>shadcn/ui primitives: Button, Input, Dialog, Select, Popover, Badge, Table, Tabs, Toast</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>6. Server Actions</h3>
-        <p>5 action files: asset CRUD, tracking management, comments, admin ops, saved views</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>7. Application Pages</h3>
-        <p>Login, Dashboard, Asset Detail, Admin/Users, Admin/Stages &mdash; all with layouts and loading states</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>8. Dashboard Components</h3>
-        <p>Pipeline table, stage cells, column filters, detail drawer, KPI strip with deal counts</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>9. Seed Data</h3>
-        <p>3 users, 5 pipeline stages, 1 asset, 18 companies, 90 stage statuses, 25 comments</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>10. Docker + Supabase</h3>
-        <p>docker-compose.yml, SQL generation via prisma migrate, .env configuration</p>
-      </div>
-
-      <div class="timeline-item"><div class="timeline-dot"></div>
-        <h3>11. GitHub + Vercel Deployment</h3>
-        <p>Repository created, Vercel project linked, auto-deploy on push to main</p>
-      </div>
-
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================ -->
-<!-- SECTION 4: PIPELINE FLOW -->
-<!-- ============================================================ -->
-<section id="pipeline">
-  <span class="section-label">Section 4</span>
-  <h2>Pipeline Flow &mdash; Deal Tracking</h2>
-  <div class="divider"></div>
-  <div class="card">
+  <!-- ============================================================ -->
+  <!-- SECTION 4: INVESTOR JOURNEY FLOW -->
+  <!-- ============================================================ -->
+  <section id="investor-journey">
+    <span class="section-label">Section 4</span>
+    <h2>Investor Journey Flow</h2>
+    <div class="divider"></div>
+
+    <svg class="flow-svg" viewBox="0 0 960 340" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <rect width="960" height="340" rx="12" fill="#161921"/>
+
+      <style>
+        .flow-box{fill:#252838;stroke:#3a3d50;stroke-width:1;rx:10}
+        .flow-box-gold{fill:#252838;stroke:#d4a843;stroke-width:1.5;rx:10}
+        .flow-label{fill:#f0f0f4;font-size:12px;font-weight:600;font-family:system-ui;text-anchor:middle}
+        .flow-sub{fill:#8b8fa3;font-size:10px;font-family:system-ui;text-anchor:middle}
+        .flow-arrow{stroke:#d4a843;stroke-width:1.5;marker-end:url(#arrowGold)}
+      </style>
+
+      <defs>
+        <marker id="arrowGold" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8" fill="#d4a843"/>
+        </marker>
+      </defs>
+
+      <!-- Row 1 -->
+      <rect class="flow-box" x="30" y="30" width="160" height="60"/>
+      <text class="flow-label" x="110" y="57">Admin sends invite</text>
+      <text class="flow-sub" x="110" y="74">via Resend email</text>
+
+      <line class="flow-arrow" x1="190" y1="60" x2="230" y2="60"/>
+
+      <rect class="flow-box" x="235" y="30" width="160" height="60"/>
+      <text class="flow-label" x="315" y="57">Email delivered</text>
+      <text class="flow-sub" x="315" y="74">with login credentials</text>
+
+      <line class="flow-arrow" x1="395" y1="60" x2="435" y2="60"/>
+
+      <rect class="flow-box-gold" x="440" y="30" width="160" height="60"/>
+      <text class="flow-label" x="520" y="57">Investor logs in</text>
+      <text class="flow-sub" x="520" y="74">NextAuth session</text>
+
+      <line class="flow-arrow" x1="600" y1="60" x2="640" y2="60"/>
+
+      <rect class="flow-box" x="645" y="30" width="160" height="60"/>
+      <text class="flow-label" x="725" y="57">Portal dashboard</text>
+      <text class="flow-sub" x="725" y="74">active deals list</text>
+
+      <!-- Arrow down from dashboard -->
+      <line class="flow-arrow" x1="725" y1="90" x2="725" y2="130"/>
+
+      <!-- Row 2 -->
+      <rect class="flow-box-gold" x="645" y="135" width="160" height="60"/>
+      <text class="flow-label" x="725" y="162">Deal detail page</text>
+      <text class="flow-sub" x="725" y="179">guided journey view</text>
+
+      <line class="flow-arrow" x1="645" y1="165" x2="600" y2="165"/>
+
+      <rect class="flow-box" x="440" y="135" width="155" height="60"/>
+      <text class="flow-label" x="518" y="152">Step 1: Teaser</text>
+      <text class="flow-sub" x="518" y="169">public overview</text>
+      <text class="flow-sub" x="518" y="182">of the asset</text>
+
+      <line class="flow-arrow" x1="440" y1="165" x2="400" y2="165"/>
+
+      <rect class="flow-box-gold" x="235" y="135" width="160" height="60"/>
+      <text class="flow-label" x="315" y="157">Step 2: Sign NDA</text>
+      <text class="flow-sub" x="315" y="174">modal + signature pad</text>
+
+      <line class="flow-arrow" x1="235" y1="165" x2="195" y2="165"/>
+
+      <rect class="flow-box" x="30" y="135" width="160" height="60"/>
+      <text class="flow-label" x="110" y="157">Admin reviews</text>
+      <text class="flow-sub" x="110" y="174">approves NDA</text>
+
+      <!-- Arrow down from admin reviews -->
+      <line class="flow-arrow" x1="110" y1="195" x2="110" y2="240"/>
+
+      <!-- Row 3 -->
+      <rect class="flow-box-gold" x="30" y="245" width="160" height="60"/>
+      <text class="flow-label" x="110" y="267">Step 3: IM unlocks</text>
+      <text class="flow-sub" x="110" y="284">gated content access</text>
+
+      <line class="flow-arrow" x1="190" y1="275" x2="235" y2="275"/>
+
+      <rect class="flow-box" x="240" y="245" width="160" height="60"/>
+      <text class="flow-label" x="320" y="267">Step 4: Viewing</text>
+      <text class="flow-sub" x="320" y="284">schedule site visit</text>
+
+      <line class="flow-arrow" x1="400" y1="275" x2="440" y2="275"/>
+
+      <rect class="flow-box-gold" x="445" y="245" width="160" height="60"/>
+      <text class="flow-label" x="525" y="267">Step 5: NBO</text>
+      <text class="flow-sub" x="525" y="284">non-binding offer</text>
+
+      <line class="flow-arrow" x1="605" y1="275" x2="645" y2="275"/>
+
+      <rect x="650" y="250" width="160" height="50" rx="10" fill="#3ecf6e" opacity=".15" stroke="#3ecf6e" stroke-width="1.5"/>
+      <text x="730" y="272" fill="#3ecf6e" font-size="13" font-weight="700" font-family="system-ui" text-anchor="middle">Deal complete</text>
+      <text x="730" y="288" fill="#3ecf6e" font-size="10" font-family="system-ui" text-anchor="middle" opacity=".7">pipeline closed</text>
+    </svg>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: SECURITY ARCHITECTURE -->
+  <!-- ============================================================ -->
+  <section id="security">
+    <span class="section-label">Section 5</span>
+    <h2>Security Architecture</h2>
+    <div class="divider"></div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3>Authentication</h3>
+        <ul>
+          <li>NextAuth JWT sessions with bcrypt password hashing</li>
+          <li>Credential-based provider (email + password)</li>
+          <li>Session includes: userId, role, companyId</li>
+          <li>Middleware route protection on every request</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Authorization</h3>
+        <ul>
+          <li>4 roles: ADMIN, EDITOR, VIEWER, INVESTOR</li>
+          <li>Server-side requireRole() check on all mutations</li>
+          <li>INVESTOR isolation: only sees own company data</li>
+          <li>Role-based routing in middleware</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Data Validation</h3>
+        <ul>
+          <li>Zod schemas validate all Server Action inputs</li>
+          <li>Shared schemas between client forms and server</li>
+          <li>Type-safe end-to-end with TypeScript + Prisma</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Document Security</h3>
+        <ul>
+          <li>Private Supabase Storage bucket (no public access)</li>
+          <li>Signed URLs with 2-hour expiry for document access</li>
+          <li>Signing tokens: one-time use, 30-day expiry</li>
+          <li>NDA approval gating via approvedAt field</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: PIPELINE STAGES -->
+  <!-- ============================================================ -->
+  <section id="pipeline">
+    <span class="section-label">Section 6</span>
+    <h2>Pipeline Stages</h2>
+    <div class="divider"></div>
+
     <div class="pipeline-flow">
       <div class="stage-box">
-        <h4>Teaser</h4>
+        <h4>1. Teaser</h4>
         <span class="status-pill s-gray">Not Started</span>
-        <span class="status-pill s-blue">In Progress</span>
-        <span class="status-pill s-green">Completed</span>
-        <span class="status-pill s-amber">Blocked</span>
+        <span class="status-pill s-blue">Sent</span>
+        <span class="status-pill s-green">Interested</span>
+        <span class="status-pill s-red">Passed</span>
+      </div>
+      <div class="arrow-right">&#9654;</div>
+      <div class="stage-box">
+        <h4>2. NDA</h4>
+        <span class="status-pill s-gray">Not Sent</span>
+        <span class="status-pill s-blue">Sent</span>
+        <span class="status-pill s-amber">Reviewing</span>
+        <span class="status-pill s-green">Signed</span>
         <span class="status-pill s-red">Declined</span>
       </div>
-      <div class="arrow-right">&rarr;</div>
+      <div class="arrow-right">&#9654;</div>
       <div class="stage-box">
-        <h4>NDA</h4>
-        <span class="status-pill s-gray">Not Started</span>
-        <span class="status-pill s-blue">In Progress</span>
-        <span class="status-pill s-green">Completed</span>
-        <span class="status-pill s-amber">Blocked</span>
-        <span class="status-pill s-red">Declined</span>
+        <h4>3. IM</h4>
+        <span class="status-pill s-gray">Not Sent</span>
+        <span class="status-pill s-blue">Sent</span>
+        <span class="status-pill s-green">Reviewed</span>
+        <span class="status-pill s-amber">Questions</span>
       </div>
-      <div class="arrow-right">&rarr;</div>
+      <div class="arrow-right">&#9654;</div>
       <div class="stage-box">
-        <h4>IM</h4>
-        <span class="status-pill s-gray">Not Started</span>
-        <span class="status-pill s-blue">In Progress</span>
+        <h4>4. Viewing</h4>
+        <span class="status-pill s-gray">Not Scheduled</span>
+        <span class="status-pill s-blue">Scheduled</span>
         <span class="status-pill s-green">Completed</span>
-        <span class="status-pill s-amber">Blocked</span>
-        <span class="status-pill s-red">Declined</span>
+        <span class="status-pill s-red">Cancelled</span>
       </div>
-      <div class="arrow-right">&rarr;</div>
+      <div class="arrow-right">&#9654;</div>
       <div class="stage-box">
-        <h4>Viewing</h4>
-        <span class="status-pill s-gray">Not Started</span>
-        <span class="status-pill s-blue">In Progress</span>
-        <span class="status-pill s-green">Completed</span>
-        <span class="status-pill s-amber">Blocked</span>
-        <span class="status-pill s-red">Declined</span>
-      </div>
-      <div class="arrow-right">&rarr;</div>
-      <div class="stage-box">
-        <h4>NBO</h4>
-        <span class="status-pill s-gray">Not Started</span>
-        <span class="status-pill s-blue">In Progress</span>
-        <span class="status-pill s-green">Completed</span>
-        <span class="status-pill s-amber">Blocked</span>
-        <span class="status-pill s-red">Declined</span>
+        <h4>5. NBO</h4>
+        <span class="status-pill s-gray">Pending</span>
+        <span class="status-pill s-blue">Submitted</span>
+        <span class="status-pill s-green">Accepted</span>
+        <span class="status-pill s-amber">Negotiating</span>
+        <span class="status-pill s-red">Rejected</span>
       </div>
     </div>
-    <p class="pipeline-note">
-      Each company row has one status per stage. The system derives the <strong>current stage</strong> from the furthest stage that has an active (In Progress or Completed) status, giving a clear view of pipeline progression.
-    </p>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================ -->
-<!-- SECTION 5: TECH STACK GRID -->
-<!-- ============================================================ -->
-<section id="tech-stack">
-  <span class="section-label">Section 5</span>
-  <h2>Tech Stack</h2>
-  <div class="divider"></div>
-  <div class="tech-grid">
-    <div class="tech-card"><h4>Next.js 14</h4><p>App Router, SSR, Server Actions</p></div>
-    <div class="tech-card"><h4>TypeScript</h4><p>End-to-end type safety</p></div>
-    <div class="tech-card"><h4>Tailwind CSS</h4><p>Utility-first styling</p></div>
-    <div class="tech-card"><h4>shadcn/ui</h4><p>UI component library</p></div>
-    <div class="tech-card"><h4>Prisma</h4><p>Database ORM with type-safe queries</p></div>
-    <div class="tech-card"><h4>PostgreSQL / Supabase</h4><p>Managed relational database</p></div>
-    <div class="tech-card"><h4>NextAuth</h4><p>Authentication with JWT strategy</p></div>
-    <div class="tech-card"><h4>TanStack Table</h4><p>Data table with sorting &amp; filtering</p></div>
-    <div class="tech-card"><h4>React Hook Form + Zod</h4><p>Form handling &amp; schema validation</p></div>
-    <div class="tech-card"><h4>Vercel</h4><p>Production deployment platform</p></div>
-    <div class="tech-card"><h4>GitHub</h4><p>Source control &amp; CI trigger</p></div>
-  </div>
-</section>
+  <!-- ============================================================ -->
+  <!-- SECTION 7: ROLE PERMISSIONS -->
+  <!-- ============================================================ -->
+  <section id="roles">
+    <span class="section-label">Section 7</span>
+    <h2>Role Permissions</h2>
+    <div class="divider"></div>
 
-<!-- ============================================================ -->
-<!-- SECTION 6: ROLE PERMISSIONS -->
-<!-- ============================================================ -->
-<section id="permissions">
-  <span class="section-label">Section 6</span>
-  <h2>Role Permissions &mdash; Access Control</h2>
-  <div class="divider"></div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="perm-table">
-      <thead>
-        <tr>
-          <th style="width:30%">Capability</th>
-          <th style="width:23%">Viewer</th>
-          <th style="width:23%">Editor</th>
-          <th style="width:23%">Admin</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>View dashboards</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Filter &amp; search</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Save views</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Create / edit trackings</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Update stage statuses</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Add comments</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Manage users</td>
-          <td class="dash">&mdash;</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Manage pipeline stages</td>
-          <td class="dash">&mdash;</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Delete records</td>
-          <td class="dash">&mdash;</td>
-          <td class="dash">&mdash;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</section>
+    <div class="card" style="overflow-x:auto">
+      <table class="role-table">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>ADMIN</th>
+            <th>EDITOR</th>
+            <th>VIEWER</th>
+            <th>INVESTOR</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>View pipeline table</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Edit stages / statuses</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Upload documents</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Generate signing links</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Approve NDAs</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Manage users</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Configure stages</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Send investor invites</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>CSV export</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>View investor portal</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+          </tr>
+          <tr>
+            <td>Sign documents</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+          </tr>
+          <tr>
+            <td>View gated IM content</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003; <span style="font-size:10px;color:var(--amber)">(after NDA)</span></td>
+          </tr>
+          <tr>
+            <td>Activity log</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-<!-- FOOTER -->
-<footer style="text-align:center;padding:48px 20px 32px;color:var(--gray-dim);font-size:12px">
-  Investment Tracker &mdash; Architecture Overview &mdash; Generated April 2026
-</footer>
+  <!-- ============================================================ -->
+  <!-- SECTION 8: TECH STACK -->
+  <!-- ============================================================ -->
+  <section id="tech-stack">
+    <span class="section-label">Section 8</span>
+    <h2>Tech Stack</h2>
+    <div class="divider"></div>
+
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-icon">&#9881;</div>
+        <h4>Next.js 14</h4>
+        <p>App Router, Server Actions, SSR</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128268;</div>
+        <h4>TypeScript</h4>
+        <p>End-to-end type safety</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#127912;</div>
+        <h4>Tailwind CSS</h4>
+        <p>Utility-first styling</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9632;</div>
+        <h4>shadcn/ui</h4>
+        <p>Accessible UI components</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9670;</div>
+        <h4>Prisma ORM</h4>
+        <p>Type-safe database queries</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9729;</div>
+        <h4>Supabase</h4>
+        <p>PostgreSQL + Storage</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9650;</div>
+        <h4>Vercel</h4>
+        <p>Auto-deploy hosting</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128274;</div>
+        <h4>NextAuth</h4>
+        <p>JWT auth, 4 roles</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9993;</div>
+        <h4>Resend</h4>
+        <p>Email API for invitations</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#9638;</div>
+        <h4>TanStack Table</h4>
+        <p>Headless table with sort/filter</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#10003;</div>
+        <h4>React Hook Form + Zod</h4>
+        <p>Forms + schema validation</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128025;</div>
+        <h4>GitHub</h4>
+        <p>Source control + CI/CD</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128230;</div>
+        <h4>Docker</h4>
+        <p>Local PostgreSQL dev</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128272;</div>
+        <h4>bcryptjs</h4>
+        <p>Password hashing</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">&#128196;</div>
+        <h4>Supabase Storage</h4>
+        <p>Private bucket + signed URLs</p>
+      </div>
+    </div>
+  </section>
 
 </div>
+
+<footer>
+  Investment Tracker &mdash; Architecture Overview &mdash; Last updated April 2026
+</footer>
+
 </body>
 </html>

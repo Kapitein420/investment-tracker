@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Tracker — Vendor Guide</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+    --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+    --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+    --blue:#4a9eff;--green:#3ecf6e;--amber:#f0a030;--red:#e8453c;
+    --radius:10px;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--white);line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* NAV */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(15,17,23,.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--bg3);padding:12px 0;
+  }
+  nav ul{
+    display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
+    list-style:none;max-width:1200px;margin:0 auto;padding:0 20px;
+  }
+  nav a{
+    color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;
+    padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap;
+  }
+  nav a:hover{color:var(--gold);background:var(--bg3)}
+  nav a.ext{color:var(--gold-dim);border:1px solid var(--bg4)}
+  nav a.ext:hover{color:var(--gold);border-color:var(--gold-dim)}
+
+  /* LAYOUT */
+  .container{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{text-align:center;padding:64px 20px 40px}
+  header h1{font-size:42px;font-weight:700;letter-spacing:-.5px}
+  header h1 span{color:var(--gold)}
+  header p{color:var(--gray);font-size:16px;margin-top:10px}
+
+  section{padding:56px 0}
+  .section-label{
+    display:inline-block;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:2px;color:var(--gold);
+    margin-bottom:8px;
+  }
+  section h2{font-size:28px;font-weight:700;margin-bottom:28px}
+  .divider{width:60px;height:3px;background:var(--gold);border-radius:2px;margin:8px 0 20px}
+
+  /* VENDOR CARDS */
+  .vendor-grid{display:grid;grid-template-columns:1fr;gap:24px}
+
+  .vendor{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+    padding:32px;display:grid;grid-template-columns:80px 1fr;gap:24px;
+    transition:.2s;
+  }
+  .vendor:hover{border-color:var(--gold-dim);transform:translateY(-1px)}
+
+  .vendor-icon{
+    width:64px;height:64px;border-radius:12px;
+    background:var(--bg3);display:flex;align-items:center;justify-content:center;
+    font-size:28px;border:1px solid var(--bg4);
+  }
+
+  .vendor-body h3{font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px}
+  .vendor-body h3 a{color:var(--gold);text-decoration:none;font-size:12px;font-weight:500;margin-left:8px}
+  .vendor-body h3 a:hover{text-decoration:underline}
+  .vendor-tagline{font-size:13px;color:var(--gold-dim);margin-bottom:14px;font-style:italic}
+
+  .vendor-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .meta-pill{
+    font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;
+  }
+  .meta-free{background:rgba(62,207,110,.12);color:var(--green)}
+  .meta-freemium{background:rgba(240,160,48,.12);color:var(--amber)}
+  .meta-category{background:var(--bg3);color:var(--gray)}
+
+  .vendor-detail{font-size:13px;color:var(--gray);line-height:1.8}
+  .vendor-detail strong{color:var(--white);font-weight:600}
+
+  @media(max-width:640px){
+    .vendor{grid-template-columns:1fr;text-align:center}
+    .vendor-icon{margin:0 auto}
+    .vendor-meta{justify-content:center}
+  }
+
+  /* COST SUMMARY */
+  .cost-summary{
+    background:var(--bg2);border:2px solid var(--gold-dim);
+    border-radius:var(--radius);padding:40px;margin-top:16px;
+  }
+  .cost-summary h3{font-size:22px;font-weight:700;color:var(--gold);margin-bottom:24px;text-align:center}
+
+  .cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+  @media(max-width:640px){.cost-grid{grid-template-columns:1fr}}
+
+  .cost-col{background:var(--bg3);border-radius:var(--radius);padding:24px}
+  .cost-col h4{font-size:14px;font-weight:700;color:var(--gold-light);margin-bottom:16px;text-transform:uppercase;letter-spacing:1px}
+  .cost-line{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--gray);border-bottom:1px solid var(--bg4)}
+  .cost-line:last-child{border-bottom:none}
+  .cost-line .amount{color:var(--white);font-weight:600}
+  .cost-total{
+    display:flex;justify-content:space-between;padding:16px 24px;
+    background:var(--bg3);border-radius:var(--radius);font-size:16px;font-weight:700;
+  }
+  .cost-total .amount{color:var(--green);font-size:20px}
+  .cost-total.prod .amount{color:var(--amber)}
+
+  /* FOOTER */
+  footer{
+    text-align:center;padding:40px 20px;color:var(--gray-dim);
+    font-size:12px;border-top:1px solid var(--bg3);margin-top:40px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <ul>
+    <li><a href="#vendors">Vendors</a></li>
+    <li><a href="#cost-summary">Cost Summary</a></li>
+    <li><a href="architecture-overview.html" class="ext">&larr; Architecture Overview</a></li>
+  </ul>
+</nav>
+
+<header>
+  <h1>Vendor <span>Guide</span></h1>
+  <p>Every tool and service in the Investment Tracker stack &mdash; what it does, why we chose it, and what it costs</p>
+</header>
+
+<div class="container">
+
+  <section id="vendors">
+    <span class="section-label">Tools &amp; Services</span>
+    <h2>Vendor Breakdown</h2>
+    <div class="divider"></div>
+
+    <div class="vendor-grid">
+
+      <!-- 1. Next.js -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9881;</div>
+        <div class="vendor-body">
+          <h3>Next.js<a href="https://nextjs.org" target="_blank">nextjs.org</a></h3>
+          <p class="vendor-tagline">React framework by Vercel for full-stack web apps</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Framework</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Handles both the frontend (React pages, components) and backend (Server Actions, API routes). Uses the App Router for file-based routing and server-side rendering.<br>
+            <strong>Why we chose it:</strong> App Router architecture, Server Actions for mutations without separate API, SSR for performance, and the best developer experience for React apps.<br>
+            <strong>Cost:</strong> Free and open source. No licensing fees.
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. TypeScript -->
+      <div class="vendor">
+        <div class="vendor-icon">&#128268;</div>
+        <div class="vendor-body">
+          <h3>TypeScript<a href="https://www.typescriptlang.org" target="_blank">typescriptlang.org</a></h3>
+          <p class="vendor-tagline">JavaScript with static type checking</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Language</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Adds type safety across the entire stack -- from Prisma models to React components to Server Actions. Catches bugs before runtime.<br>
+            <strong>Why we chose it:</strong> Type safety across the full stack, better IDE support, catches errors at build time, and makes large-scale refactoring safe.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Tailwind CSS -->
+      <div class="vendor">
+        <div class="vendor-icon">&#127912;</div>
+        <div class="vendor-body">
+          <h3>Tailwind CSS<a href="https://tailwindcss.com" target="_blank">tailwindcss.com</a></h3>
+          <p class="vendor-tagline">Utility-first CSS framework for rapid UI development</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Styling</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> All component styling -- the pipeline table, cards, modals, investor portal layout, and responsive design. Styles are applied directly via utility classes in JSX.<br>
+            <strong>Why we chose it:</strong> Fast development speed, consistent design tokens, tiny production bundle (only ships used CSS), and great integration with shadcn/ui.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. shadcn/ui -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9632;</div>
+        <div class="vendor-body">
+          <h3>shadcn/ui<a href="https://ui.shadcn.com" target="_blank">ui.shadcn.com</a></h3>
+          <p class="vendor-tagline">Pre-built, accessible UI components you own</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">UI Components</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Provides buttons, dialogs, selects, dropdowns, tabs, forms, and other UI primitives used across both the admin and investor portals.<br>
+            <strong>Why we chose it:</strong> High quality accessible components, fully customizable (code lives in your project), no vendor lock-in, built on Radix UI primitives.<br>
+            <strong>Cost:</strong> Free. Components are copied into your codebase.
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Prisma -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9670;</div>
+        <div class="vendor-body">
+          <h3>Prisma<a href="https://www.prisma.io" target="_blank">prisma.io</a></h3>
+          <p class="vendor-tagline">Next-generation ORM for TypeScript and Node.js</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">ORM / Database</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Manages all 14 database tables. Defines the schema, generates a type-safe client, handles migrations, and provides an intuitive query API.<br>
+            <strong>Why we chose it:</strong> Type-safe database queries that match our TypeScript stack, auto-generated client from schema, declarative migrations, and excellent developer experience.<br>
+            <strong>Cost:</strong> Free and open source. Prisma Accelerate (optional caching) is paid but not required.
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Supabase -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9729;</div>
+        <div class="vendor-body">
+          <h3>Supabase<a href="https://supabase.com" target="_blank">supabase.com</a></h3>
+          <p class="vendor-tagline">Managed PostgreSQL database + file storage + more</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-freemium">Freemium</span>
+            <span class="meta-pill meta-category">Database + Storage</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Hosts the PostgreSQL database (all 14 tables), provides file storage for PDFs (private bucket with signed URLs), and handles connection pooling via PgBouncer.<br>
+            <strong>Why we chose it:</strong> Generous free tier, managed PostgreSQL without DevOps overhead, built-in file storage with security policies, and connection pooling included.<br>
+            <strong>Cost:</strong> Free tier includes 500MB database and 1GB storage. Pro plan at $25/month for production workloads with more storage, backups, and no pausing.
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Vercel -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9650;</div>
+        <div class="vendor-body">
+          <h3>Vercel<a href="https://vercel.com" target="_blank">vercel.com</a></h3>
+          <p class="vendor-tagline">Hosting platform by the creators of Next.js</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-freemium">Freemium</span>
+            <span class="meta-pill meta-category">Hosting / Deploy</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Hosts the entire application -- both the admin and investor portals. Auto-deploys from GitHub on every push to main. Creates preview URLs for pull requests.<br>
+            <strong>Why we chose it:</strong> Zero-config deployment for Next.js, automatic GitHub integration, preview deployments per PR, edge functions, and analytics built in.<br>
+            <strong>Cost:</strong> Free tier for hobby projects. Pro at $20/month per member for teams, with more bandwidth and build minutes.
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. NextAuth -->
+      <div class="vendor">
+        <div class="vendor-icon">&#128274;</div>
+        <div class="vendor-body">
+          <h3>NextAuth<a href="https://next-auth.js.org" target="_blank">next-auth.js.org</a></h3>
+          <p class="vendor-tagline">Authentication library purpose-built for Next.js</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Authentication</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Manages user login sessions using JWT tokens. Implements the credentials provider (email + password), stores role and companyId in the session, and integrates with middleware for route protection.<br>
+            <strong>Why we chose it:</strong> First-class Next.js integration, JWT sessions without a session database, easy role injection into tokens, and middleware-compatible for route guards.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Resend -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9993;</div>
+        <div class="vendor-body">
+          <h3>Resend<a href="https://resend.com" target="_blank">resend.com</a></h3>
+          <p class="vendor-tagline">Modern email API for developers</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-freemium">Freemium</span>
+            <span class="meta-pill meta-category">Email</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Sends investor invitation emails containing login credentials. When an admin invites a new investor, Resend delivers the welcome email with their username and temporary password.<br>
+            <strong>Why we chose it:</strong> Modern developer-friendly API, great integration with Next.js and React for email templates, custom domain support, and reliable delivery.<br>
+            <strong>Cost:</strong> Free tier includes 100 emails/day and 3,000/month. Pro at $20/month for higher volume and custom domains.
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. TanStack Table -->
+      <div class="vendor">
+        <div class="vendor-icon">&#9638;</div>
+        <div class="vendor-body">
+          <h3>TanStack Table<a href="https://tanstack.com/table" target="_blank">tanstack.com/table</a></h3>
+          <p class="vendor-tagline">Headless, type-safe table library for React</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">UI / Data Table</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Powers the admin pipeline table -- the core view of the application. Provides sorting, filtering, column visibility, pagination, and inline editing without dictating the UI.<br>
+            <strong>Why we chose it:</strong> Headless design lets us use our own Tailwind + shadcn/ui styling, full TypeScript support, and handles complex table interactions like multi-column sorting.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+      <!-- 11. React Hook Form + Zod -->
+      <div class="vendor">
+        <div class="vendor-icon">&#10003;</div>
+        <div class="vendor-body">
+          <h3>React Hook Form + Zod<a href="https://react-hook-form.com" target="_blank">react-hook-form.com</a></h3>
+          <p class="vendor-tagline">Performant forms with schema-based validation</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Forms / Validation</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Handles all form state (asset creation, user management, investor invites, stage editing). Zod schemas validate inputs on both the client side (forms) and server side (Server Actions) using the same schema definitions.<br>
+            <strong>Why we chose it:</strong> Minimal re-renders for performant forms, Zod provides runtime type validation that mirrors our TypeScript types, and shared schemas eliminate validation drift between client and server.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+      <!-- 12. GitHub -->
+      <div class="vendor">
+        <div class="vendor-icon">&#128025;</div>
+        <div class="vendor-body">
+          <h3>GitHub<a href="https://github.com" target="_blank">github.com</a></h3>
+          <p class="vendor-tagline">Source code hosting and version control platform</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free</span>
+            <span class="meta-pill meta-category">Source Control</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Hosts all source code, tracks changes via Git, and triggers Vercel deployments on push. Pull request workflows for code review before merging to production.<br>
+            <strong>Why we chose it:</strong> Industry standard for source control, native Vercel integration for auto-deploys, PR review workflows, and free private repositories.<br>
+            <strong>Cost:</strong> Free for private repos and small teams.
+          </div>
+        </div>
+      </div>
+
+      <!-- 13. Docker -->
+      <div class="vendor">
+        <div class="vendor-icon">&#128230;</div>
+        <div class="vendor-body">
+          <h3>Docker<a href="https://www.docker.com" target="_blank">docker.com</a></h3>
+          <p class="vendor-tagline">Container platform for consistent development environments</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free</span>
+            <span class="meta-pill meta-category">Development</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Runs a local PostgreSQL instance for development. One <code style="color:var(--gold);background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:12px">docker compose up</code> command spins up a database identical to production.<br>
+            <strong>Why we chose it:</strong> Eliminates "works on my machine" issues, provides a consistent local database environment, and makes onboarding new developers trivial.<br>
+            <strong>Cost:</strong> Free. Docker Desktop is free for small teams and personal use.
+          </div>
+        </div>
+      </div>
+
+      <!-- 14. bcryptjs -->
+      <div class="vendor">
+        <div class="vendor-icon">&#128272;</div>
+        <div class="vendor-body">
+          <h3>bcryptjs<a href="https://www.npmjs.com/package/bcryptjs" target="_blank">npmjs.com/package/bcryptjs</a></h3>
+          <p class="vendor-tagline">Pure JavaScript bcrypt password hashing</p>
+          <div class="vendor-meta">
+            <span class="meta-pill meta-free">Free / Open Source</span>
+            <span class="meta-pill meta-category">Security</span>
+          </div>
+          <div class="vendor-detail">
+            <strong>What it does in our app:</strong> Hashes user passwords before storing them in the database. Verifies passwords during login without ever storing plain text credentials.<br>
+            <strong>Why we chose it:</strong> Industry standard bcrypt algorithm, pure JavaScript (no native dependencies), works in all environments including Vercel serverless functions.<br>
+            <strong>Cost:</strong> Free and open source.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- COST SUMMARY -->
+  <!-- ============================================================ -->
+  <section id="cost-summary">
+    <span class="section-label">Budget</span>
+    <h2>Total Cost Summary</h2>
+    <div class="divider"></div>
+
+    <div class="cost-summary">
+      <h3>What does this stack cost?</h3>
+
+      <div class="cost-grid">
+        <div class="cost-col">
+          <h4>MVP / Development</h4>
+          <div class="cost-line"><span>Framework (Next.js)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Language (TypeScript)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Styling (Tailwind + shadcn)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>ORM (Prisma)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Auth (NextAuth + bcrypt)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Forms (RHF + Zod)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Table (TanStack)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Hosting (Vercel free)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Database (Supabase free)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Email (Resend free)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Source control (GitHub)</span><span class="amount">$0</span></div>
+          <div class="cost-line"><span>Dev tools (Docker)</span><span class="amount">$0</span></div>
+        </div>
+
+        <div class="cost-col">
+          <h4>Production Estimate</h4>
+          <div class="cost-line"><span>Vercel Pro</span><span class="amount">$20/mo</span></div>
+          <div class="cost-line"><span>Supabase Pro</span><span class="amount">$25/mo</span></div>
+          <div class="cost-line"><span>Resend Pro</span><span class="amount">$20/mo</span></div>
+          <div class="cost-line"><span>All other tools</span><span class="amount">$0</span></div>
+          <div class="cost-line" style="border:none;padding-top:16px"><span style="color:var(--gray-dim);font-size:11px">Includes: more storage, backups,<br>custom domain email, team features</span></div>
+        </div>
+      </div>
+
+      <div class="cost-total" style="margin-bottom:12px">
+        <span>Total for MVP</span>
+        <span class="amount">$0/month</span>
+      </div>
+      <div class="cost-total prod">
+        <span>Production estimate</span>
+        <span class="amount">~$65/month</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Investment Tracker &mdash; Vendor Guide &mdash; Last updated April 2026
+</footer>
+
+</body>
+</html>
