@@ -371,3 +371,74 @@ export async function getTrackingDetail(id: string) {
   if (!tracking) throw new Error("Tracking not found");
   return tracking;
 }
+
+export async function bulkImportTrackings(
+  assetId: string,
+  rows: Array<{
+    companyName: string;
+    companyType: string;
+    contactName?: string;
+    contactEmail?: string;
+    interestLevel?: string;
+  }>
+) {
+  const user = await requireRole("EDITOR");
+
+  const stages = await prisma.pipelineStage.findMany({
+    where: { isActive: true },
+    orderBy: { sequence: "asc" },
+  });
+
+  let imported = 0;
+
+  for (const row of rows) {
+    // Find or create company
+    let company = await prisma.company.findFirst({
+      where: { name: { equals: row.companyName, mode: "insensitive" } },
+    });
+
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          name: row.companyName,
+          type: (row.companyType?.toUpperCase() as any) || "INVESTOR",
+          contactName: row.contactName || null,
+          contactEmail: row.contactEmail || null,
+        },
+      });
+    }
+
+    // Check if tracking already exists
+    const existing = await prisma.assetCompanyTracking.findUnique({
+      where: { assetId_companyId: { assetId, companyId: company.id } },
+    });
+
+    if (existing) continue; // skip duplicates
+
+    // Create tracking
+    const tracking = await prisma.assetCompanyTracking.create({
+      data: {
+        assetId,
+        companyId: company.id,
+        relationshipType: row.companyType || "Investor",
+        interestLevel: (row.interestLevel?.toUpperCase() as any) || null,
+      },
+    });
+
+    // Create stage statuses
+    if (stages.length > 0) {
+      await prisma.stageStatus.createMany({
+        data: stages.map((stage) => ({
+          trackingId: tracking.id,
+          stageId: stage.id,
+          status: "NOT_STARTED" as const,
+        })),
+      });
+    }
+
+    imported++;
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  return { imported, total: rows.length };
+}

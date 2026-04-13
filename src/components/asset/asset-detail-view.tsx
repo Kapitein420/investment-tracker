@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Plus, Search, Download, Building, MapPin, Filter, BarChart3, Table2,
+  ArrowLeft, Plus, Search, Download, Upload, Building, MapPin, Filter, BarChart3, Table2, FileStack,
 } from "lucide-react";
 import Link from "next/link";
 import { canEdit } from "@/lib/permissions";
@@ -18,16 +18,19 @@ import { PipelineTable } from "@/components/asset/pipeline-table";
 import { PipelineOverview } from "@/components/asset/pipeline-overview";
 import { AddTrackingDialog } from "@/components/asset/add-tracking-dialog";
 import { TrackingDetailDrawer } from "@/components/asset/tracking-detail-drawer";
+import { ContentTab } from "@/components/asset/content-tab";
+import { ImportDialog } from "@/components/asset/import-dialog";
 
 type AssetDetailProps = {
   asset: any;
   stages: PipelineStage[];
   users: Array<{ id: string; name: string }>;
   companies: Company[];
+  contents: any[];
   currentUser: { id: string; name: string; email: string; role: Role };
 };
 
-export function AssetDetailView({ asset, stages, users, companies, currentUser }: AssetDetailProps) {
+export function AssetDetailView({ asset, stages, users, companies, contents, currentUser }: AssetDetailProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
@@ -35,7 +38,8 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(null);
-  const [view, setView] = useState<"table" | "overview">("table");
+  const [view, setView] = useState<"table" | "overview" | "content">("table");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const editable = canEdit(currentUser.role);
 
@@ -122,11 +126,24 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
                 <BarChart3 className="h-3.5 w-3.5" />
                 Overview
               </button>
+              <button
+                onClick={() => setView("content")}
+                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "content" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                <FileStack className="h-3.5 w-3.5" />
+                Content
+              </button>
             </div>
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              Export CSV
+              Export
             </Button>
+            {editable && (
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                Import
+              </Button>
+            )}
             {editable && (
               <Button size="sm" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -254,9 +271,18 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
             />
           </div>
         </>
-      ) : (
+      ) : view === "overview" ? (
         <div className="flex-1 overflow-auto px-6 py-6">
           <PipelineOverview trackings={asset.trackings} stages={stages} />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-auto px-6 py-6">
+          <ContentTab
+            assetId={asset.id}
+            contents={contents}
+            trackings={asset.trackings}
+            editable={editable}
+          />
         </div>
       )}
 
@@ -280,6 +306,13 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
           onClose={() => setSelectedTrackingId(null)}
         />
       )}
+
+      {/* Import dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        assetId={asset.id}
+      />
     </div>
   );
 }

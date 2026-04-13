@@ -58,7 +58,12 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
     const cols: ColumnDef<TrackingRow>[] = [
       {
         accessorKey: "relationshipType",
-        header: "Type",
+        header: ({ column }) => (
+          <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs" onClick={() => column.toggleSorting()}>
+            Type
+            <ArrowUpDown className="ml-1 h-3 w-3" />
+          </Button>
+        ),
         size: 80,
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">{row.original.relationshipType}</span>
@@ -133,7 +138,12 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
     cols.push(
       {
         accessorKey: "currentStageKey",
-        header: "Stage",
+        header: ({ column }) => (
+          <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs" onClick={() => column.toggleSorting()}>
+            Stage
+            <ArrowUpDown className="ml-1 h-3 w-3" />
+          </Button>
+        ),
         size: 80,
         cell: ({ row }) => {
           const key = row.original.currentStageKey;
@@ -147,7 +157,12 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
       },
       {
         accessorKey: "lifecycleStatus",
-        header: "Lifecycle",
+        header: ({ column }) => (
+          <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs" onClick={() => column.toggleSorting()}>
+            Lifecycle
+            <ArrowUpDown className="ml-1 h-3 w-3" />
+          </Button>
+        ),
         size: 90,
         cell: ({ row }) => {
           const status = row.original.lifecycleStatus as keyof typeof LIFECYCLE_LABELS;
@@ -161,7 +176,12 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
       {
         accessorFn: (row) => row.ownerUser?.name ?? "",
         id: "owner",
-        header: "Owner",
+        header: ({ column }) => (
+          <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs" onClick={() => column.toggleSorting()}>
+            Owner
+            <ArrowUpDown className="ml-1 h-3 w-3" />
+          </Button>
+        ),
         size: 100,
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">

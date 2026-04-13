@@ -46,12 +46,18 @@ export default async function AssetDetailPage({ params }: { params: { id: string
     orderBy: { name: "asc" },
   });
 
+  const contents = await prisma.assetContent.findMany({
+    where: { assetId: params.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <AssetDetailView
       asset={asset}
       stages={stages}
       users={users}
       companies={companies}
+      contents={contents}
       currentUser={user}
     />
   );
