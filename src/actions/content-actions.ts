@@ -99,9 +99,33 @@ export async function getAssetContents(assetId: string) {
 }
 
 export async function getSignedContentUrl(storagePath: string) {
-  await requireUser();
-  const url = await getSignedUrl(storagePath, 7200);
-  return url;
+  const user = await requireUser();
+
+  // Validate: the storage path must belong to an actual AssetContent record
+  // This prevents IDOR — users can't request signed URLs for arbitrary paths
+  const content = await prisma.assetContent.findFirst({
+    where: { fileUrl: storagePath },
+    select: { id: true, assetId: true },
+  });
+
+  if (!content) {
+    // Also check Document table (for document PDFs accessed via content tab)
+    const doc = await prisma.document.findFirst({
+      where: { OR: [{ fileUrl: storagePath }, { signedFileUrl: storagePath }] },
+      select: { id: true },
+    });
+    if (!doc) throw new Error("Forbidden: file not found");
+  }
+
+  // For INVESTOR role, verify they have access to this asset
+  if (user.role === "INVESTOR" && user.companyId && content) {
+    const tracking = await prisma.assetCompanyTracking.findFirst({
+      where: { assetId: content.assetId, companyId: user.companyId },
+    });
+    if (!tracking) throw new Error("Forbidden: no access to this asset");
+  }
+
+  return getSignedUrl(storagePath, 7200);
 }
 
 export async function uploadContentFile(formData: FormData) {

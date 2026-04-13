@@ -140,41 +140,42 @@ export async function signDocument(data: {
 }) {
   const validated = signDocumentSchema.parse(data);
 
-  const signingToken = await prisma.signingToken.findUnique({
-    where: { token: validated.token },
-    include: { document: true },
-  });
+  // ── All validation + updates inside transaction to prevent race conditions ──
+  const { document, signingTokenId } = await prisma.$transaction(async (tx) => {
+    // Atomic check: find token AND verify unused in one query
+    const token = await tx.signingToken.findUnique({
+      where: { token: validated.token },
+      include: { document: true },
+    });
 
-  if (!signingToken) throw new Error("Invalid signing token");
-  if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
-  if (signingToken.usedAt !== null) throw new Error("Token already used");
+    if (!token) throw new Error("Invalid signing token");
+    if (token.expiresAt <= new Date()) throw new Error("Token expired");
+    if (token.usedAt !== null) throw new Error("Token already used");
 
-  const document = signingToken.document;
+    // Immediately mark token as used (prevents race condition)
+    await tx.signingToken.update({
+      where: { id: token.id, usedAt: null }, // atomic: only update if still unused
+      data: { usedAt: new Date() },
+    });
 
-  // ── Database updates (fast path — runs first so the user isn't blocked) ──
-  await prisma.$transaction(async (tx) => {
     await tx.document.update({
-      where: { id: document.id },
+      where: { id: token.document.id },
       data: {
         status: "SIGNED",
         signedAt: new Date(),
         signedByName: validated.signedByName,
         signedByEmail: validated.signedByEmail,
         signatureData: validated.signatureData,
-        // signedFileUrl will be updated after PDF generation completes
       },
     });
 
-    await tx.signingToken.update({
-      where: { id: signingToken.id },
-      data: { usedAt: new Date() },
-    });
+    const doc = token.document;
 
     const currentStageStatus = await tx.stageStatus.findUnique({
       where: {
         trackingId_stageId: {
-          trackingId: document.trackingId,
-          stageId: document.stageId,
+          trackingId: doc.trackingId,
+          stageId: doc.stageId,
         },
       },
     });
@@ -184,8 +185,8 @@ export async function signDocument(data: {
     await tx.stageStatus.update({
       where: {
         trackingId_stageId: {
-          trackingId: document.trackingId,
-          stageId: document.stageId,
+          trackingId: doc.trackingId,
+          stageId: doc.stageId,
         },
       },
       data: { status: "COMPLETED", completedAt: new Date() },
@@ -193,27 +194,29 @@ export async function signDocument(data: {
 
     await tx.stageHistory.create({
       data: {
-        trackingId: document.trackingId,
-        stageId: document.stageId,
+        trackingId: doc.trackingId,
+        stageId: doc.stageId,
         fieldName: "status",
         oldValue: oldStatus,
         newValue: "COMPLETED",
-        changedByUserId: document.uploadedByUserId,
+        changedByUserId: doc.uploadedByUserId,
       },
     });
 
     await tx.activityLog.create({
       data: {
         entityType: "Document",
-        entityId: document.id,
+        entityId: doc.id,
         action: "DOCUMENT_SIGNED",
         metadata: {
-          trackingId: document.trackingId,
+          trackingId: doc.trackingId,
           signedByName: validated.signedByName,
         },
-        userId: document.uploadedByUserId,
+        userId: doc.uploadedByUserId,
       },
     });
+
+    return { document: doc, signingTokenId: token.id };
   });
 
   // ── Generate signed PDF (non-blocking — runs after DB commit) ───
@@ -262,20 +265,26 @@ export async function rejectDocument(data: {
 }) {
   const validated = rejectDocumentSchema.parse(data);
 
-  const signingToken = await prisma.signingToken.findUnique({
-    where: { token: validated.token },
-    include: { document: true },
-  });
-
-  if (!signingToken) throw new Error("Invalid signing token");
-  if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
-  if (signingToken.usedAt !== null) throw new Error("Token already used");
-
-  const document = signingToken.document;
-
   await prisma.$transaction(async (tx) => {
+    // Atomic: validate + mark used inside transaction
+    const signingToken = await tx.signingToken.findUnique({
+      where: { token: validated.token },
+      include: { document: true },
+    });
+
+    if (!signingToken) throw new Error("Invalid signing token");
+    if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
+    if (signingToken.usedAt !== null) throw new Error("Token already used");
+
+    await tx.signingToken.update({
+      where: { id: signingToken.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const doc = signingToken.document;
+
     await tx.document.update({
-      where: { id: document.id },
+      where: { id: doc.id },
       data: {
         status: "REJECTED",
         rejectedAt: new Date(),
@@ -283,21 +292,16 @@ export async function rejectDocument(data: {
       },
     });
 
-    await tx.signingToken.update({
-      where: { id: signingToken.id },
-      data: { usedAt: new Date() },
-    });
-
     await tx.activityLog.create({
       data: {
         entityType: "Document",
-        entityId: document.id,
+        entityId: doc.id,
         action: "DOCUMENT_REJECTED",
         metadata: {
-          trackingId: document.trackingId,
+          trackingId: doc.trackingId,
           rejectionReason: validated.rejectionReason ?? null,
         },
-        userId: document.uploadedByUserId,
+        userId: doc.uploadedByUserId,
       },
     });
   });

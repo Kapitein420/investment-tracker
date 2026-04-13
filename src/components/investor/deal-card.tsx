@@ -61,7 +61,7 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
 
 export function DealCard({ tracking }: DealCardProps) {
   const nextAction = getNextAction(tracking.stageStatuses, tracking.documents);
-  const pendingDocs = tracking.documents?.length ?? 0;
+  const pendingDocs = tracking.documents?.filter((d: any) => d.status === "PENDING").length ?? 0;
 
   return (
     <Link

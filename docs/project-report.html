@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Tracker — Project Report &amp; Decision Log</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+    --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+    --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+    --blue:#4a9eff;--green:#3ecf6e;--amber:#f0a030;--red:#e8453c;
+    --radius:10px;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--white);line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* NAV */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(15,17,23,.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--bg3);padding:12px 0;
+  }
+  nav ul{
+    display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
+    list-style:none;max-width:1200px;margin:0 auto;padding:0 20px;
+  }
+  nav a{
+    color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;
+    padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap;
+  }
+  nav a:hover{color:var(--gold);background:var(--bg3)}
+  nav a.active{color:var(--gold);background:var(--bg3)}
+  nav a.ext{color:var(--gold-dim);border:1px solid var(--bg4)}
+  nav a.ext:hover{color:var(--gold);border-color:var(--gold-dim)}
+
+  /* LAYOUT */
+  .container{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{text-align:center;padding:64px 20px 40px}
+  header h1{font-size:42px;font-weight:700;letter-spacing:-.5px}
+  header h1 span{color:var(--gold)}
+  header p{color:var(--gray);font-size:16px;margin-top:10px}
+
+  section{padding:56px 0}
+  .section-label{
+    display:inline-block;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:2px;color:var(--gold);
+    margin-bottom:8px;
+  }
+  section h2{font-size:28px;font-weight:700;margin-bottom:28px}
+  .divider{width:60px;height:3px;background:var(--gold);border-radius:2px;margin:8px 0 20px}
+
+  /* CARDS */
+  .card{
+    background:var(--bg2);border:1px solid var(--bg3);
+    border-radius:var(--radius);padding:28px;margin-bottom:24px;
+  }
+  .card h3{font-size:18px;font-weight:600;margin-bottom:12px;color:var(--gold-light)}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;margin-bottom:24px;border-radius:var(--radius);border:1px solid var(--bg3)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead{background:var(--bg3)}
+  th{text-align:left;padding:12px 16px;font-weight:600;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  td{padding:12px 16px;border-top:1px solid var(--bg3);vertical-align:top}
+  tr:hover td{background:var(--bg2)}
+
+  /* TIMELINE */
+  .timeline{position:relative;padding-left:32px;margin-top:24px}
+  .timeline::before{content:'';position:absolute;left:10px;top:4px;bottom:4px;width:2px;background:var(--bg4)}
+  .timeline-item{position:relative;margin-bottom:32px}
+  .timeline-item::before{
+    content:'';position:absolute;left:-26px;top:6px;
+    width:12px;height:12px;border-radius:50%;background:var(--gold);border:2px solid var(--bg);
+  }
+  .timeline-item h4{font-size:16px;font-weight:600;color:var(--gold-light);margin-bottom:6px}
+  .timeline-item p{color:var(--gray);font-size:14px;line-height:1.6}
+  .timeline-item .tag{
+    display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;
+    border-radius:4px;margin-right:6px;margin-top:8px;
+  }
+  .tag-core{background:rgba(74,158,255,.15);color:var(--blue)}
+  .tag-feature{background:rgba(62,207,110,.15);color:var(--green)}
+  .tag-portal{background:rgba(212,168,67,.15);color:var(--gold)}
+  .tag-pdf{background:rgba(240,160,48,.15);color:var(--amber)}
+  .tag-polish{background:rgba(232,69,60,.15);color:var(--red)}
+
+  /* EXEC SUMMARY HIGHLIGHT */
+  .highlight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:24px 0}
+  .highlight-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+    padding:20px;text-align:center;
+  }
+  .highlight-card .label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:6px}
+  .highlight-card .value{font-size:22px;font-weight:700;color:var(--gold)}
+  .highlight-card .desc{font-size:13px;color:var(--gray);margin-top:4px}
+
+  /* DATA MODEL */
+  .model-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .model-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:20px;
+  }
+  .model-card h4{font-size:15px;font-weight:600;color:var(--gold-light);margin-bottom:4px}
+  .model-card p{font-size:13px;color:var(--gray)}
+
+  /* COST TABLE */
+  .cost-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bg3)}
+  .cost-row:last-child{border-bottom:none}
+  .cost-label{color:var(--gray);font-size:14px}
+  .cost-value{font-weight:600;color:var(--gold)}
+
+  /* INTEGRATION STEPS */
+  .step{display:flex;gap:16px;margin-bottom:20px}
+  .step-num{
+    flex-shrink:0;width:32px;height:32px;border-radius:50%;
+    background:var(--gold);color:var(--bg);font-weight:700;font-size:14px;
+    display:flex;align-items:center;justify-content:center;margin-top:2px;
+  }
+  .step-content h4{font-size:15px;font-weight:600;margin-bottom:4px}
+  .step-content p{font-size:14px;color:var(--gray)}
+
+  /* RESPONSIVE */
+  @media(max-width:768px){
+    header h1{font-size:28px}
+    section h2{font-size:22px}
+    .container{padding:0 16px}
+    nav ul{gap:4px}
+    nav a{font-size:12px;padding:5px 10px}
+    .highlight-grid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:480px){
+    .highlight-grid{grid-template-columns:1fr}
+    .model-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <ul>
+    <li><a href="project-report.html" class="active">Project Report</a></li>
+    <li><a href="bug-tracker.html">Bug Tracker</a></li>
+    <li><a href="kpi-dashboard.html">KPI Dashboard</a></li>
+    <li><a href="architecture-overview.html" class="ext">Architecture</a></li>
+    <li><a href="vendor-guide.html" class="ext">Vendor Guide</a></li>
+  </ul>
+</nav>
+
+<header>
+  <h1>Project Report &amp; <span>Decision Log</span></h1>
+  <p>Investment Tracker — Internal Deal Pipeline &amp; Investor Portal</p>
+</header>
+
+<div class="container">
+
+  <!-- EXECUTIVE SUMMARY -->
+  <section id="executive-summary">
+    <span class="section-label">01</span>
+    <h2>Executive Summary</h2>
+    <div class="divider"></div>
+
+    <div class="card">
+      <p style="font-size:15px;line-height:1.8">
+        The <strong>Investment Tracker</strong> is a full-stack deal pipeline management tool built to replace Power BI for internal deal tracking workflows. Power BI was limited to read-only dashboards and could not support CRUD operations, document signing, or investor-facing workflows.
+      </p>
+      <p style="font-size:15px;line-height:1.8;margin-top:12px">
+        This application delivers a complete <strong>admin pipeline interface</strong> with stage tracking, document management, and CSV import, alongside a dedicated <strong>investor portal</strong> with NDA signing, deal journey views, and Information Memorandum access. The system is live on Vercel and connected to a Supabase PostgreSQL database.
+      </p>
+    </div>
+
+    <div class="highlight-grid">
+      <div class="highlight-card">
+        <div class="label">What</div>
+        <div class="value">Deal Pipeline + Investor Portal</div>
+        <div class="desc">Replacing Power BI with a CRUD-capable system</div>
+      </div>
+      <div class="highlight-card">
+        <div class="label">Why</div>
+        <div class="value">Power BI Limitations</div>
+        <div class="desc">No CRUD, signing, or investor workflows</div>
+      </div>
+      <div class="highlight-card">
+        <div class="label">Timeline</div>
+        <div class="value">1 Day</div>
+        <div class="desc">Built April 13, 2026 with AI-assisted dev</div>
+      </div>
+      <div class="highlight-card">
+        <div class="label">Status</div>
+        <div class="value" style="color:var(--green)">Live on Vercel</div>
+        <div class="desc">Full-stack app, production-deployed</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE DECISIONS -->
+  <section id="decisions">
+    <span class="section-label">02</span>
+    <h2>Architecture Decisions</h2>
+    <div class="divider"></div>
+    <p style="color:var(--gray);margin-bottom:24px">Why we chose what we chose. Each decision was evaluated against alternatives with specific trade-offs in mind.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Decision</th><th>Choice</th><th>Why</th><th>Alternatives Considered</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Framework</strong></td>
+            <td style="color:var(--gold)">Next.js 14 (App Router)</td>
+            <td>Full-stack in one codebase. Server Actions eliminate the API layer. SSR for fast loads. Vercel-native deployment.</td>
+            <td>Express + React (more complexity), Remix (smaller ecosystem)</td>
+          </tr>
+          <tr>
+            <td><strong>Database</strong></td>
+            <td style="color:var(--gold)">PostgreSQL via Supabase</td>
+            <td>Managed hosting with free tier. Built-in storage and auth options. Connection pooling for serverless environments.</td>
+            <td>Firebase (NoSQL doesn't fit relational data), PlanetScale (MySQL, fewer features)</td>
+          </tr>
+          <tr>
+            <td><strong>ORM</strong></td>
+            <td style="color:var(--gold)">Prisma</td>
+            <td>Type-safe queries with auto-generated client. Migration system. Excellent developer experience.</td>
+            <td>Drizzle (newer, less mature), raw SQL (no type safety)</td>
+          </tr>
+          <tr>
+            <td><strong>Auth</strong></td>
+            <td style="color:var(--gold)">NextAuth with JWT</td>
+            <td>Lightweight credential-based auth. Role system with middleware integration. No external dependency.</td>
+            <td>Supabase Auth (adds dependency), Auth0 (overkill for internal tool)</td>
+          </tr>
+          <tr>
+            <td><strong>UI</strong></td>
+            <td style="color:var(--gold)">Tailwind + shadcn/ui</td>
+            <td>Utility-first CSS with accessible components. No vendor lock-in. Highly customizable.</td>
+            <td>Material UI (heavy, opinionated), Chakra (less customizable)</td>
+          </tr>
+          <tr>
+            <td><strong>Table</strong></td>
+            <td style="color:var(--gold)">TanStack Table</td>
+            <td>Headless library with no forced UI. Sorting, filtering, and pagination built-in.</td>
+            <td>AG Grid (paid for features), DataGrid (too heavy)</td>
+          </tr>
+          <tr>
+            <td><strong>PDF Signing</strong></td>
+            <td style="color:var(--gold)">pdf-lib</td>
+            <td>Zero dependencies. Works in Node.js. Embeds images and text directly into PDFs.</td>
+            <td>PDFKit (more complex), DocuSign (paid, overkill)</td>
+          </tr>
+          <tr>
+            <td><strong>Email</strong></td>
+            <td style="color:var(--gold)">Resend</td>
+            <td>Modern API with free tier. Custom domain support. Great developer experience.</td>
+            <td>SendGrid (more complex), AWS SES (requires AWS setup)</td>
+          </tr>
+          <tr>
+            <td><strong>Hosting</strong></td>
+            <td style="color:var(--gold)">Vercel</td>
+            <td>Zero-config for Next.js. Auto-deploy from GitHub. Preview URLs. Edge functions.</td>
+            <td>AWS (complex), Railway (less Next.js optimized)</td>
+          </tr>
+          <tr>
+            <td><strong>Storage</strong></td>
+            <td style="color:var(--gold)">Supabase Storage (private)</td>
+            <td>Same platform as DB. Private bucket with signed URLs. Free tier included.</td>
+            <td>AWS S3 (separate service), Cloudflare R2 (extra setup)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DEVELOPMENT TIMELINE -->
+  <section id="timeline">
+    <span class="section-label">03</span>
+    <h2>Development Timeline</h2>
+    <div class="divider"></div>
+    <p style="color:var(--gray);margin-bottom:16px">Everything built on April 13, 2026 in approximately 8 hours using AI-assisted development with Claude Code.</p>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <h4>Phase 1 — Core Pipeline</h4>
+        <p>Project configuration, Prisma schema with 10 models, authentication system, server actions for pipeline CRUD, deal pipeline table with interactive stage cells, seed data generation, Docker setup, GitHub repository creation, and Vercel deployment.</p>
+        <span class="tag tag-core">Config</span>
+        <span class="tag tag-core">Schema</span>
+        <span class="tag tag-core">Auth</span>
+        <span class="tag tag-core">Server Actions</span>
+        <span class="tag tag-core">Pipeline Table</span>
+        <span class="tag tag-core">Seed Data</span>
+        <span class="tag tag-core">Docker</span>
+        <span class="tag tag-core">Deploy</span>
+      </div>
+      <div class="timeline-item">
+        <h4>Phase 2 — Timeline + Documents</h4>
+        <p>Visual timeline page for deal history, document upload system with Supabase Storage, public signing page for external parties, stage timestamp tracking, and canvas-based signature pad.</p>
+        <span class="tag tag-feature">Timeline Page</span>
+        <span class="tag tag-feature">Document Upload</span>
+        <span class="tag tag-feature">Public Signing</span>
+        <span class="tag tag-feature">Stage Timestamps</span>
+        <span class="tag tag-feature">Signature Pad</span>
+      </div>
+      <div class="timeline-item">
+        <h4>Phase 3 — Investor Portal</h4>
+        <p>INVESTOR role implementation, dedicated portal pages, deal journey view, email invite system via Resend, NDA approval workflow, and role-based access control throughout.</p>
+        <span class="tag tag-portal">INVESTOR Role</span>
+        <span class="tag tag-portal">Portal Pages</span>
+        <span class="tag tag-portal">Deal Journey</span>
+        <span class="tag tag-portal">Invite System</span>
+        <span class="tag tag-portal">Email via Resend</span>
+        <span class="tag tag-portal">NDA Approval</span>
+      </div>
+      <div class="timeline-item">
+        <h4>Phase 4 — PDF Signing</h4>
+        <p>pdf-lib integration for server-side PDF manipulation, configurable field placement, real document signing with embedded signatures, and signed PDF generation uploaded back to storage.</p>
+        <span class="tag tag-pdf">pdf-lib Integration</span>
+        <span class="tag tag-pdf">Field Config</span>
+        <span class="tag tag-pdf">Document Signing</span>
+        <span class="tag tag-pdf">Signed PDF Output</span>
+      </div>
+      <div class="timeline-item">
+        <h4>Phase 5 — Polish + Content</h4>
+        <p>Content tab for Information Memorandums, table sorting and filtering improvements, CSV import for bulk data, stage gating fix (only NDA requires approval), investor UX polish, and non-blocking signing flow.</p>
+        <span class="tag tag-polish">Content Tab</span>
+        <span class="tag tag-polish">Table Sorting</span>
+        <span class="tag tag-polish">CSV Import</span>
+        <span class="tag tag-polish">Stage Gating Fix</span>
+        <span class="tag tag-polish">Investor UX</span>
+        <span class="tag tag-polish">Non-blocking Signing</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA MODEL -->
+  <section id="data-model">
+    <span class="section-label">04</span>
+    <h2>Data Model Explained</h2>
+    <div class="divider"></div>
+    <p style="color:var(--gray);margin-bottom:24px">14 tables, each serving a specific purpose in the deal lifecycle.</p>
+
+    <div class="model-grid">
+      <div class="model-card">
+        <h4>User</h4>
+        <p>Authentication and role-based access control. Supports 4 roles: ADMIN, MANAGER, ANALYST, INVESTOR.</p>
+      </div>
+      <div class="model-card">
+        <h4>Asset</h4>
+        <p>The property or investment being sold. Central entity that all deal activity connects to.</p>
+      </div>
+      <div class="model-card">
+        <h4>Company</h4>
+        <p>Investor, broker, or advisor entities. Represents organizations participating in deals.</p>
+      </div>
+      <div class="model-card">
+        <h4>PipelineStage</h4>
+        <p>Configurable deal stages (not hardcoded). Allows the pipeline workflow to be customized without code changes.</p>
+      </div>
+      <div class="model-card">
+        <h4>AssetCompanyTracking</h4>
+        <p>The core junction table: one company's journey through one asset's pipeline. Links Company + Asset + Stage.</p>
+      </div>
+      <div class="model-card">
+        <h4>StageStatus</h4>
+        <p>Per-stage status tracking, kept separate from the tracking row for flexibility in status management.</p>
+      </div>
+      <div class="model-card">
+        <h4>Comment</h4>
+        <p>Internal notes attached per tracking row. Enables team communication within deal context.</p>
+      </div>
+      <div class="model-card">
+        <h4>StageHistory</h4>
+        <p>Full audit trail for all stage changes. Records who moved what, when, and from which stage.</p>
+      </div>
+      <div class="model-card">
+        <h4>ActivityLog</h4>
+        <p>System-wide event log capturing all significant actions across the platform.</p>
+      </div>
+      <div class="model-card">
+        <h4>SavedView</h4>
+        <p>User-saved filter configurations for the pipeline table. Persists custom views.</p>
+      </div>
+      <div class="model-card">
+        <h4>Document</h4>
+        <p>Uploaded PDFs linked to specific stages. Supports NDA, LOI, and other deal documents.</p>
+      </div>
+      <div class="model-card">
+        <h4>SigningToken</h4>
+        <p>One-time-use tokens for public signing pages. Enables external parties to sign without accounts.</p>
+      </div>
+      <div class="model-card">
+        <h4>InvestorInvite</h4>
+        <p>Email invitation tracking. Records sent invites and their acceptance status.</p>
+      </div>
+      <div class="model-card">
+        <h4>AssetContent</h4>
+        <p>Information Memorandum materials (PDF or landing page) per asset. Investor-facing deal content.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEGRATION GUIDE -->
+  <section id="integration">
+    <span class="section-label">05</span>
+    <h2>Integration Guide for CTO</h2>
+    <div class="divider"></div>
+    <p style="color:var(--gray);margin-bottom:24px">How to integrate this tool into the main DILS system.</p>
+
+    <div class="card">
+      <p style="margin-bottom:20px;font-size:14px;color:var(--gray)">The application is fully self-contained: Next.js frontend + Prisma backend + Supabase PostgreSQL database. No external service dependencies beyond email (Resend) and storage (Supabase).</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Deployment Strategy</h4>
+          <p>Embed as a subdomain (tracker.dils.com), iframe within the main DILS interface, or merge the codebase into the main DILS application directly.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>API Extraction</h4>
+          <p>All server actions can be extracted into REST endpoints if needed. Each action file maps cleanly to a set of API routes.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Database Migration</h4>
+          <p>Can migrate from Supabase to any PostgreSQL instance by changing the DATABASE_URL environment variable. Prisma handles schema sync.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Authentication Swap</h4>
+          <p>NextAuth can be replaced with DILS's existing auth system by swapping the provider configuration. The role system (ADMIN, MANAGER, ANALYST, INVESTOR) maps to any RBAC system.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Investor Portal as Micro-Frontend</h4>
+          <p>The investor portal is a separate route group (/portal) that could become its own micro-frontend, deployed independently if needed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COST ANALYSIS -->
+  <section id="cost">
+    <span class="section-label">06</span>
+    <h2>Cost Analysis</h2>
+    <div class="divider"></div>
+
+    <div class="card">
+      <h3>Current (Development / Free Tier)</h3>
+      <div class="cost-row">
+        <span class="cost-label">Vercel (Hobby)</span>
+        <span class="cost-value">$0/month</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">Supabase (Free)</span>
+        <span class="cost-value">$0/month</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">Resend (Free)</span>
+        <span class="cost-value">$0/month</span>
+      </div>
+      <div class="cost-row" style="border-top:2px solid var(--gold);margin-top:8px;padding-top:16px">
+        <span class="cost-label" style="font-weight:600;color:var(--white)">Total</span>
+        <span class="cost-value" style="font-size:20px">$0/month</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Production Estimate</h3>
+      <div class="cost-row">
+        <span class="cost-label">Vercel Pro</span>
+        <span class="cost-value">~$20/month</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">Supabase Pro</span>
+        <span class="cost-value">~$25/month</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">Resend Pro</span>
+        <span class="cost-value">~$20/month</span>
+      </div>
+      <div class="cost-row" style="border-top:2px solid var(--gold);margin-top:8px;padding-top:16px">
+        <span class="cost-label" style="font-weight:600;color:var(--white)">Total</span>
+        <span class="cost-value" style="font-size:20px">~$65/month</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Enterprise (Embedded in DILS)</h3>
+      <p style="color:var(--gray);font-size:14px">If embedded in DILS infrastructure, only incremental database and storage costs apply. The application layer merges with existing hosting.</p>
+    </div>
+  </section>
+
+</div>
+
+<footer style="text-align:center;padding:48px 20px;color:var(--gray-dim);font-size:13px;border-top:1px solid var(--bg3)">
+  Investment Tracker — Project Report &amp; Decision Log &middot; Generated April 13, 2026
+</footer>
+
+</body>
+</html>

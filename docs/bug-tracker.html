@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Tracker — Bug Tracker &amp; Issue Log</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+    --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+    --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+    --blue:#4a9eff;--green:#3ecf6e;--amber:#f0a030;--red:#e8453c;
+    --radius:10px;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--white);line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* NAV */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(15,17,23,.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--bg3);padding:12px 0;
+  }
+  nav ul{
+    display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
+    list-style:none;max-width:1200px;margin:0 auto;padding:0 20px;
+  }
+  nav a{
+    color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;
+    padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap;
+  }
+  nav a:hover{color:var(--gold);background:var(--bg3)}
+  nav a.active{color:var(--gold);background:var(--bg3)}
+  nav a.ext{color:var(--gold-dim);border:1px solid var(--bg4)}
+  nav a.ext:hover{color:var(--gold);border-color:var(--gold-dim)}
+
+  /* LAYOUT */
+  .container{max-width:1200px;margin:0 auto;padding:0 24px}
+  header{text-align:center;padding:64px 20px 40px}
+  header h1{font-size:42px;font-weight:700;letter-spacing:-.5px}
+  header h1 span{color:var(--gold)}
+  header p{color:var(--gray);font-size:16px;margin-top:10px}
+
+  section{padding:56px 0}
+  .section-label{
+    display:inline-block;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:2px;color:var(--gold);
+    margin-bottom:8px;
+  }
+  section h2{font-size:28px;font-weight:700;margin-bottom:28px}
+  .divider{width:60px;height:3px;background:var(--gold);border-radius:2px;margin:8px 0 20px}
+
+  /* SUMMARY CARDS */
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px}
+  .summary-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+    padding:24px;text-align:center;
+  }
+  .summary-card .number{font-size:36px;font-weight:700}
+  .summary-card .label{font-size:13px;color:var(--gray);margin-top:4px}
+  .num-total{color:var(--white)}
+  .num-fixed{color:var(--green)}
+  .num-open{color:var(--amber)}
+  .num-rate{color:var(--gold)}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--bg3)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead{background:var(--bg3)}
+  th{
+    text-align:left;padding:12px 14px;font-weight:600;color:var(--gold);
+    font-size:11px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;
+  }
+  td{padding:12px 14px;border-top:1px solid var(--bg3);vertical-align:top}
+  tr:hover td{background:var(--bg2)}
+
+  /* BADGES */
+  .badge{
+    display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;
+    border-radius:20px;white-space:nowrap;
+  }
+  .badge-fixed{background:rgba(62,207,110,.15);color:var(--green)}
+  .badge-open{background:rgba(240,160,48,.15);color:var(--amber)}
+  .badge-known{background:rgba(139,143,163,.15);color:var(--gray)}
+
+  .priority{
+    display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;
+    border-radius:4px;white-space:nowrap;
+  }
+  .p-critical{background:rgba(232,69,60,.2);color:var(--red)}
+  .p-high{background:rgba(240,160,48,.2);color:var(--amber)}
+  .p-medium{background:rgba(74,158,255,.15);color:var(--blue)}
+  .p-low{background:rgba(139,143,163,.15);color:var(--gray)}
+
+  /* FILTER TABS */
+  .filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+  .filter-btn{
+    background:var(--bg2);border:1px solid var(--bg3);color:var(--gray);
+    padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;
+    cursor:pointer;transition:.2s;
+  }
+  .filter-btn:hover,.filter-btn.active{color:var(--gold);border-color:var(--gold-dim);background:var(--bg3)}
+  .filter-btn .count{
+    display:inline-block;background:var(--bg4);padding:1px 7px;
+    border-radius:10px;font-size:11px;margin-left:6px;
+  }
+
+  @media(max-width:768px){
+    header h1{font-size:28px}
+    section h2{font-size:22px}
+    .container{padding:0 16px}
+    .summary-grid{grid-template-columns:1fr 1fr}
+    nav ul{gap:4px}
+    nav a{font-size:12px;padding:5px 10px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <ul>
+    <li><a href="project-report.html">Project Report</a></li>
+    <li><a href="bug-tracker.html" class="active">Bug Tracker</a></li>
+    <li><a href="kpi-dashboard.html">KPI Dashboard</a></li>
+    <li><a href="architecture-overview.html" class="ext">Architecture</a></li>
+    <li><a href="vendor-guide.html" class="ext">Vendor Guide</a></li>
+  </ul>
+</nav>
+
+<header>
+  <h1>Bug Tracker &amp; <span>Issue Log</span></h1>
+  <p>All bugs found, reported, and fixed during development</p>
+</header>
+
+<div class="container">
+
+  <!-- SUMMARY -->
+  <section id="summary">
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="number num-total">18</div>
+        <div class="label">Total Bugs</div>
+      </div>
+      <div class="summary-card">
+        <div class="number num-fixed">14</div>
+        <div class="label">Fixed</div>
+      </div>
+      <div class="summary-card">
+        <div class="number num-open">4</div>
+        <div class="label">Open</div>
+      </div>
+      <div class="summary-card">
+        <div class="number num-rate">78%</div>
+        <div class="label">Resolution Rate</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" onclick="filterBugs('all')">All <span class="count">18</span></button>
+      <button class="filter-btn" onclick="filterBugs('fixed')">Fixed <span class="count">14</span></button>
+      <button class="filter-btn" onclick="filterBugs('open')">Open <span class="count">4</span></button>
+      <button class="filter-btn" onclick="filterBugs('critical')">Critical <span class="count">3</span></button>
+      <button class="filter-btn" onclick="filterBugs('high')">High <span class="count">6</span></button>
+      <button class="filter-btn" onclick="filterBugs('medium')">Medium <span class="count">5</span></button>
+      <button class="filter-btn" onclick="filterBugs('low')">Low <span class="count">4</span></button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="bug-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Description</th>
+            <th>Found By</th>
+            <th>Fixed In</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-001</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>TypeScript Set spread error &mdash; <code>[...new Set()]</code> fails without <code>downlevelIteration</code></td>
+            <td>Vercel build</td>
+            <td>Phase 1 &mdash; used <code>Array.from()</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-002</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>Database unreachable &mdash; wrong Supabase host configured (uyxualynbqmchugzvdpc vs uxmzqduhztfcoelsbxkx)</td>
+            <td>Debug endpoint</td>
+            <td>Phase 1 &mdash; corrected host</td>
+          </tr>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-003</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>Vercel can't connect to Supabase &mdash; IPv4 incompatible, needed session pooler connection string</td>
+            <td>Debug endpoint</td>
+            <td>Phase 1 &mdash; switched to pooler URL</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-004</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Login fails &mdash; bcrypt hash mismatch, pre-computed hash didn't match password123</td>
+            <td>User testing</td>
+            <td>Phase 1 &mdash; regenerated hash</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-005</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Node.js <code>crypto</code> module not available on Vercel edge &mdash; invite action crashes</td>
+            <td>Vercel logs</td>
+            <td>Phase 3 &mdash; replaced with <code>Math.random</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-006</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Email send crashes entire invite flow &mdash; no try/catch around Resend call</td>
+            <td>User testing</td>
+            <td>Phase 3 &mdash; wrapped in try/catch</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-007</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>All stages show "Under Review" &mdash; gating logic required <code>approvedAt</code> on every stage instead of just NDA</td>
+            <td>User testing</td>
+            <td>Phase 5 &mdash; only NDA requires approval</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-008</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>View/Download buttons broken on Content tab &mdash; using wrong signed URL function</td>
+            <td>User testing</td>
+            <td>Phase 5 &mdash; created <code>getSignedContentUrl</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-009</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>IM not visible in investor portal &mdash; <code>fileUrl</code> is storage path, not a viewable URL</td>
+            <td>User testing</td>
+            <td>Phase 5 &mdash; generate signed URLs server-side</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-010</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td><code>Asset.name</code> doesn't exist &mdash; agent used wrong field name (should be <code>Asset.title</code>)</td>
+            <td>Build error</td>
+            <td>Phase 3 &mdash; fixed to <code>asset.title</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-011</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td><code>storagePath</code> field doesn't exist on Document model &mdash; agent added non-existent field</td>
+            <td>Build error</td>
+            <td>Phase 2 &mdash; removed field</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-012</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Zod validator missing INVESTOR role &mdash; <code>updateUser</code> schema only had 3 roles</td>
+            <td>Build error</td>
+            <td>Phase 3 &mdash; added INVESTOR to enum</td>
+          </tr>
+          <tr data-status="fixed" data-priority="low">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-013</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-low">Low</span></td>
+            <td>Invite link in email shows "undefined/login" &mdash; <code>NEXTAUTH_URL</code> not set on Vercel</td>
+            <td>User testing</td>
+            <td>Phase 3 &mdash; added env var</td>
+          </tr>
+          <tr data-status="fixed" data-priority="low">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-014</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-low">Low</span></td>
+            <td>Inline dates under stage cells look ugly in pipeline table</td>
+            <td>User feedback</td>
+            <td>Phase 5 &mdash; moved to tooltips only</td>
+          </tr>
+          <tr data-status="open" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-015</td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>PDF signing slow on Vercel &mdash; pdf-lib download + process + upload can timeout on large files</td>
+            <td>User testing</td>
+            <td>Partially fixed &mdash; made non-blocking</td>
+          </tr>
+          <tr data-status="open" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-016</td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>No password reset flow for investors</td>
+            <td>UX review</td>
+            <td>Planned</td>
+          </tr>
+          <tr data-status="open" data-priority="low">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-017</td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td><span class="priority p-low">Low</span></td>
+            <td>No email notification when NDA is approved</td>
+            <td>User request</td>
+            <td>Planned</td>
+          </tr>
+          <tr data-status="open" data-priority="low">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-018</td>
+            <td><span class="badge badge-open">Open</span></td>
+            <td><span class="priority p-low">Low</span></td>
+            <td>No data privacy disclaimer on signing page</td>
+            <td>User request</td>
+            <td>Planned</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer style="text-align:center;padding:48px 20px;color:var(--gray-dim);font-size:13px;border-top:1px solid var(--bg3)">
+  Investment Tracker — Bug Tracker &amp; Issue Log &middot; Generated April 13, 2026
+</footer>
+
+<script>
+function filterBugs(filter) {
+  const rows = document.querySelectorAll('#bug-table tbody tr');
+  const buttons = document.querySelectorAll('.filter-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  event.target.closest('.filter-btn').classList.add('active');
+
+  rows.forEach(row => {
+    const status = row.dataset.status;
+    const priority = row.dataset.priority;
+    if (filter === 'all') {
+      row.style.display = '';
+    } else if (filter === 'fixed' || filter === 'open') {
+      row.style.display = status === filter ? '' : 'none';
+    } else {
+      row.style.display = priority === filter ? '' : 'none';
+    }
+  });
+}
+</script>
+
+</body>
+</html>

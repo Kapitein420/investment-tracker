@@ -31,8 +31,9 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Invalid email or password");
     } else {
-      router.push("/");
-      router.refresh();
+      // Use window.location for a full page load so middleware can route
+      // INVESTOR → /portal, others → /
+      window.location.href = "/";
     }
   }
 

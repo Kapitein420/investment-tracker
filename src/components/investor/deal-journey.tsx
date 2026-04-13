@@ -290,10 +290,10 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         </div>
                       )}
                       {content.contentType === "LANDING_PAGE" && content.htmlContent && (
-                        <div
-                          className="mt-3 prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: content.htmlContent }}
-                        />
+                        <div className="mt-3 prose prose-sm max-w-none">
+                          {/* Render as plain text for security — use markdown renderer for rich content */}
+                          <p className="whitespace-pre-wrap">{content.htmlContent}</p>
+                        </div>
                       )}
                     </div>
                   ))}

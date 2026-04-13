@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Tracker — KPI Dashboard &amp; Metrics</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+    --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+    --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+    --blue:#4a9eff;--green:#3ecf6e;--amber:#f0a030;--red:#e8453c;
+    --radius:10px;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--white);line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* NAV */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(15,17,23,.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--bg3);padding:12px 0;
+  }
+  nav ul{
+    display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
+    list-style:none;max-width:1200px;margin:0 auto;padding:0 20px;
+  }
+  nav a{
+    color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;
+    padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap;
+  }
+  nav a:hover{color:var(--gold);background:var(--bg3)}
+  nav a.active{color:var(--gold);background:var(--bg3)}
+  nav a.ext{color:var(--gold-dim);border:1px solid var(--bg4)}
+  nav a.ext:hover{color:var(--gold);border-color:var(--gold-dim)}
+
+  /* LAYOUT */
+  .container{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{text-align:center;padding:64px 20px 40px}
+  header h1{font-size:42px;font-weight:700;letter-spacing:-.5px}
+  header h1 span{color:var(--gold)}
+  header p{color:var(--gray);font-size:16px;margin-top:10px}
+
+  section{padding:56px 0}
+  .section-label{
+    display:inline-block;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:2px;color:var(--gold);
+    margin-bottom:8px;
+  }
+  section h2{font-size:28px;font-weight:700;margin-bottom:28px}
+  .divider{width:60px;height:3px;background:var(--gold);border-radius:2px;margin:8px 0 20px}
+
+  /* METRIC CARDS */
+  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+  .metric-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+    padding:24px;text-align:center;transition:.2s;
+  }
+  .metric-card:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .metric-card .value{font-size:32px;font-weight:700;color:var(--gold);line-height:1.2}
+  .metric-card .label{font-size:13px;color:var(--gray);margin-top:6px}
+
+  /* BAR CHART */
+  .bar-chart{margin-top:24px}
+  .bar-row{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+  .bar-label{width:200px;font-size:14px;font-weight:500;flex-shrink:0;text-align:right}
+  .bar-track{flex:1;height:32px;background:var(--bg3);border-radius:6px;overflow:hidden;position:relative}
+  .bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:12px;font-size:12px;font-weight:600;transition:width .6s ease}
+  .bar-value{font-size:13px;font-weight:600;width:60px;text-align:left;flex-shrink:0;color:var(--gray)}
+
+  /* DONUT / PIE - CSS ONLY */
+  .donut-container{display:flex;flex-wrap:wrap;gap:40px;align-items:center;justify-content:center;margin:32px 0}
+  .donut{
+    width:200px;height:200px;border-radius:50%;position:relative;
+    background:conic-gradient(
+      var(--blue) 0% 21%,
+      var(--green) 21% 63%,
+      var(--amber) 63% 75%,
+      var(--gold) 75% 79%,
+      var(--gray) 79% 100%
+    );
+  }
+  .donut::after{
+    content:'';position:absolute;top:25%;left:25%;width:50%;height:50%;
+    background:var(--bg);border-radius:50%;
+  }
+  .donut-center{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:1;text-align:center;
+  }
+  .donut-center .big{font-size:24px;font-weight:700;color:var(--gold)}
+  .donut-center .small{font-size:11px;color:var(--gray)}
+  .legend{display:flex;flex-direction:column;gap:10px}
+  .legend-item{display:flex;align-items:center;gap:10px;font-size:14px}
+  .legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+  /* COMPARISON TABLE */
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:24px 0}
+  .compare-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:28px;
+  }
+  .compare-card h3{font-size:16px;font-weight:600;margin-bottom:16px;color:var(--gold-light)}
+  .compare-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg3)}
+  .compare-row:last-child{border-bottom:none}
+  .compare-label{color:var(--gray);font-size:14px}
+  .compare-value{font-weight:600;font-size:14px}
+
+  /* AGENT CARDS */
+  .agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:24px 0}
+  .agent-card{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:20px;
+  }
+  .agent-card h4{font-size:14px;font-weight:600;color:var(--gold-light);margin-bottom:8px}
+  .agent-card p{font-size:13px;color:var(--gray)}
+  .agent-badge{
+    display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1px;padding:3px 8px;border-radius:4px;margin-bottom:8px;
+  }
+  .agent-general{background:rgba(74,158,255,.15);color:var(--blue)}
+  .agent-explore{background:rgba(62,207,110,.15);color:var(--green)}
+  .agent-plan{background:rgba(212,168,67,.15);color:var(--gold)}
+
+  /* BUG RESOLUTION */
+  .bug-bar-container{margin:24px 0}
+  .bug-bar{display:flex;height:40px;border-radius:8px;overflow:hidden;margin-bottom:12px}
+  .bug-fixed{background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--bg)}
+  .bug-open{background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--bg)}
+  .bug-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .bug-stat{text-align:center}
+  .bug-stat .val{font-size:24px;font-weight:700}
+  .bug-stat .lbl{font-size:12px;color:var(--gray)}
+
+  /* CARD */
+  .card{
+    background:var(--bg2);border:1px solid var(--bg3);
+    border-radius:var(--radius);padding:28px;margin-bottom:24px;
+  }
+
+  /* SAVINGS HIGHLIGHT */
+  .savings-banner{
+    background:linear-gradient(135deg,rgba(212,168,67,.1),rgba(62,207,110,.1));
+    border:1px solid var(--gold-dim);border-radius:var(--radius);
+    padding:32px;text-align:center;margin:32px 0;
+  }
+  .savings-banner .big{font-size:48px;font-weight:700;color:var(--gold)}
+  .savings-banner .sub{font-size:16px;color:var(--gray);margin-top:8px}
+
+  /* TIMESTAMP */
+  .timestamp{
+    text-align:center;padding:24px;margin-top:32px;
+    background:var(--bg2);border-radius:var(--radius);border:1px solid var(--bg3);
+  }
+  .timestamp p{font-size:13px;color:var(--gray)}
+  .timestamp .date{color:var(--gold);font-weight:600}
+
+  @media(max-width:768px){
+    header h1{font-size:28px}
+    section h2{font-size:22px}
+    .container{padding:0 16px}
+    .metric-grid{grid-template-columns:1fr 1fr}
+    .compare-grid{grid-template-columns:1fr}
+    .bar-label{width:120px;font-size:12px}
+    nav ul{gap:4px}
+    nav a{font-size:12px;padding:5px 10px}
+  }
+  @media(max-width:480px){
+    .metric-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <ul>
+    <li><a href="project-report.html">Project Report</a></li>
+    <li><a href="bug-tracker.html">Bug Tracker</a></li>
+    <li><a href="kpi-dashboard.html" class="active">KPI Dashboard</a></li>
+    <li><a href="architecture-overview.html" class="ext">Architecture</a></li>
+    <li><a href="vendor-guide.html" class="ext">Vendor Guide</a></li>
+  </ul>
+</nav>
+
+<header>
+  <h1>Project KPIs &amp; <span>Metrics</span></h1>
+  <p>Development metrics, effort analysis, and cost efficiency</p>
+</header>
+
+<div class="container">
+
+  <!-- DEVELOPMENT METRICS -->
+  <section id="dev-metrics">
+    <span class="section-label">01</span>
+    <h2>Development Metrics</h2>
+    <div class="divider"></div>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value">~8h</div>
+        <div class="label">Development Time</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">12,000+</div>
+        <div class="label">Lines of Code</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">100+</div>
+        <div class="label">Files Created</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">20+</div>
+        <div class="label">Git Commits</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">15+</div>
+        <div class="label">Vercel Deployments</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">14</div>
+        <div class="label">Database Tables</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">25+</div>
+        <div class="label">Server Actions (8 files)</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">30+</div>
+        <div class="label">UI Components</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">10</div>
+        <div class="label">Pages / Routes</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE BREAKDOWN -->
+  <section id="features">
+    <span class="section-label">02</span>
+    <h2>Feature Breakdown by Phase</h2>
+    <div class="divider"></div>
+
+    <div class="bar-chart">
+      <div class="bar-row">
+        <span class="bar-label">Phase 1: Core Pipeline</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:100%;background:var(--blue)">12 features</div>
+        </div>
+        <span class="bar-value">12</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Phase 2: Timeline + Docs</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:50%;background:var(--green)">6 features</div>
+        </div>
+        <span class="bar-value">6</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Phase 3: Investor Portal</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:66.7%;background:var(--gold)">8 features</div>
+        </div>
+        <span class="bar-value">8</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Phase 4: PDF Signing</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:33.3%;background:var(--amber)">4 features</div>
+        </div>
+        <span class="bar-value">4</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Phase 5: Polish + Content</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:50%;background:var(--red)">6 features</div>
+        </div>
+        <span class="bar-value">6</span>
+      </div>
+    </div>
+
+    <p style="text-align:center;color:var(--gray);font-size:14px;margin-top:16px"><strong style="color:var(--gold)">36 features</strong> delivered across 5 phases in a single development day</p>
+  </section>
+
+  <!-- TECHNOLOGY DISTRIBUTION -->
+  <section id="tech-dist">
+    <span class="section-label">03</span>
+    <h2>Technology Distribution</h2>
+    <div class="divider"></div>
+    <p style="color:var(--gray);margin-bottom:24px">Lines of code by category across the codebase.</p>
+
+    <div class="donut-container">
+      <div class="donut" style="position:relative">
+        <div class="donut-center">
+          <div class="big">12K+</div>
+          <div class="small">Total Lines</div>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--green)"></div>
+          <span>React Components &mdash; ~5,000 lines (42%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--blue)"></div>
+          <span>Server Actions &mdash; ~2,500 lines (21%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--gray)"></div>
+          <span>Documentation &mdash; ~2,500 lines (21%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--amber)"></div>
+          <span>Utilities / Config &mdash; ~1,500 lines (12%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--gold)"></div>
+          <span>Schema / Types &mdash; ~500 lines (4%)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COST EFFICIENCY -->
+  <section id="cost">
+    <span class="section-label">04</span>
+    <h2>Cost Efficiency</h2>
+    <div class="divider"></div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h3>Traditional Development</h3>
+        <div class="compare-row">
+          <span class="compare-label">Estimated Hours</span>
+          <span class="compare-value">160 &ndash; 240 hours</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Developer Rate</span>
+          <span class="compare-value" style="color:var(--gray)">&euro;100 &ndash; &euro;150/hr</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Total Cost</span>
+          <span class="compare-value" style="color:var(--red)">&euro;16,000 &ndash; &euro;36,000</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Timeline</span>
+          <span class="compare-value" style="color:var(--gray)">4 &ndash; 6 weeks</span>
+        </div>
+      </div>
+      <div class="compare-card">
+        <h3>AI-Assisted Development</h3>
+        <div class="compare-row">
+          <span class="compare-label">Actual Hours</span>
+          <span class="compare-value" style="color:var(--green)">~8 hours</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Infrastructure Cost</span>
+          <span class="compare-value" style="color:var(--green)">$0</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Total Cost</span>
+          <span class="compare-value" style="color:var(--green)">$0 (free tiers)</span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label">Timeline</span>
+          <span class="compare-value" style="color:var(--green)">1 day</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="savings-banner">
+      <div class="big">95%+</div>
+      <div class="sub">Time reduction compared to traditional development</div>
+    </div>
+
+    <div class="card">
+      <p style="font-size:14px;color:var(--gray)"><strong style="color:var(--white)">Note:</strong> This is an MVP. Production hardening (comprehensive testing, security audit, performance optimization, error monitoring, CI/CD pipeline) would add approximately 40&ndash;80 additional hours.</p>
+    </div>
+  </section>
+
+  <!-- AGENT UTILIZATION -->
+  <section id="agents">
+    <span class="section-label">05</span>
+    <h2>Agent Utilization</h2>
+    <div class="divider"></div>
+
+    <div class="metric-grid" style="margin-bottom:24px">
+      <div class="metric-card">
+        <div class="value">12+</div>
+        <div class="label">Background Agents Launched</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">3&ndash;4h</div>
+        <div class="label">Time Saved via Parallelism</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">3</div>
+        <div class="label">Agent Types Used</div>
+      </div>
+    </div>
+
+    <div class="agent-grid">
+      <div class="agent-card">
+        <span class="agent-badge agent-general">General</span>
+        <h4>Code Writing Agents</h4>
+        <p>Server actions (5 files), seed data generation, document actions, invite flow, approval actions, content actions, CSV import, investor journey polish.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-badge agent-explore">Explore</span>
+        <h4>Codebase Analysis Agents</h4>
+        <p>Analyzed existing schema, identified integration points, checked for type errors, and verified build compatibility across the codebase.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-badge agent-plan">Plan</span>
+        <h4>Architecture Design Agents</h4>
+        <p>Designed data model relationships, planned signing workflow, structured investor portal routes, and defined server action boundaries.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUG RESOLUTION -->
+  <section id="bugs">
+    <span class="section-label">06</span>
+    <h2>Bug Resolution</h2>
+    <div class="divider"></div>
+
+    <div class="bug-bar-container">
+      <div class="bug-bar">
+        <div class="bug-fixed" style="width:78%">14 Fixed (78%)</div>
+        <div class="bug-open" style="width:22%">4 Open (22%)</div>
+      </div>
+      <div class="bug-stats">
+        <div class="bug-stat">
+          <div class="val" style="color:var(--white)">18</div>
+          <div class="lbl">Total Bugs Found</div>
+        </div>
+        <div class="bug-stat">
+          <div class="val" style="color:var(--green)">14</div>
+          <div class="lbl">Bugs Fixed</div>
+        </div>
+        <div class="bug-stat">
+          <div class="val" style="color:var(--amber)">4</div>
+          <div class="lbl">Bugs Open</div>
+        </div>
+        <div class="bug-stat">
+          <div class="val" style="color:var(--gold)">&lt;5 min</div>
+          <div class="lbl">Average Fix Time</div>
+        </div>
+        <div class="bug-stat">
+          <div class="val" style="color:var(--green)">0</div>
+          <div class="lbl">Production-Down Incidents</div>
+        </div>
+      </div>
+    </div>
+
+    <p style="text-align:center;margin-top:20px"><a href="bug-tracker.html" style="color:var(--gold);text-decoration:none;font-size:14px">View full bug tracker &rarr;</a></p>
+  </section>
+
+  <!-- GENERATED TIMESTAMP -->
+  <div class="timestamp">
+    <p>Generated on <span class="date">April 13, 2026</span></p>
+    <p style="margin-top:4px">This is a living document. Metrics update as the project evolves.</p>
+  </div>
+
+</div>
+
+<footer style="text-align:center;padding:48px 20px;color:var(--gray-dim);font-size:13px;border-top:1px solid var(--bg3)">
+  Investment Tracker — KPI Dashboard &amp; Metrics &middot; Generated April 13, 2026
+</footer>
+
+</body>
+</html>
