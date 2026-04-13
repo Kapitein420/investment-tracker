@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Send, ChevronRight, Clock, User, MessageSquare, History, FileText } from "lucide-react";
+import { X, Send, ChevronRight, Clock, User, MessageSquare, History, FileText, ShieldCheck } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
+import { approveStage } from "@/actions/approval-actions";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import {
   STAGE_STATUS_LABELS,
@@ -190,10 +191,46 @@ export function TrackingDetailDrawer({
                             {formatDate(ss.completedAt)}
                           </span>
                         )}
+                        {ss.approvedAt && (
+                          <span className="block text-[9px] text-emerald-600">Approved</span>
+                        )}
                       </div>
                     ))}
                 </div>
               </div>
+
+              {/* NDA Approval section */}
+              {editable && detail.stageStatuses
+                .filter((ss: any) => ss.status === "COMPLETED" && !ss.approvedAt && ss.stage.key === "nda")
+                .map((ss: any) => (
+                  <div key={`approve-${ss.id}`} className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">NDA Signed — Awaiting Approval</p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          Approve to unlock IM access for this investor
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs"
+                        onClick={async () => {
+                          try {
+                            await approveStage(trackingId, "nda");
+                            toast.success("NDA approved — IM access unlocked");
+                            loadDetail();
+                            router.refresh();
+                          } catch {
+                            toast.error("Failed to approve");
+                          }
+                        }}
+                      >
+                        <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                        Approve NDA
+                      </Button>
+                    </div>
+                  </div>
+                ))}
 
               {/* Editable fields */}
               {editable && (

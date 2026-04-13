@@ -11,6 +11,7 @@ enum Role {
   ADMIN
   EDITOR
   VIEWER
+  INVESTOR
 }
 
 enum DocumentStatus {
@@ -50,6 +51,11 @@ enum InterestLevel {
   NONE
 }
 
+enum ContentType {
+  PDF
+  LANDING_PAGE
+}
+
 // ─── 1. User ────────────────────────────────────────────────────────────────
 model User {
   id           String   @id @default(cuid())
@@ -58,17 +64,21 @@ model User {
   passwordHash String
   role         Role     @default(VIEWER)
   isActive     Boolean  @default(true)
+  companyId    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  company            Company?              @relation(fields: [companyId], references: [id])
   createdAssets      Asset[]               @relation("AssetCreator")
   ownedRows          AssetCompanyTracking[] @relation("TrackingOwner")
   comments           Comment[]
   stageUpdates       StageStatus[]         @relation("StageUpdater")
+  stageApprovals     StageStatus[]         @relation("StageApprover")
   stageHistory       StageHistory[]
   activityLogs       ActivityLog[]
   savedViews         SavedView[]
   uploadedDocuments  Document[]            @relation("DocumentUploader")
+  createdInvites     InvestorInvite[]      @relation("InviteCreator")
 }
 
 // ─── 2. Asset ───────────────────────────────────────────────────────────────
@@ -90,6 +100,8 @@ model Asset {
   createdBy  User                   @relation("AssetCreator", fields: [createdById], references: [id])
   trackings  AssetCompanyTracking[]
   savedViews SavedView[]
+  invites    InvestorInvite[]
+  contents   AssetContent[]
 }
 
 // ─── 3. Company ─────────────────────────────────────────────────────────────
@@ -107,6 +119,8 @@ model Company {
   updatedAt    DateTime    @updatedAt
 
   trackings AssetCompanyTracking[]
+  users     User[]
+  invites   InvestorInvite[]
 }
 
 // ─── 4. PipelineStage ───────────────────────────────────────────────────────
@@ -154,19 +168,22 @@ model AssetCompanyTracking {
 
 // ─── 6. StageStatus ─────────────────────────────────────────────────────────
 model StageStatus {
-  id              String           @id @default(cuid())
-  trackingId      String
-  stageId         String
-  status          StageStatusValue @default(NOT_STARTED)
-  completedAt     DateTime?
-  dueDate         DateTime?
-  updatedByUserId String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  trackingId       String
+  stageId          String
+  status           StageStatusValue @default(NOT_STARTED)
+  completedAt      DateTime?
+  dueDate          DateTime?
+  updatedByUserId  String?
+  approvedAt       DateTime?
+  approvedByUserId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  tracking  AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  stage     PipelineStage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  updatedBy User?                @relation("StageUpdater", fields: [updatedByUserId], references: [id])
+  tracking   AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  stage      PipelineStage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy  User?                @relation("StageUpdater", fields: [updatedByUserId], references: [id])
+  approvedBy User?                @relation("StageApprover", fields: [approvedByUserId], references: [id])
 
   @@unique([trackingId, stageId])
 }
@@ -265,4 +282,41 @@ model SigningToken {
   createdAt  DateTime  @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+// ─── 13. InvestorInvite ─────────────────────────────────────────────────────
+model InvestorInvite {
+  id          String    @id @default(cuid())
+  companyId   String
+  assetId     String
+  email       String
+  token       String    @unique @default(cuid())
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id])
+  asset     Asset   @relation(fields: [assetId], references: [id])
+  createdBy User    @relation("InviteCreator", fields: [createdById], references: [id])
+}
+
+// ─── 14. AssetContent ───────────────────────────────────────────────────────
+model AssetContent {
+  id          String      @id @default(cuid())
+  assetId     String
+  stageKey    String
+  contentType ContentType
+  title       String
+  fileUrl     String?
+  fileName    String?
+  htmlContent String?
+  description String?
+  imageUrls   Json?
+  keyMetrics  Json?
+  isPublished Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 }

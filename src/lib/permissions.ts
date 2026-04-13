@@ -17,13 +17,20 @@ export async function requireUser() {
 export async function requireRole(minimumRole: Role) {
   const user = await requireUser();
   const hierarchy: Record<Role, number> = {
-    VIEWER: 0,
-    EDITOR: 1,
-    ADMIN: 2,
+    INVESTOR: 0,
+    VIEWER: 1,
+    EDITOR: 2,
+    ADMIN: 3,
   };
   if (hierarchy[user.role] < hierarchy[minimumRole]) {
     throw new Error("Forbidden");
   }
+  return user;
+}
+
+export async function requireInvestor() {
+  const user = await requireUser();
+  if (user.role !== "INVESTOR") throw new Error("Forbidden: investor access only");
   return user;
 }
 
@@ -33,4 +40,8 @@ export function canEdit(role: Role) {
 
 export function isAdmin(role: Role) {
   return role === "ADMIN";
+}
+
+export function isInvestor(role: Role) {
+  return role === "INVESTOR";
 }

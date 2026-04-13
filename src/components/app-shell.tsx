@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { Building2, LayoutDashboard, Settings, Users, LogOut } from "lucide-react";
+import { Building2, LayoutDashboard, Settings, Users, LogOut, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ const navItems = [
 const adminItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/stages", label: "Stages", icon: Settings },
+  { href: "/admin/invites", label: "Invites", icon: Mail },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
