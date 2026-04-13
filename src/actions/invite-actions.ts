@@ -1,6 +1,5 @@
 "use server";
 
-import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -18,7 +17,7 @@ export async function sendInvestorInvite({
 }) {
   const user = await requireRole("EDITOR");
 
-  const token = crypto.randomBytes(32).toString("hex");
+  const token = Array.from({ length: 32 }, () => Math.random().toString(36).charAt(2)).join("");
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
   const [asset, company] = await Promise.all([
@@ -39,36 +38,40 @@ export async function sendInvestorInvite({
 
   const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/${token}`;
 
-  await sendEmail({
-    to: email,
-    subject: `You're invited to review ${asset.title}`,
-    html: `
-      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #b8860b, #daa520); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">Investment Tracker</h1>
-        </div>
-        <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-          <h2 style="color: #1a1a1a; margin-top: 0;">You've been invited</h2>
-          <p style="color: #4b5563; line-height: 1.6;">
-            <strong>${company.name}</strong> has invited you to review the investment opportunity
-            <strong>${asset.title}</strong>.
-          </p>
-          <p style="color: #4b5563; line-height: 1.6;">
-            Click the button below to access your investor portal and view deal materials.
-          </p>
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="${inviteUrl}"
-               style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
-              View Investment Opportunity
-            </a>
+  try {
+    await sendEmail({
+      to: email,
+      subject: `You're invited to review ${asset.title}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #b8860b, #daa520); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">Investment Tracker</h1>
           </div>
-          <p style="color: #9ca3af; font-size: 13px; margin-bottom: 0;">
-            This invitation expires in 30 days. If you did not expect this email, you can safely ignore it.
-          </p>
+          <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1a1a1a; margin-top: 0;">You've been invited</h2>
+            <p style="color: #4b5563; line-height: 1.6;">
+              <strong>${company.name}</strong> has invited you to review the investment opportunity
+              <strong>${asset.title}</strong>.
+            </p>
+            <p style="color: #4b5563; line-height: 1.6;">
+              Click the button below to access your investor portal and view deal materials.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${inviteUrl}"
+                 style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                View Investment Opportunity
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 0;">
+              This invitation expires in 30 days. If you did not expect this email, you can safely ignore it.
+            </p>
+          </div>
         </div>
-      </div>
-    `,
-  });
+      `,
+    });
+  } catch (e) {
+    console.error("Email send failed (invite still created):", e);
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -116,7 +119,7 @@ export async function acceptInvite(token: string, password?: string) {
   if (existingUser) {
     userId = existingUser.id;
   } else {
-    const pw = password || crypto.randomBytes(16).toString("hex");
+    const pw = password || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     const passwordHash = await bcrypt.hash(pw, 12);
 
     const newUser = await prisma.user.create({
