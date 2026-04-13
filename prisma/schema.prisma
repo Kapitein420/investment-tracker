@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum CompanyType {
+  INVESTOR
+  BROKER
+  ADVISOR
+  TENANT
+  OTHER
+}
+
+enum StageStatusValue {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  DECLINED
+}
+
+enum LifecycleStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  ON_HOLD
+}
+
+enum InterestLevel {
+  HOT
+  WARM
+  COLD
+  NONE
+}
+
+// ─── 1. User ────────────────────────────────────────────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdAssets Asset[]               @relation("AssetCreator")
+  ownedRows     AssetCompanyTracking[] @relation("TrackingOwner")
+  comments      Comment[]
+  stageUpdates  StageStatus[]         @relation("StageUpdater")
+  stageHistory  StageHistory[]
+  activityLogs  ActivityLog[]
+  savedViews    SavedView[]
+}
+
+// ─── 2. Asset ───────────────────────────────────────────────────────────────
+model Asset {
+  id              String   @id @default(cuid())
+  title           String
+  address         String
+  city            String
+  country         String
+  brokerLabel     String?
+  assetType       String?
+  transactionType String?
+  ownerEntity     String?
+  description     String?
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy  User                   @relation("AssetCreator", fields: [createdById], references: [id])
+  trackings  AssetCompanyTracking[]
+  savedViews SavedView[]
+}
+
+// ─── 3. Company ─────────────────────────────────────────────────────────────
+model Company {
+  id           String      @id @default(cuid())
+  name         String
+  legalName    String?
+  type         CompanyType @default(INVESTOR)
+  website      String?
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  trackings AssetCompanyTracking[]
+}
+
+// ─── 4. PipelineStage ───────────────────────────────────────────────────────
+model PipelineStage {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  sequence  Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stageStatuses StageStatus[]
+  stageHistory  StageHistory[]
+}
+
+// ─── 5. AssetCompanyTracking ────────────────────────────────────────────────
+model AssetCompanyTracking {
+  id                       String          @id @default(cuid())
+  assetId                  String
+  companyId                String
+  relationshipType         String          @default("Investor")
+  currentStageKey          String?
+  currentStageManualOverride Boolean       @default(false)
+  lifecycleStatus          LifecycleStatus @default(ACTIVE)
+  interestLevel            InterestLevel?
+  ownerUserId              String?
+  priority                 Int?
+  latestCommentPreview     String?
+  sortOrder                Int?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  asset        Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerUser    User?         @relation("TrackingOwner", fields: [ownerUserId], references: [id])
+  stageStatuses StageStatus[]
+  comments     Comment[]
+  stageHistory StageHistory[]
+
+  @@unique([assetId, companyId])
+}
+
+// ─── 6. StageStatus ─────────────────────────────────────────────────────────
+model StageStatus {
+  id              String           @id @default(cuid())
+  trackingId      String
+  stageId         String
+  status          StageStatusValue @default(NOT_STARTED)
+  completedAt     DateTime?
+  dueDate         DateTime?
+  updatedByUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tracking  AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  stage     PipelineStage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy User?                @relation("StageUpdater", fields: [updatedByUserId], references: [id])
+
+  @@unique([trackingId, stageId])
+}
+
+// ─── 7. Comment ─────────────────────────────────────────────────────────────
+model Comment {
+  id           String   @id @default(cuid())
+  trackingId   String
+  authorUserId String
+  body         String
+  isPinned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tracking AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  author   User                 @relation(fields: [authorUserId], references: [id])
+}
+
+// ─── 8. StageHistory ────────────────────────────────────────────────────────
+model StageHistory {
+  id              String   @id @default(cuid())
+  trackingId      String
+  stageId         String?
+  fieldName       String
+  oldValue        String?
+  newValue        String?
+  changedByUserId String
+  note            String?
+  createdAt       DateTime @default(now())
+
+  tracking  AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  stage     PipelineStage?       @relation(fields: [stageId], references: [id])
+  changedBy User                 @relation(fields: [changedByUserId], references: [id])
+}
+
+// ─── 9. ActivityLog ─────────────────────────────────────────────────────────
+model ActivityLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  userId     String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ─── 10. SavedView ──────────────────────────────────────────────────────────
+model SavedView {
+  id           String   @id @default(cuid())
+  userId       String
+  assetId      String?
+  name         String
+  filterConfig Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id])
+  asset Asset? @relation(fields: [assetId], references: [id])
+}
