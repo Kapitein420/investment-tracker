@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Plus, Search, Download, Building, MapPin, Filter,
+  ArrowLeft, Plus, Search, Download, Building, MapPin, Filter, BarChart3, Table2,
 } from "lucide-react";
 import Link from "next/link";
 import { canEdit } from "@/lib/permissions";
 import { computeStageSummaryCounts, LIFECYCLE_LABELS, STAGE_DOT_COLORS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { PipelineTable } from "@/components/asset/pipeline-table";
+import { PipelineOverview } from "@/components/asset/pipeline-overview";
 import { AddTrackingDialog } from "@/components/asset/add-tracking-dialog";
 import { TrackingDetailDrawer } from "@/components/asset/tracking-detail-drawer";
 
@@ -34,6 +35,7 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(null);
+  const [view, setView] = useState<"table" | "overview">("table");
 
   const editable = canEdit(currentUser.role);
 
@@ -105,6 +107,22 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
             </div>
           </div>
           <div className="flex gap-2">
+            <div className="flex rounded-md border bg-muted p-0.5">
+              <button
+                onClick={() => setView("table")}
+                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "table" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                Table
+              </button>
+              <button
+                onClick={() => setView("overview")}
+                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "overview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Overview
+              </button>
+            </div>
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
               Export CSV
@@ -166,73 +184,81 @@ export function AssetDetailView({ asset, stages, users, companies, currentUser }
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="border-b bg-white px-6 py-2.5">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search companies..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 pl-9 text-sm"
+      {view === "table" ? (
+        <>
+          {/* Filters */}
+          <div className="border-b bg-white px-6 py-2.5">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search companies..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 pl-9 text-sm"
+                />
+              </div>
+              <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
+                <SelectTrigger className="h-8 w-[140px] text-sm">
+                  <SelectValue placeholder="Lifecycle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {Object.entries(LIFECYCLE_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-8 w-[140px] text-sm">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {relationshipTypes.map((type) => (
+                    <SelectItem key={type as string} value={type as string}>{type as string}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(search || lifecycleFilter !== "all" || typeFilter !== "all" || stageFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    setSearch("");
+                    setLifecycleFilter("all");
+                    setTypeFilter("all");
+                    setStageFilter("all");
+                  }}
+                >
+                  <Filter className="mr-1 h-3 w-3" />
+                  Clear filters
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {filteredTrackings.length} of {asset.trackings.length} rows
+              </span>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto px-6 py-3">
+            <PipelineTable
+              trackings={filteredTrackings}
+              stages={stages}
+              users={users}
+              editable={editable}
+              currentUserId={currentUser.id}
+              onRowClick={(id) => setSelectedTrackingId(id)}
             />
           </div>
-          <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
-            <SelectTrigger className="h-8 w-[140px] text-sm">
-              <SelectValue placeholder="Lifecycle" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              {Object.entries(LIFECYCLE_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="h-8 w-[140px] text-sm">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {relationshipTypes.map((type) => (
-                <SelectItem key={type as string} value={type as string}>{type as string}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(search || lifecycleFilter !== "all" || typeFilter !== "all" || stageFilter !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => {
-                setSearch("");
-                setLifecycleFilter("all");
-                setTypeFilter("all");
-                setStageFilter("all");
-              }}
-            >
-              <Filter className="mr-1 h-3 w-3" />
-              Clear filters
-            </Button>
-          )}
-          <span className="text-xs text-muted-foreground ml-auto">
-            {filteredTrackings.length} of {asset.trackings.length} rows
-          </span>
+        </>
+      ) : (
+        <div className="flex-1 overflow-auto px-6 py-6">
+          <PipelineOverview trackings={asset.trackings} stages={stages} />
         </div>
-      </div>
-
-      {/* Table */}
-      <div className="flex-1 overflow-auto px-6 py-3">
-        <PipelineTable
-          trackings={filteredTrackings}
-          stages={stages}
-          users={users}
-          editable={editable}
-          currentUserId={currentUser.id}
-          onRowClick={(id) => setSelectedTrackingId(id)}
-        />
-      </div>
+      )}
 
       {/* Add tracking dialog */}
       <AddTrackingDialog

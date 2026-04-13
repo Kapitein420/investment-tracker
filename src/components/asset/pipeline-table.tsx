@@ -120,18 +120,11 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           const ss = row.original.stageStatuses.find((s: any) => s.stage.key === stage.key);
           if (!ss) return null;
           return (
-            <div className="flex flex-col items-center gap-0.5">
-              <StageCell
-                stageStatus={ss}
-                editable={editable}
-                trackingId={row.original.id}
-              />
-              {ss.status === "COMPLETED" && ss.completedAt && (
-                <span className="text-[9px] text-muted-foreground leading-none">
-                  {formatDate(ss.completedAt)}
-                </span>
-              )}
-            </div>
+            <StageCell
+              stageStatus={ss}
+              editable={editable}
+              trackingId={row.original.id}
+            />
           );
         },
       });

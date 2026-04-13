@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn, formatDate } from "@/lib/utils";
-import { STAGE_STATUS_LABELS, STAGE_DOT_COLORS, STAGE_STATUS_COLORS } from "@/lib/stages";
+import { STAGE_STATUS_LABELS, STAGE_DOT_COLORS } from "@/lib/stages";
 import { updateStageStatus } from "@/actions/tracking-actions";
 import { toast } from "sonner";
 import { StageStatusValue } from "@prisma/client";
+import { Check, Minus, Clock, Ban, X } from "lucide-react";
 
 const STATUS_OPTIONS: StageStatusValue[] = [
   "NOT_STARTED",
@@ -17,6 +18,22 @@ const STATUS_OPTIONS: StageStatusValue[] = [
   "BLOCKED",
   "DECLINED",
 ];
+
+const STATUS_ICON: Record<StageStatusValue, React.ReactNode> = {
+  NOT_STARTED: <Minus className="h-3 w-3 text-gray-300" />,
+  IN_PROGRESS: <Clock className="h-3 w-3 text-blue-500" />,
+  COMPLETED: <Check className="h-3 w-3 text-emerald-600" />,
+  BLOCKED: <Ban className="h-3 w-3 text-amber-500" />,
+  DECLINED: <X className="h-3 w-3 text-red-500" />,
+};
+
+const STATUS_BG: Record<StageStatusValue, string> = {
+  NOT_STARTED: "bg-gray-50 hover:bg-gray-100",
+  IN_PROGRESS: "bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200",
+  COMPLETED: "bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200",
+  BLOCKED: "bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-200",
+  DECLINED: "bg-red-50 hover:bg-red-100 ring-1 ring-red-200",
+};
 
 interface StageCellProps {
   stageStatus: {
@@ -57,28 +74,29 @@ export function StageCell({ stageStatus, editable, trackingId }: StageCellProps)
     }
   }
 
-  const dot = <span className={cn("h-2.5 w-2.5 rounded-full", STAGE_DOT_COLORS[stageStatus.status])} />;
+  const icon = STATUS_ICON[stageStatus.status];
+  const bg = STATUS_BG[stageStatus.status];
+
+  const tooltipBody = (
+    <>
+      <p className="font-medium text-xs">{stageStatus.stage.label}</p>
+      <p className="text-[10px] opacity-80">{STAGE_STATUS_LABELS[stageStatus.status]}</p>
+      {stageStatus.completedAt && (
+        <p className="text-[10px] opacity-60">{formatDate(stageStatus.completedAt)}</p>
+      )}
+    </>
+  );
 
   if (!editable) {
     return (
       <div className="flex items-center justify-center">
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
-              className={cn(
-                "inline-flex h-6 w-6 items-center justify-center rounded",
-                STAGE_STATUS_COLORS[stageStatus.status]
-              )}
-            >
-              {dot}
-            </span>
+            <div className={cn("inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors", bg)}>
+              {icon}
+            </div>
           </TooltipTrigger>
-          <TooltipContent>
-            <p className="font-medium">{stageStatus.stage.label}: {STAGE_STATUS_LABELS[stageStatus.status]}</p>
-            {stageStatus.completedAt && (
-              <p className="text-[10px] opacity-80">Completed {formatDate(stageStatus.completedAt)}</p>
-            )}
-          </TooltipContent>
+          <TooltipContent>{tooltipBody}</TooltipContent>
         </Tooltip>
       </div>
     );
@@ -89,42 +107,30 @@ export function StageCell({ stageStatus, editable, trackingId }: StageCellProps)
       <PopoverTrigger asChild>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              className={cn(
-                "inline-flex h-6 w-6 items-center justify-center rounded transition-all hover:ring-2 hover:ring-ring/20",
-                STAGE_STATUS_COLORS[stageStatus.status]
-              )}
-            >
-              {dot}
+            <button className={cn("inline-flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer", bg)}>
+              {icon}
             </button>
           </TooltipTrigger>
-          <TooltipContent>
-            <p className="font-medium">{stageStatus.stage.label}: {STAGE_STATUS_LABELS[stageStatus.status]}</p>
-            {stageStatus.completedAt && (
-              <p className="text-[10px] opacity-80">Completed {formatDate(stageStatus.completedAt)}</p>
-            )}
-          </TooltipContent>
+          <TooltipContent>{tooltipBody}</TooltipContent>
         </Tooltip>
       </PopoverTrigger>
-      <PopoverContent className="w-44 p-1" align="center">
-        <div className="px-2 py-1">
-          <p className="text-xs font-medium text-muted-foreground">{stageStatus.stage.label}</p>
-          {stageStatus.completedAt && (
-            <p className="text-[10px] text-muted-foreground/70">Completed {formatDate(stageStatus.completedAt)}</p>
-          )}
-        </div>
+      <PopoverContent className="w-48 p-1.5" align="center">
+        <p className="px-2 py-1 text-xs font-medium text-muted-foreground">{stageStatus.stage.label}</p>
         {STATUS_OPTIONS.map((status) => (
           <button
             key={status}
             onClick={() => handleStatusChange(status)}
             disabled={loading}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-              stageStatus.status === status && "bg-accent"
+              "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
+              stageStatus.status === status && "bg-accent font-medium"
             )}
           >
-            <span className={cn("h-2 w-2 rounded-full", STAGE_DOT_COLORS[status])} />
-            {STAGE_STATUS_LABELS[status]}
+            {STATUS_ICON[status]}
+            <span>{STAGE_STATUS_LABELS[status]}</span>
+            {status === stageStatus.status && stageStatus.completedAt && (
+              <span className="ml-auto text-[10px] text-muted-foreground">{formatDate(stageStatus.completedAt)}</span>
+            )}
           </button>
         ))}
       </PopoverContent>
