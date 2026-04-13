@@ -151,34 +151,7 @@ export async function signDocument(data: {
 
   const document = signingToken.document;
 
-  // ── Generate signed PDF ──────────────────────────────────────────
-  let signedFileUrl: string | null = null;
-
-  try {
-    // Download original PDF from storage
-    const originalPdfBytes = await downloadFile(document.fileUrl);
-
-    // Get field config (or use defaults)
-    const fieldConfig: FieldPlacement[] = (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
-
-    // Generate the signed PDF with embedded signature, name, and date
-    const signedPdfBytes = await generateSignedPdf(
-      originalPdfBytes,
-      validated.signatureData,
-      validated.signedByName,
-      formatDate(new Date()),
-      fieldConfig
-    );
-
-    // Upload signed PDF as new file
-    const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
-    signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
-  } catch (e) {
-    console.error("PDF signing failed, proceeding without signed PDF:", e);
-    // Continue — the signature data is still saved even if PDF generation fails
-  }
-
-  // ── Database updates ─────────────────────────────────────────────
+  // ── Database updates (fast path — runs first so the user isn't blocked) ──
   await prisma.$transaction(async (tx) => {
     await tx.document.update({
       where: { id: document.id },
@@ -188,7 +161,7 @@ export async function signDocument(data: {
         signedByName: validated.signedByName,
         signedByEmail: validated.signedByEmail,
         signatureData: validated.signatureData,
-        signedFileUrl,
+        // signedFileUrl will be updated after PDF generation completes
       },
     });
 
@@ -237,12 +210,48 @@ export async function signDocument(data: {
         metadata: {
           trackingId: document.trackingId,
           signedByName: validated.signedByName,
-          hasPdfSignature: !!signedFileUrl,
         },
         userId: document.uploadedByUserId,
       },
     });
   });
+
+  // ── Generate signed PDF (non-blocking — runs after DB commit) ───
+  // The signature is already saved above; this just produces the
+  // pretty PDF with the embedded signature image. If it fails the
+  // signature record is still valid.
+  const pdfStart = Date.now();
+  try {
+    const originalPdfBytes = await downloadFile(document.fileUrl);
+
+    const fieldConfig: FieldPlacement[] =
+      (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
+
+    const signedPdfBytes = await generateSignedPdf(
+      originalPdfBytes,
+      validated.signatureData,
+      validated.signedByName,
+      formatDate(new Date()),
+      fieldConfig
+    );
+
+    const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
+    const signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
+
+    // Patch the document with the generated PDF URL
+    await prisma.document.update({
+      where: { id: document.id },
+      data: { signedFileUrl },
+    });
+
+    console.log(`[signDocument] PDF generation completed in ${Date.now() - pdfStart}ms for doc ${document.id}`);
+  } catch (e) {
+    console.error(
+      `[signDocument] PDF generation failed after ${Date.now() - pdfStart}ms for doc ${document.id}:`,
+      e
+    );
+    // Non-fatal — the signature data is already persisted
+  }
 
   return { success: true };
 }

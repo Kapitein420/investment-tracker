@@ -20,22 +20,43 @@ function getStageIcon(status: StageStatusValue, hasApproval: boolean) {
 function getNextAction(stageStatuses: any[], documents: any[]): string {
   const stages = stageStatuses.sort((a: any, b: any) => a.stage.sequence - b.stage.sequence);
 
+  // Check for pending documents that need signing (any stage)
+  const pendingSignDoc = documents.find(
+    (d: any) => d.status === "PENDING" && d.signingTokens?.length > 0
+  );
+  if (pendingSignDoc) {
+    const stageLabel = pendingSignDoc.stage?.label ?? "document";
+    return `Sign your ${stageLabel} to proceed`;
+  }
+
   for (const ss of stages) {
-    if (ss.status === "IN_PROGRESS") {
-      if (documents.some((d: any) => d.stage.key === ss.stage.key)) {
-        return `Sign ${ss.stage.label} document`;
-      }
-      return `${ss.stage.label} in progress`;
-    }
+    // NDA completed but awaiting admin approval
     if (ss.status === "COMPLETED" && !ss.approvedAt && ss.stage.key === "nda") {
-      return "NDA under review";
+      return "NDA under review \u2014 we\u2019ll notify you when approved";
+    }
+
+    if (ss.status === "IN_PROGRESS") {
+      if (ss.stage.key === "im") return "Information Memorandum is now available";
+      if (ss.stage.key === "viewing") return "Schedule your property viewing";
+      if (ss.stage.key === "nbo") return "Submit your Non-Binding Offer";
+      return `${ss.stage.label} \u2014 action required`;
+    }
+
+    // If a stage is NOT_STARTED but the previous stage is done, hint at what's next
+    if (ss.status === "NOT_STARTED") {
+      const prevIdx = stages.indexOf(ss) - 1;
+      const prev = prevIdx >= 0 ? stages[prevIdx] : null;
+      if (prev && prev.status === "COMPLETED" && (prev.stage.key !== "nda" || prev.approvedAt)) {
+        if (ss.stage.key === "im") return "Information Memorandum is now available";
+        return `${ss.stage.label} is now available`;
+      }
     }
   }
 
   const allCompleted = stages.every((s: any) => s.status === "COMPLETED");
-  if (allCompleted) return "All stages complete";
+  if (allCompleted) return "All stages complete \u2014 thank you";
 
-  return "Awaiting next step";
+  return "Review the stages below to continue";
 }
 
 export function DealCard({ tracking }: DealCardProps) {

@@ -120,6 +120,18 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
         </div>
       </div>
 
+      {/* Next step guidance */}
+      <div className="mb-6 rounded-lg border bg-gold-50/50 border-gold-200 p-4">
+        <p className="text-sm text-gold-800">
+          {stages.every((s: any) => s.status === "COMPLETED")
+            ? "All stages are complete. Thank you for your participation in this investment process."
+            : stages.find((s: any) => s.status === "IN_PROGRESS")
+              ? `Next step: ${stages.find((s: any) => s.status === "IN_PROGRESS").stage.label} — action required`
+              : "Review the stages below to continue through the investment process."
+          }
+        </p>
+      </div>
+
       {/* Journey stages */}
       <div className="space-y-3">
         {stages.map((ss: any, idx: number) => {
@@ -288,12 +300,38 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                 </div>
               )}
 
-              {/* Empty available state */}
-              {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && state === "available" && (
+              {/* Empty state — richer teaser or generic message */}
+              {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && (
                 <div className="px-5 pb-5 ml-12">
-                  <p className="text-xs text-muted-foreground italic">
-                    No materials available yet. The deal team will share documents when ready.
-                  </p>
+                  {ss.stage.key === "teaser" ? (
+                    <div className="rounded-lg border bg-white p-5 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-16 w-16 rounded-lg bg-gold-100 flex items-center justify-center">
+                          <Building className="h-8 w-8 text-gold-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold">{tracking.asset.title}</h4>
+                          <p className="text-sm text-muted-foreground">{tracking.asset.address}, {tracking.asset.city}, {tracking.asset.country}</p>
+                        </div>
+                      </div>
+                      {tracking.asset.assetType && (
+                        <div className="flex gap-2">
+                          <Badge variant="secondary">{tracking.asset.assetType}</Badge>
+                          {tracking.asset.transactionType && <Badge variant="outline">{tracking.asset.transactionType}</Badge>}
+                        </div>
+                      )}
+                      {tracking.asset.description && (
+                        <p className="text-sm text-muted-foreground">{tracking.asset.description}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground italic">
+                        You have been invited to review this investment opportunity. Proceed to the NDA stage to access detailed materials.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      No materials available yet. The deal team will share documents when ready.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
