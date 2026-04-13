@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Mail, Check, Clock, X } from "lucide-react";
+import { Plus, Mail, Check, Clock, X, Copy } from "lucide-react";
 import { sendInvestorInvite } from "@/actions/invite-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -40,6 +40,15 @@ export function InvitesAdmin({
   const [assetId, setAssetId] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function copyInviteLink(token: string, id: string) {
+    const url = `${window.location.origin}/invite/${token}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    toast.success("Invite link copied");
+    setTimeout(() => setCopiedId(null), 2000);
+  }
 
   const selectedCompany = companies.find((c) => c.id === companyId);
 
@@ -85,6 +94,7 @@ export function InvitesAdmin({
               <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Asset</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Email</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Link</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Sent</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">By</th>
             </tr>
@@ -92,7 +102,7 @@ export function InvitesAdmin({
           <tbody>
             {invites.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No invitations sent yet
                 </td>
               </tr>
@@ -115,6 +125,22 @@ export function InvitesAdmin({
                       <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
                         <Clock className="mr-1 h-3 w-3" />Pending
                       </Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {!inv.acceptedAt && inv.expiresAt >= new Date() && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => copyInviteLink(inv.token, inv.id)}
+                      >
+                        {copiedId === inv.id ? (
+                          <><Check className="mr-1 h-3 w-3" />Copied</>
+                        ) : (
+                          <><Copy className="mr-1 h-3 w-3" />Copy link</>
+                        )}
+                      </Button>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(inv.createdAt)}</td>
