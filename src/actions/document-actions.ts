@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl } from "@/lib/supabase-storage";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
@@ -111,7 +111,13 @@ export async function getDocumentForSigning(token: string) {
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
 
-  return signingToken.document;
+  // Generate a temporary signed URL (2 hour access)
+  const signedFileUrl = await getSignedUrl(signingToken.document.fileUrl, 7200);
+
+  return {
+    ...signingToken.document,
+    fileUrl: signedFileUrl, // Replace stored path with temporary signed URL
+  };
 }
 
 export async function signDocument(data: {
