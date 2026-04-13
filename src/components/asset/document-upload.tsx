@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
+import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { uploadDocument } from "@/actions/document-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -32,6 +33,22 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
   const [selectedStageId, setSelectedStageId] = useState("");
   const [uploading, setUploading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showFieldConfig, setShowFieldConfig] = useState(false);
+  const [fieldConfig, setFieldConfig] = useState([
+    { type: "signature" as const, page: -1, position: "bottom-center" },
+    { type: "name" as const, page: -1, position: "bottom-left" },
+    { type: "date" as const, page: -1, position: "bottom-right" },
+  ]);
+
+  const POSITIONS = [
+    "top-left", "top-center", "top-right",
+    "middle-left", "middle-center", "middle-right",
+    "bottom-left", "bottom-center", "bottom-right",
+  ];
+
+  function updateField(idx: number, key: string, value: any) {
+    setFieldConfig((prev) => prev.map((f, i) => i === idx ? { ...f, [key]: value } : f));
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -50,6 +67,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
       formData.append("file", file);
       formData.append("trackingId", trackingId);
       formData.append("stageId", selectedStageId);
+      formData.append("fieldConfig", JSON.stringify(fieldConfig));
 
       const result = await uploadDocument(formData);
       toast.success("Document uploaded");
@@ -114,6 +132,49 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
               </Button>
             </div>
           </div>
+
+          {/* Field placement config */}
+          <button
+            type="button"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+            onClick={() => setShowFieldConfig(!showFieldConfig)}
+          >
+            <Settings2 className="h-3 w-3" />
+            {showFieldConfig ? "Hide" : "Configure"} signature field placement
+          </button>
+
+          {showFieldConfig && (
+            <div className="space-y-2 rounded-md bg-gray-50 p-2.5">
+              {fieldConfig.map((field, idx) => (
+                <div key={field.type} className="flex items-center gap-2">
+                  <span className="w-16 text-[10px] font-medium capitalize">{field.type}</span>
+                  <Select
+                    value={field.position}
+                    onValueChange={(v) => updateField(idx, "position", v)}
+                  >
+                    <SelectTrigger className="h-7 flex-1 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POSITIONS.map((p) => (
+                        <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    className="h-7 w-16 text-[10px]"
+                    value={field.page === -1 ? "" : field.page}
+                    placeholder="Last"
+                    onChange={(e) => updateField(idx, "page", e.target.value ? parseInt(e.target.value) : -1)}
+                  />
+                </div>
+              ))}
+              <p className="text-[9px] text-muted-foreground">
+                Page: leave empty for last page, or enter page number. Position: where on the page.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

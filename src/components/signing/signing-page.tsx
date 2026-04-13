@@ -171,7 +171,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
           <div className="rounded-lg border bg-white p-6 space-y-4">
             <h2 className="font-semibold">Sign this document</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Your full name</Label>
                 <Input
@@ -188,6 +188,10 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
                   onChange={(e) => setSignerEmail(e.target.value)}
                   placeholder="john@example.com"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Signing date</Label>
+                <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-gray-50" />
               </div>
             </div>
 

@@ -2,13 +2,18 @@
 
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile, getSignedUrl } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl, downloadFile, uploadBytes } from "@/lib/supabase-storage";
+import { generateSignedPdf, type FieldPlacement } from "@/lib/pdf-signing";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import {
-  signDocumentSchema,
-  rejectDocumentSchema,
-} from "@/lib/validators";
+import { signDocumentSchema, rejectDocumentSchema } from "@/lib/validators";
+import { formatDate } from "@/lib/utils";
+
+const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
+  { type: "signature", page: -1, position: "bottom-center" },
+  { type: "name", page: -1, position: "bottom-left" },
+  { type: "date", page: -1, position: "bottom-right" },
+];
 
 export async function uploadDocument(formData: FormData) {
   const user = await requireRole("EDITOR");
@@ -23,26 +28,38 @@ export async function uploadDocument(formData: FormData) {
     throw new Error("trackingId and stageId are required");
   }
 
+  // Parse field config or use defaults
+  const fieldConfigRaw = formData.get("fieldConfig") as string | null;
+  let fieldConfig: FieldPlacement[] = DEFAULT_FIELD_CONFIG;
+  if (fieldConfigRaw) {
+    try {
+      fieldConfig = JSON.parse(fieldConfigRaw);
+    } catch {
+      // use defaults
+    }
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const path = `documents/${trackingId}/${Date.now()}_${file.name}`;
-  const url = await uploadFile(buffer, path, file.type);
+  const storagePath = await uploadFile(buffer, path, file.type);
 
   const document = await prisma.document.create({
     data: {
       trackingId,
       stageId,
       fileName: file.name,
-      fileUrl: url,
+      fileUrl: storagePath,
       mimeType: file.type,
       fileSize: file.size,
       uploadedByUserId: user.id,
+      fieldConfig: fieldConfig as any,
     },
   });
 
   const token = await prisma.signingToken.create({
     data: {
       documentId: document.id,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   });
 
@@ -51,49 +68,38 @@ export async function uploadDocument(formData: FormData) {
       entityType: "Document",
       entityId: document.id,
       action: "DOCUMENT_UPLOADED",
-      metadata: {
-        trackingId,
-        stageId,
-        fileName: file.name,
-      },
+      metadata: { trackingId, stageId, fileName: file.name },
       userId: user.id,
     },
   });
 
   revalidatePath(`/assets`);
-  revalidatePath(`/tracking/${trackingId}`);
-
   return { document, signingUrl: `/sign/${token.token}` };
 }
 
 export async function getSignedDocumentUrl(documentId: string) {
   await requireUser();
   const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });
-  const url = await getSignedUrl(doc.fileUrl, 7200);
-  return url;
+  // Prefer signed version if available
+  const path = doc.signedFileUrl ?? doc.fileUrl;
+  return getSignedUrl(path, 7200);
 }
 
 export async function getDocumentsByTracking(trackingId: string) {
   await requireUser();
-
-  const documents = await prisma.document.findMany({
+  return prisma.document.findMany({
     where: { trackingId },
     include: {
       stage: true,
       uploadedBy: { select: { id: true, name: true } },
       signingTokens: {
-        where: {
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-        },
+        where: { usedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
     },
     orderBy: { createdAt: "desc" },
   });
-
-  return documents;
 }
 
 export async function getDocumentForSigning(token: string) {
@@ -118,12 +124,11 @@ export async function getDocumentForSigning(token: string) {
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
 
-  // Generate a temporary signed URL (2 hour access)
   const signedFileUrl = await getSignedUrl(signingToken.document.fileUrl, 7200);
 
   return {
     ...signingToken.document,
-    fileUrl: signedFileUrl, // Replace stored path with temporary signed URL
+    fileUrl: signedFileUrl,
   };
 }
 
@@ -146,8 +151,35 @@ export async function signDocument(data: {
 
   const document = signingToken.document;
 
+  // ── Generate signed PDF ──────────────────────────────────────────
+  let signedFileUrl: string | null = null;
+
+  try {
+    // Download original PDF from storage
+    const originalPdfBytes = await downloadFile(document.fileUrl);
+
+    // Get field config (or use defaults)
+    const fieldConfig: FieldPlacement[] = (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
+
+    // Generate the signed PDF with embedded signature, name, and date
+    const signedPdfBytes = await generateSignedPdf(
+      originalPdfBytes,
+      validated.signatureData,
+      validated.signedByName,
+      formatDate(new Date()),
+      fieldConfig
+    );
+
+    // Upload signed PDF as new file
+    const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
+    signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
+  } catch (e) {
+    console.error("PDF signing failed, proceeding without signed PDF:", e);
+    // Continue — the signature data is still saved even if PDF generation fails
+  }
+
+  // ── Database updates ─────────────────────────────────────────────
   await prisma.$transaction(async (tx) => {
-    // Update Document to SIGNED
     await tx.document.update({
       where: { id: document.id },
       data: {
@@ -156,16 +188,15 @@ export async function signDocument(data: {
         signedByName: validated.signedByName,
         signedByEmail: validated.signedByEmail,
         signatureData: validated.signatureData,
+        signedFileUrl,
       },
     });
 
-    // Mark token as used
     await tx.signingToken.update({
       where: { id: signingToken.id },
       data: { usedAt: new Date() },
     });
 
-    // Update StageStatus to COMPLETED
     const currentStageStatus = await tx.stageStatus.findUnique({
       where: {
         trackingId_stageId: {
@@ -184,13 +215,9 @@ export async function signDocument(data: {
           stageId: document.stageId,
         },
       },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-      },
+      data: { status: "COMPLETED", completedAt: new Date() },
     });
 
-    // Create StageHistory
     await tx.stageHistory.create({
       data: {
         trackingId: document.trackingId,
@@ -202,7 +229,6 @@ export async function signDocument(data: {
       },
     });
 
-    // Create ActivityLog
     await tx.activityLog.create({
       data: {
         entityType: "Document",
@@ -210,9 +236,8 @@ export async function signDocument(data: {
         action: "DOCUMENT_SIGNED",
         metadata: {
           trackingId: document.trackingId,
-          stageId: document.stageId,
           signedByName: validated.signedByName,
-          signedByEmail: validated.signedByEmail,
+          hasPdfSignature: !!signedFileUrl,
         },
         userId: document.uploadedByUserId,
       },
@@ -240,7 +265,6 @@ export async function rejectDocument(data: {
   const document = signingToken.document;
 
   await prisma.$transaction(async (tx) => {
-    // Update Document to REJECTED
     await tx.document.update({
       where: { id: document.id },
       data: {
@@ -250,13 +274,11 @@ export async function rejectDocument(data: {
       },
     });
 
-    // Mark token as used
     await tx.signingToken.update({
       where: { id: signingToken.id },
       data: { usedAt: new Date() },
     });
 
-    // Create ActivityLog
     await tx.activityLog.create({
       data: {
         entityType: "Document",
@@ -264,7 +286,6 @@ export async function rejectDocument(data: {
         action: "DOCUMENT_REJECTED",
         metadata: {
           trackingId: document.trackingId,
-          stageId: document.stageId,
           rejectionReason: validated.rejectionReason ?? null,
         },
         userId: document.uploadedByUserId,

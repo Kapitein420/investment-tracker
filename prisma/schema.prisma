@@ -261,6 +261,8 @@ model Document {
   signedByName     String?
   signedByEmail    String?
   signatureData    String?
+  signedFileUrl    String?
+  fieldConfig      Json?
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime       @default(now())

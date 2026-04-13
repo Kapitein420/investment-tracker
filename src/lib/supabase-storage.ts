@@ -33,6 +33,28 @@ export async function getSignedUrl(path: string, expiresInSeconds = 7200): Promi
 }
 
 /**
+ * Download raw file bytes from private storage.
+ */
+export async function downloadFile(path: string): Promise<Buffer> {
+  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  if (error) throw new Error(`Download failed: ${error.message}`);
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
+ * Upload raw bytes to storage and return the path.
+ */
+export async function uploadBytes(bytes: Uint8Array, path: string, contentType: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
+    contentType,
+    upsert: false,
+  });
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+  return data.path;
+}
+
+/**
  * Delete a file from storage.
  */
 export async function deleteFile(path: string) {

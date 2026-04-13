@@ -202,7 +202,7 @@ export function SigningModal({
               <div className="space-y-4">
                 <h3 className="font-semibold">Sign this document</h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Your full name</Label>
                     <Input
@@ -219,6 +219,10 @@ export function SigningModal({
                       onChange={(e) => setSignerEmail(e.target.value)}
                       placeholder="john@example.com"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Signing date</Label>
+                    <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-gray-50" />
                   </div>
                 </div>
 
