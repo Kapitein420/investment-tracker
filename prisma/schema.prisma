@@ -13,6 +13,13 @@ enum Role {
   VIEWER
 }
 
+enum DocumentStatus {
+  PENDING
+  SIGNED
+  REJECTED
+  EXPIRED
+}
+
 enum CompanyType {
   INVESTOR
   BROKER
@@ -54,13 +61,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  createdAssets Asset[]               @relation("AssetCreator")
-  ownedRows     AssetCompanyTracking[] @relation("TrackingOwner")
-  comments      Comment[]
-  stageUpdates  StageStatus[]         @relation("StageUpdater")
-  stageHistory  StageHistory[]
-  activityLogs  ActivityLog[]
-  savedViews    SavedView[]
+  createdAssets      Asset[]               @relation("AssetCreator")
+  ownedRows          AssetCompanyTracking[] @relation("TrackingOwner")
+  comments           Comment[]
+  stageUpdates       StageStatus[]         @relation("StageUpdater")
+  stageHistory       StageHistory[]
+  activityLogs       ActivityLog[]
+  savedViews         SavedView[]
+  uploadedDocuments  Document[]            @relation("DocumentUploader")
 }
 
 // ─── 2. Asset ───────────────────────────────────────────────────────────────
@@ -113,6 +121,7 @@ model PipelineStage {
 
   stageStatuses StageStatus[]
   stageHistory  StageHistory[]
+  documents     Document[]
 }
 
 // ─── 5. AssetCompanyTracking ────────────────────────────────────────────────
@@ -138,6 +147,7 @@ model AssetCompanyTracking {
   stageStatuses StageStatus[]
   comments     Comment[]
   stageHistory StageHistory[]
+  documents    Document[]
 
   @@unique([assetId, companyId])
 }
@@ -217,4 +227,42 @@ model SavedView {
 
   user  User   @relation(fields: [userId], references: [id])
   asset Asset? @relation(fields: [assetId], references: [id])
+}
+
+// ─── 11. Document ───────────────────────────────────────────────────────────
+model Document {
+  id               String         @id @default(cuid())
+  trackingId       String
+  stageId          String
+  fileName         String
+  fileUrl          String
+  fileSize         Int
+  mimeType         String         @default("application/pdf")
+  uploadedByUserId String
+  status           DocumentStatus @default(PENDING)
+  signedAt         DateTime?
+  signedByName     String?
+  signedByEmail    String?
+  signatureData    String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tracking      AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  stage         PipelineStage        @relation(fields: [stageId], references: [id])
+  uploadedBy    User                 @relation("DocumentUploader", fields: [uploadedByUserId], references: [id])
+  signingTokens SigningToken[]
+}
+
+// ─── 12. SigningToken ───────────────────────────────────────────────────────
+model SigningToken {
+  id         String    @id @default(cuid())
+  documentId String
+  token      String    @unique @default(cuid())
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }

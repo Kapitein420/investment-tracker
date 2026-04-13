@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { type PipelineStage } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Send, ChevronRight, Clock, User, MessageSquare, History } from "lucide-react";
-import { cn, formatDateTime } from "@/lib/utils";
+import { X, Send, ChevronRight, Clock, User, MessageSquare, History, FileText } from "lucide-react";
+import { DocumentUpload } from "@/components/asset/document-upload";
+import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import {
   STAGE_STATUS_LABELS,
   STAGE_DOT_COLORS,
@@ -156,12 +158,20 @@ export function TrackingDetailDrawer({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Pipeline Progress</Label>
-                  {editable && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdvance}>
-                      <ChevronRight className="mr-1 h-3 w-3" />
-                      Advance Stage
-                    </Button>
-                  )}
+                  <div className="flex gap-1.5">
+                    <Link href={`/assets/${detail.assetId}/timeline/${trackingId}`}>
+                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                        <Clock className="mr-1 h-3 w-3" />
+                        Timeline
+                      </Button>
+                    </Link>
+                    {editable && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdvance}>
+                        <ChevronRight className="mr-1 h-3 w-3" />
+                        Advance
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   {detail.stageStatuses
@@ -175,6 +185,11 @@ export function TrackingDetailDrawer({
                           )}
                         />
                         <span className="text-[10px] text-muted-foreground">{ss.stage.label}</span>
+                        {ss.completedAt && (
+                          <span className="block text-[9px] text-muted-foreground/70">
+                            {formatDate(ss.completedAt)}
+                          </span>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -220,12 +235,16 @@ export function TrackingDetailDrawer({
 
             <Separator />
 
-            {/* Tabs: Comments / History */}
+            {/* Tabs: Comments / History / Documents */}
             <Tabs defaultValue="comments" className="p-4">
               <TabsList className="w-full">
                 <TabsTrigger value="comments" className="flex-1 text-xs">
                   <MessageSquare className="mr-1 h-3 w-3" />
                   Comments ({detail.comments?.length ?? 0})
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex-1 text-xs">
+                  <FileText className="mr-1 h-3 w-3" />
+                  Docs ({detail.documents?.length ?? 0})
                 </TabsTrigger>
                 <TabsTrigger value="history" className="flex-1 text-xs">
                   <History className="mr-1 h-3 w-3" />
@@ -299,6 +318,15 @@ export function TrackingDetailDrawer({
                     ))}
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="documents" className="mt-3">
+                <DocumentUpload
+                  trackingId={trackingId}
+                  stages={stages}
+                  documents={detail.documents ?? []}
+                  editable={editable}
+                />
               </TabsContent>
             </Tabs>
           </div>

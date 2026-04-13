@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import {
   useReactTable,
@@ -119,11 +120,18 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           const ss = row.original.stageStatuses.find((s: any) => s.stage.key === stage.key);
           if (!ss) return null;
           return (
-            <StageCell
-              stageStatus={ss}
-              editable={editable}
-              trackingId={row.original.id}
-            />
+            <div className="flex flex-col items-center gap-0.5">
+              <StageCell
+                stageStatus={ss}
+                editable={editable}
+                trackingId={row.original.id}
+              />
+              {ss.status === "COMPLETED" && ss.completedAt && (
+                <span className="text-[9px] text-muted-foreground leading-none">
+                  {formatDate(ss.completedAt)}
+                </span>
+              )}
+            </div>
           );
         },
       });
@@ -194,6 +202,11 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onRowClick(row.original.id)}>
                 View details
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/assets/${row.original.assetId}/timeline/${row.original.id}`}>
+                  View timeline
+                </Link>
               </DropdownMenuItem>
               {editable && (
                 <>

@@ -94,6 +94,22 @@ export const savedViewSchema = z.object({
   filterConfig: z.record(z.any()),
 });
 
+// ─── Document ──────────────────────────────────────────────────────────────
+export const signDocumentSchema = z.object({
+  token: z.string().min(1),
+  signedByName: z.string().min(1, "Name is required"),
+  signedByEmail: z.string().email("Valid email is required"),
+  signatureData: z.string().min(1, "Signature is required"),
+});
+
+export const rejectDocumentSchema = z.object({
+  token: z.string().min(1),
+  rejectionReason: z.string().optional(),
+});
+
+export type SignDocumentInput = z.infer<typeof signDocumentSchema>;
+export type RejectDocumentInput = z.infer<typeof rejectDocumentSchema>;
+
 // Export types
 export type CreateAssetInput = z.infer<typeof createAssetSchema>;
 export type UpdateAssetInput = z.infer<typeof updateAssetSchema>;

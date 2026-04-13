@@ -352,6 +352,18 @@ export async function getTrackingDetail(id: string) {
         },
         orderBy: { createdAt: "desc" },
       },
+      documents: {
+        include: {
+          stage: true,
+          uploadedBy: { select: { id: true, name: true } },
+          signingTokens: {
+            where: { usedAt: null, expiresAt: { gt: new Date() } },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
       ownerUser: { select: { id: true, name: true, email: true } },
     },
   });

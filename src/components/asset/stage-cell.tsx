@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn, formatDate } from "@/lib/utils";
 import { STAGE_STATUS_LABELS, STAGE_DOT_COLORS, STAGE_STATUS_COLORS } from "@/lib/stages";
 import { updateStageStatus } from "@/actions/tracking-actions";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ interface StageCellProps {
     id: string;
     status: StageStatusValue;
     stageId: string;
+    completedAt: string | Date | null;
     stage: { key: string; label: string };
   };
   editable: boolean;
@@ -55,18 +57,29 @@ export function StageCell({ stageStatus, editable, trackingId }: StageCellProps)
     }
   }
 
+  const dot = <span className={cn("h-2.5 w-2.5 rounded-full", STAGE_DOT_COLORS[stageStatus.status])} />;
+
   if (!editable) {
     return (
       <div className="flex items-center justify-center">
-        <span
-          className={cn(
-            "inline-flex h-6 w-6 items-center justify-center rounded",
-            STAGE_STATUS_COLORS[stageStatus.status]
-          )}
-          title={STAGE_STATUS_LABELS[stageStatus.status]}
-        >
-          <span className={cn("h-2.5 w-2.5 rounded-full", STAGE_DOT_COLORS[stageStatus.status])} />
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn(
+                "inline-flex h-6 w-6 items-center justify-center rounded",
+                STAGE_STATUS_COLORS[stageStatus.status]
+              )}
+            >
+              {dot}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-medium">{stageStatus.stage.label}: {STAGE_STATUS_LABELS[stageStatus.status]}</p>
+            {stageStatus.completedAt && (
+              <p className="text-[10px] opacity-80">Completed {formatDate(stageStatus.completedAt)}</p>
+            )}
+          </TooltipContent>
+        </Tooltip>
       </div>
     );
   }
@@ -74,18 +87,32 @@ export function StageCell({ stageStatus, editable, trackingId }: StageCellProps)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          className={cn(
-            "inline-flex h-6 w-6 items-center justify-center rounded transition-all hover:ring-2 hover:ring-ring/20",
-            STAGE_STATUS_COLORS[stageStatus.status]
-          )}
-          title={`${stageStatus.stage.label}: ${STAGE_STATUS_LABELS[stageStatus.status]}`}
-        >
-          <span className={cn("h-2.5 w-2.5 rounded-full", STAGE_DOT_COLORS[stageStatus.status])} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className={cn(
+                "inline-flex h-6 w-6 items-center justify-center rounded transition-all hover:ring-2 hover:ring-ring/20",
+                STAGE_STATUS_COLORS[stageStatus.status]
+              )}
+            >
+              {dot}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-medium">{stageStatus.stage.label}: {STAGE_STATUS_LABELS[stageStatus.status]}</p>
+            {stageStatus.completedAt && (
+              <p className="text-[10px] opacity-80">Completed {formatDate(stageStatus.completedAt)}</p>
+            )}
+          </TooltipContent>
+        </Tooltip>
       </PopoverTrigger>
       <PopoverContent className="w-44 p-1" align="center">
-        <p className="px-2 py-1 text-xs font-medium text-muted-foreground">{stageStatus.stage.label}</p>
+        <div className="px-2 py-1">
+          <p className="text-xs font-medium text-muted-foreground">{stageStatus.stage.label}</p>
+          {stageStatus.completedAt && (
+            <p className="text-[10px] text-muted-foreground/70">Completed {formatDate(stageStatus.completedAt)}</p>
+          )}
+        </div>
         {STATUS_OPTIONS.map((status) => (
           <button
             key={status}
