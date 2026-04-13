@@ -22,11 +22,21 @@ interface DealJourneyProps {
 type StageState = "locked" | "available" | "action_needed" | "pending_review" | "completed";
 
 function getStageState(ss: any, prevSs: any | null): StageState {
-  if (ss.status === "COMPLETED" && ss.approvedAt) return "completed";
-  if (ss.status === "COMPLETED" && !ss.approvedAt) return "pending_review";
+  // Only NDA requires admin approval; other stages complete normally
+  const needsApproval = ss.stage.key === "nda";
+
+  if (ss.status === "COMPLETED") {
+    if (needsApproval && !ss.approvedAt) return "pending_review";
+    return "completed";
+  }
   if (ss.status === "IN_PROGRESS") return "action_needed";
+
+  // Check if previous stage allows access
   if (!prevSs) return ss.status === "NOT_STARTED" ? "available" : "locked";
-  if (prevSs.status === "COMPLETED" && (prevSs.approvedAt || prevSs.stage.key !== "nda")) {
+
+  // Previous stage must be completed; NDA specifically needs approval
+  if (prevSs.status === "COMPLETED") {
+    if (prevSs.stage.key === "nda" && !prevSs.approvedAt) return "locked";
     return "available";
   }
   return "locked";

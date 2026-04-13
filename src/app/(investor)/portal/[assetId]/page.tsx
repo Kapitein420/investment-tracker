@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { redirect, notFound } from "next/navigation";
+import { getSignedUrl } from "@/lib/supabase-storage";
 import { DealJourney } from "@/components/investor/deal-journey";
 
 export default async function InvestorDealPage({ params }: { params: { assetId: string } }) {
@@ -39,9 +40,24 @@ export default async function InvestorDealPage({ params }: { params: { assetId: 
   if (!tracking) notFound();
 
   // Fetch published content for this asset
-  const contents = await prisma.assetContent.findMany({
+  const rawContents = await prisma.assetContent.findMany({
     where: { assetId: params.assetId, isPublished: true },
   });
+
+  // Generate signed URLs for PDF content so they're viewable in the browser
+  const contents = await Promise.all(
+    rawContents.map(async (c) => {
+      if (c.contentType === "PDF" && c.fileUrl && !c.fileUrl.startsWith("http")) {
+        try {
+          const signedUrl = await getSignedUrl(c.fileUrl, 7200);
+          return { ...c, fileUrl: signedUrl };
+        } catch {
+          return c;
+        }
+      }
+      return c;
+    })
+  );
 
   return (
     <DealJourney

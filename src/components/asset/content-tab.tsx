@@ -13,8 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import {
   FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X,
 } from "lucide-react";
-import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile } from "@/actions/content-actions";
-import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl } from "@/actions/content-actions";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -76,28 +75,29 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
 
   async function handleViewPdf(fileUrl: string) {
     try {
-      // If it's a storage path (not a full URL), get a signed URL
-      if (!fileUrl.startsWith("http")) {
-        const url = await getSignedDocumentUrl(fileUrl);
-        setPreviewUrl(url);
-      } else {
-        setPreviewUrl(fileUrl);
-      }
+      const url = await getSignedContentUrl(fileUrl);
+      setPreviewUrl(url);
     } catch {
-      // Try using it directly
-      setPreviewUrl(fileUrl);
+      toast.error("Failed to load document preview");
     }
   }
 
   async function handleDownload(fileUrl: string, fileName: string) {
     try {
-      let url = fileUrl;
-      if (!fileUrl.startsWith("http")) {
-        url = await getSignedDocumentUrl(fileUrl);
-      }
-      window.open(url, "_blank");
+      const url = await getSignedContentUrl(fileUrl);
+      // Trigger actual download
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName || "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
     } catch {
-      toast.error("Failed to get download link");
+      toast.error("Failed to download document");
     }
   }
 

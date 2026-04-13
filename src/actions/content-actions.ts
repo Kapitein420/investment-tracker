@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireRole } from "@/lib/permissions";
-import { uploadFile } from "@/lib/supabase-storage";
+import { requireRole, requireUser } from "@/lib/permissions";
+import { uploadFile, getSignedUrl } from "@/lib/supabase-storage";
 
 export async function createAssetContent(data: {
   assetId: string;
@@ -96,6 +96,12 @@ export async function getAssetContents(assetId: string) {
   });
 
   return contents;
+}
+
+export async function getSignedContentUrl(storagePath: string) {
+  await requireUser();
+  const url = await getSignedUrl(storagePath, 7200);
+  return url;
 }
 
 export async function uploadContentFile(formData: FormData) {
