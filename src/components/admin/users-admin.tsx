@@ -111,6 +111,7 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                       <SelectItem value="ADMIN">Admin</SelectItem>
                       <SelectItem value="EDITOR">Editor</SelectItem>
                       <SelectItem value="VIEWER">Viewer</SelectItem>
+                      <SelectItem value="INVESTOR">Investor</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
