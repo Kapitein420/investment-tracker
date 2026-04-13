@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noah's Learning Journey — April 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+  --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+  --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+  --blue:#4a9eff;--green:#3ecf6e;--emerald:#10b981;--amber:#f0a030;--red:#e8453c;--purple:#a78bfa;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--white);line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Header */
+header{
+  text-align:center;padding:60px 20px 40px;
+  background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%);
+}
+header h1{font-size:38px;font-weight:700;letter-spacing:-.5px}
+header h1 span{color:var(--gold)}
+header p{color:var(--gray);font-size:15px;margin-top:8px}
+
+.container{max-width:900px;margin:0 auto;padding:0 24px}
+
+/* Stats strip */
+.stats{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+  padding:30px 20px;
+}
+.stat{
+  background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+  padding:16px 24px;text-align:center;min-width:120px;
+}
+.stat-value{font-size:28px;font-weight:700;color:var(--gold)}
+.stat-label{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+/* Timeline */
+.timeline{position:relative;padding:40px 0}
+.timeline::before{
+  content:'';position:absolute;left:50%;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--gold),var(--emerald),var(--blue),var(--purple));
+  transform:translateX(-50%);border-radius:2px;
+}
+
+.day{margin-bottom:60px;position:relative}
+.day-label{
+  text-align:center;position:relative;z-index:2;margin-bottom:30px;
+}
+.day-label span{
+  background:var(--gold);color:#000;font-weight:700;font-size:13px;
+  padding:6px 20px;border-radius:20px;letter-spacing:1px;
+}
+
+.phase{
+  display:flex;align-items:flex-start;margin-bottom:24px;
+  position:relative;
+}
+.phase:nth-child(odd){flex-direction:row}
+.phase:nth-child(even){flex-direction:row-reverse}
+
+.phase-dot{
+  position:absolute;left:50%;top:20px;width:18px;height:18px;
+  border-radius:50%;border:3px solid var(--bg);z-index:2;
+  transform:translateX(-50%);
+}
+
+.phase-card{
+  width:calc(50% - 40px);
+  background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+  padding:20px;transition:border-color .2s;
+}
+.phase-card:hover{border-color:var(--gold)}
+
+.phase-number{
+  display:inline-block;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:2px;padding:3px 10px;
+  border-radius:6px;margin-bottom:8px;
+}
+.phase-card h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.phase-card p{font-size:13px;color:var(--gray);margin-bottom:12px}
+
+.skills-gained{display:flex;flex-wrap:wrap;gap:6px}
+.skill-tag{
+  font-size:10px;font-weight:600;padding:3px 10px;border-radius:6px;
+  border:1px solid;
+}
+
+/* Skill colors */
+.c-green{background:rgba(16,185,129,.1);color:var(--emerald);border-color:rgba(16,185,129,.2)}
+.c-blue{background:rgba(74,158,255,.1);color:var(--blue);border-color:rgba(74,158,255,.2)}
+.c-gold{background:rgba(212,168,67,.1);color:var(--gold);border-color:rgba(212,168,67,.2)}
+.c-purple{background:rgba(167,139,250,.1);color:var(--purple);border-color:rgba(167,139,250,.2)}
+.c-amber{background:rgba(240,160,48,.1);color:var(--amber);border-color:rgba(240,160,48,.2)}
+.c-red{background:rgba(232,69,60,.1);color:var(--red);border-color:rgba(232,69,60,.2)}
+
+/* Skill tree */
+.section-title{
+  text-align:center;margin:60px 0 30px;
+}
+.section-title h2{font-size:28px;font-weight:700}
+.section-title h2 span{color:var(--gold)}
+.section-title p{color:var(--gray);font-size:14px;margin-top:6px}
+
+.skill-tree{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:40px}
+.skill-category{
+  background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+  padding:20px;
+}
+.skill-category h4{
+  font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.skill-category h4 .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+.skill-item{
+  display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;
+}
+.skill-item .check{
+  width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;flex-shrink:0;
+}
+.skill-item .check.done{background:rgba(16,185,129,.15);color:var(--emerald)}
+.skill-item .check.pending{background:rgba(136,136,136,.1);color:var(--gray-dim)}
+.skill-item span{color:var(--gray)}
+.skill-item.done span{color:var(--white)}
+
+/* Agent flow */
+.agent-flow{
+  background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
+  padding:30px;margin:30px 0;
+}
+.agent-flow h3{font-size:18px;font-weight:700;margin-bottom:20px;text-align:center}
+
+.flow-row{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-bottom:12px;flex-wrap:wrap;
+}
+.flow-box{
+  padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;
+  text-align:center;min-width:120px;
+}
+.flow-arrow{color:var(--gold);font-size:18px;font-weight:700}
+
+/* XP bar */
+.xp-section{text-align:center;padding:40px 0}
+.xp-bar-outer{
+  width:100%;max-width:600px;margin:20px auto;height:30px;
+  background:var(--bg3);border-radius:15px;overflow:hidden;
+}
+.xp-bar-inner{
+  height:100%;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;
+  padding-right:12px;font-size:12px;font-weight:700;color:#000;
+  background:linear-gradient(90deg,var(--gold-dim),var(--gold),var(--gold-light));
+  transition:width 1s ease;
+}
+.xp-label{display:flex;justify-content:space-between;max-width:600px;margin:8px auto 0;font-size:11px;color:var(--gray)}
+
+/* Tomorrow */
+.tomorrow{
+  background:linear-gradient(135deg,rgba(212,168,67,.08),rgba(212,168,67,.02));
+  border:1px solid rgba(212,168,67,.2);border-radius:var(--radius);
+  padding:24px;margin:30px 0;
+}
+.tomorrow h3{color:var(--gold);font-size:16px;margin-bottom:12px}
+.tomorrow ol{padding-left:20px}
+.tomorrow li{color:var(--gray);font-size:13px;margin-bottom:6px}
+.tomorrow li strong{color:var(--white)}
+
+/* Footer */
+footer{text-align:center;padding:40px 20px;color:var(--gray-dim);font-size:11px}
+
+/* Responsive */
+@media(max-width:700px){
+  .timeline::before{left:24px}
+  .phase{flex-direction:column!important;padding-left:50px}
+  .phase-dot{left:24px!important}
+  .phase-card{width:100%}
+  .skill-tree{grid-template-columns:1fr}
+  .stats{gap:8px}
+  .stat{min-width:90px;padding:12px 16px}
+  .stat-value{font-size:22px}
+  header h1{font-size:28px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Noah's <span>Learning Journey</span></h1>
+  <p>From first app to enterprise-grade platform — April 12-13, 2026</p>
+</header>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat"><div class="stat-value">2</div><div class="stat-label">Days</div></div>
+  <div class="stat"><div class="stat-value">15K+</div><div class="stat-label">Lines of Code</div></div>
+  <div class="stat"><div class="stat-value">120+</div><div class="stat-label">Files</div></div>
+  <div class="stat"><div class="stat-value">50+</div><div class="stat-label">Features</div></div>
+  <div class="stat"><div class="stat-value">45+</div><div class="stat-label">Bugs Fixed</div></div>
+  <div class="stat"><div class="stat-value">15+</div><div class="stat-label">Agents Used</div></div>
+</div>
+
+<div class="container">
+
+<!-- Timeline -->
+<div class="section-title">
+  <h2>Development <span>Timeline</span></h2>
+  <p>Each phase built on the last — skills compounding in real time</p>
+</div>
+
+<div class="timeline">
+
+  <!-- Day 1 -->
+  <div class="day">
+    <div class="day-label"><span>DAY 1 — APRIL 12</span></div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--emerald)"></div>
+      <div class="phase-card">
+        <div class="phase-number c-green">Phase 0 — First App</div>
+        <h3>D&D Combat Tracker</h3>
+        <p>Full combat tracker with maps, fog of war, monster management, initiative tracking, and BG3-inspired theme. First ever project with Claude Code.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-green">Next.js Basics</span>
+          <span class="skill-tag c-green">Supabase</span>
+          <span class="skill-tag c-green">Tailwind CSS</span>
+          <span class="skill-tag c-green">HTML Canvas</span>
+          <span class="skill-tag c-blue">Vercel Deploy</span>
+          <span class="skill-tag c-blue">GitHub</span>
+        </div>
+      </div>
+      <div class="phase-card" style="visibility:hidden"></div>
+    </div>
+  </div>
+
+  <!-- Day 2 -->
+  <div class="day">
+    <div class="day-label"><span>DAY 2 — APRIL 13</span></div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--blue)"></div>
+      <div class="phase-card">
+        <div class="phase-number c-blue">Phase 1 — Core Pipeline</div>
+        <h3>Investment Tracker Foundation</h3>
+        <p>57 files, 4,670 lines. Full pipeline dashboard with 10 Prisma models, TanStack Table, server actions, NextAuth with 3 roles, seed data with 18 companies.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-blue">Prisma ORM</span>
+          <span class="skill-tag c-blue">TanStack Table</span>
+          <span class="skill-tag c-blue">Server Actions</span>
+          <span class="skill-tag c-blue">NextAuth JWT</span>
+          <span class="skill-tag c-gold">shadcn/ui</span>
+          <span class="skill-tag c-green">Zod Validation</span>
+        </div>
+      </div>
+      <div class="phase-card" style="visibility:hidden"></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--emerald)"></div>
+      <div class="phase-card" style="visibility:hidden"></div>
+      <div class="phase-card">
+        <div class="phase-number c-green">Phase 2 — Documents & Timeline</div>
+        <h3>Visual Timeline + PDF Signing</h3>
+        <p>Timeline page merging events from multiple sources. Document upload to private Supabase Storage. Public signing page with canvas signature pad.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-green">Supabase Storage</span>
+          <span class="skill-tag c-green">Signed URLs</span>
+          <span class="skill-tag c-green">Canvas API</span>
+          <span class="skill-tag c-purple">Event Merging</span>
+          <span class="skill-tag c-blue">Public Routes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--gold)"></div>
+      <div class="phase-card">
+        <div class="phase-number c-gold">Phase 3 — Investor Portal</div>
+        <h3>Dual-Portal Architecture</h3>
+        <p>Separate investor experience: guided deal journey, inline signing modal, email invitations with auto-created credentials, NDA approval workflow with gated IM access.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-gold">Multi-Role Routing</span>
+          <span class="skill-tag c-gold">Resend Email API</span>
+          <span class="skill-tag c-gold">Investor Isolation</span>
+          <span class="skill-tag c-gold">Approval Workflows</span>
+          <span class="skill-tag c-purple">Stage Gating</span>
+          <span class="skill-tag c-blue">Inline Modals</span>
+        </div>
+      </div>
+      <div class="phase-card" style="visibility:hidden"></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--purple)"></div>
+      <div class="phase-card" style="visibility:hidden"></div>
+      <div class="phase-card">
+        <div class="phase-number c-purple">Phase 4 — Real PDF Signing</div>
+        <h3>pdf-lib + Field Placement</h3>
+        <p>Server-side PDF manipulation: admin configures where signature/name/date fields go, investor signs, pdf-lib embeds them directly into the document. Non-blocking generation.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-purple">pdf-lib</span>
+          <span class="skill-tag c-purple">Binary File Handling</span>
+          <span class="skill-tag c-purple">Serverless Limits</span>
+          <span class="skill-tag c-amber">Field Config (JSON)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--amber)"></div>
+      <div class="phase-card">
+        <div class="phase-number c-amber">Phase 5 — Content + Import</div>
+        <h3>Content Tab + CSV Import</h3>
+        <p>Content management for NDA/IM per asset with signing stats. CSV bulk import with template download, quoted field parsing, preview before confirm.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-amber">Content Management</span>
+          <span class="skill-tag c-amber">CSV Parsing</span>
+          <span class="skill-tag c-amber">Bulk Operations</span>
+          <span class="skill-tag c-green">Transaction Wrapping</span>
+        </div>
+      </div>
+      <div class="phase-card" style="visibility:hidden"></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--red)"></div>
+      <div class="phase-card" style="visibility:hidden"></div>
+      <div class="phase-card">
+        <div class="phase-number c-red">Phase 6 — QA & Security Sweep</div>
+        <h3>42 Bugs Found → 45 Fixed</h3>
+        <p>Launched QA agent (28 code issues) + UX agent (30 journey issues). Deployed 3 parallel fix agents. Security hardening: race conditions, XSS, IDOR, transaction safety, input validation.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-red">Race Condition Fix</span>
+          <span class="skill-tag c-red">XSS Prevention</span>
+          <span class="skill-tag c-red">IDOR Prevention</span>
+          <span class="skill-tag c-amber">QA Agents</span>
+          <span class="skill-tag c-purple">Parallel Bug Fixing</span>
+          <span class="skill-tag c-green">Data Integrity</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-dot" style="background:var(--gold)"></div>
+      <div class="phase-card">
+        <div class="phase-number c-gold">Phase 7 — Documentation</div>
+        <h3>CTO-Ready Reports</h3>
+        <p>5 comprehensive HTML docs: architecture overview, vendor guide, project report with decision log, bug tracker, and KPI dashboard. All cross-linked, branded, shareable.</p>
+        <div class="skills-gained">
+          <span class="skill-tag c-gold">Technical Writing</span>
+          <span class="skill-tag c-gold">Architecture Docs</span>
+          <span class="skill-tag c-gold">Cost Analysis</span>
+          <span class="skill-tag c-purple">Doc Agents</span>
+        </div>
+      </div>
+      <div class="phase-card" style="visibility:hidden"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Agent System Understanding -->
+<div class="agent-flow">
+  <h3>How Noah Uses AI Agents</h3>
+  <div class="flow-row">
+    <div class="flow-box" style="background:rgba(212,168,67,.15);color:var(--gold)">Noah describes the goal</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(74,158,255,.15);color:var(--blue)">Claude plans architecture</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(167,139,250,.15);color:var(--purple)">Agents build in parallel</div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-box" style="background:rgba(167,139,250,.15);color:var(--purple)">Agent 1: Server Actions</div>
+    <div class="flow-box" style="background:rgba(167,139,250,.15);color:var(--purple)">Agent 2: Seed Data</div>
+    <div class="flow-box" style="background:rgba(167,139,250,.15);color:var(--purple)">Agent 3: Components</div>
+  </div>
+  <div class="flow-row">
+    <span class="flow-arrow">↓</span>
+  </div>
+  <div class="flow-row">
+    <div class="flow-box" style="background:rgba(16,185,129,.15);color:var(--emerald)">Claude verifies output</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(240,160,48,.15);color:var(--amber)">Noah tests live</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(232,69,60,.15);color:var(--red)">QA agents find bugs</div>
+  </div>
+  <div class="flow-row">
+    <span class="flow-arrow">↓</span>
+  </div>
+  <div class="flow-row">
+    <div class="flow-box" style="background:rgba(232,69,60,.15);color:var(--red)">3 fix agents in parallel</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(16,185,129,.15);color:var(--emerald)">Build + Deploy</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="background:rgba(212,168,67,.15);color:var(--gold)">Production ✓</div>
+  </div>
+</div>
+
+<!-- Skill Tree -->
+<div class="section-title">
+  <h2>Skill <span>Tree</span></h2>
+  <p>Every box checked is a skill demonstrated in production code</p>
+</div>
+
+<div class="skill-tree">
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--blue)"></span> Full-Stack Development</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>Next.js 14 App Router</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>TypeScript (strict)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Tailwind CSS + Custom Theme</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>shadcn/ui Components</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>React Hook Form + Zod</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>TanStack Table</span></div>
+  </div>
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--emerald)"></span> Database & Backend</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>Prisma ORM (14 models)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>PostgreSQL + Supabase</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Server Actions (25+ functions)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>NextAuth (4 roles, JWT)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Database Transactions</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Database Indexes</span></div>
+  </div>
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--red)"></span> Security</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>Role-Based Access Control</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Race Condition Prevention</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>XSS Prevention</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>IDOR Prevention</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>bcrypt Password Hashing</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Private Storage + Signed URLs</span></div>
+  </div>
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--purple)"></span> Document Signing</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>pdf-lib (Server-Side)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Canvas Signature Pad</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>One-Time Signing Tokens</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Field Placement Config</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Non-Blocking PDF Generation</span></div>
+  </div>
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--gold)"></span> AI Agent Workflows</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>Agent Orchestration</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Parallel Execution (15+ agents)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Agent Briefing Patterns</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>QA Testing Agents</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Documentation Agents</span></div>
+    <div class="skill-item"><div class="check pending">○</div><span>Custom Agent Building</span></div>
+    <div class="skill-item"><div class="check pending">○</div><span>Claude API Direct Usage</span></div>
+  </div>
+  <div class="skill-category">
+    <h4><span class="dot" style="background:var(--amber)"></span> DevOps & Deployment</h4>
+    <div class="skill-item done"><div class="check done">✓</div><span>Vercel (Auto-Deploy)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>GitHub + Git Workflow</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Docker (Local DB)</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Resend Email API</span></div>
+    <div class="skill-item done"><div class="check done">✓</div><span>Production Debugging</span></div>
+    <div class="skill-item"><div class="check pending">○</div><span>Custom Domain Email</span></div>
+  </div>
+</div>
+
+<!-- XP Progress -->
+<div class="xp-section">
+  <div class="section-title">
+    <h2>Progress to <span>Claude Architect</span></h2>
+    <p>Skills mastered vs total skill tree</p>
+  </div>
+  <div class="xp-bar-outer">
+    <div class="xp-bar-inner" style="width:85%">85%</div>
+  </div>
+  <div class="xp-label">
+    <span>Beginner</span>
+    <span>Intermediate</span>
+    <span>Advanced</span>
+    <span>Architect</span>
+  </div>
+</div>
+
+<!-- Tomorrow -->
+<div class="tomorrow">
+  <h3>Tomorrow's Priorities</h3>
+  <ol>
+    <li><strong>Full investor flow test</strong> — sign NDA end-to-end, verify IM unlocks</li>
+    <li><strong>Verify dils.com domain</strong> in Resend — enables real email sending</li>
+    <li><strong>Mobile testing</strong> — verify investor portal on phone/tablet</li>
+    <li><strong>Privacy disclaimer</strong> — add GDPR-compliant text</li>
+    <li><strong>Build first custom agent</strong> — security auditor for all projects</li>
+  </ol>
+</div>
+
+</div>
+
+<footer>
+  <p>Generated April 13, 2026 — Built with Claude Code</p>
+  <p style="margin-top:4px">Noah Maatoke • DILS Group • Investment Technology</p>
+</footer>
+
+</body>
+</html>
