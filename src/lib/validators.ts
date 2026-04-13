@@ -99,7 +99,7 @@ export const signDocumentSchema = z.object({
   token: z.string().min(1),
   signedByName: z.string().min(1, "Name is required"),
   signedByEmail: z.string().email("Valid email is required"),
-  signatureData: z.string().min(1, "Signature is required"),
+  signatureData: z.string().min(1, "Signature is required").max(500000, "Signature data too large"),
 });
 
 export const rejectDocumentSchema = z.object({

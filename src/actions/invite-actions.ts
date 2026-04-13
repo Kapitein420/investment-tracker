@@ -67,7 +67,7 @@ export async function sendInvestorInvite({
       email,
       token,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      acceptedAt: new Date(), // auto-accepted since account is created
+      // acceptedAt is set when the investor first logs in, not on creation
       createdById: user.id,
     },
   });

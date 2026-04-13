@@ -348,6 +348,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           token={signingToken}
           companyName={tracking.company.name}
           assetTitle={tracking.asset.title}
+          defaultName={tracking.company.contactName || tracking.company.name}
+          defaultEmail={tracking.company.contactEmail || ""}
         />
       )}
     </div>

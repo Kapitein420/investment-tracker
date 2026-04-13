@@ -28,6 +28,14 @@ export const authOptions: NextAuthOptions = {
         );
         if (!valid) return null;
 
+        // Mark pending invites as accepted on first login (for INVESTOR users)
+        if (user.role === "INVESTOR") {
+          await prisma.investorInvite.updateMany({
+            where: { email: user.email, acceptedAt: null },
+            data: { acceptedAt: new Date() },
+          });
+        }
+
         return {
           id: user.id,
           name: user.name,

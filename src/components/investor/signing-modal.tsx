@@ -29,6 +29,8 @@ interface SigningModalProps {
   token: string;
   companyName: string;
   assetTitle: string;
+  defaultName?: string;
+  defaultEmail?: string;
 }
 
 export function SigningModal({
@@ -38,13 +40,15 @@ export function SigningModal({
   token,
   companyName,
   assetTitle,
+  defaultName,
+  defaultEmail,
 }: SigningModalProps) {
   const router = useRouter();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [mode, setMode] = useState<"sign" | "reject" | null>(null);
-  const [signerName, setSignerName] = useState("");
-  const [signerEmail, setSignerEmail] = useState("");
+  const [signerName, setSignerName] = useState(defaultName ?? "");
+  const [signerEmail, setSignerEmail] = useState(defaultEmail ?? "");
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -66,8 +70,8 @@ export function SigningModal({
     if (!open) {
       setPdfUrl(null);
       setMode(null);
-      setSignerName("");
-      setSignerEmail("");
+      setSignerName(defaultName ?? "");
+      setSignerEmail(defaultEmail ?? "");
       setSignatureData(null);
       setRejectionReason("");
       setSubmitting(false);

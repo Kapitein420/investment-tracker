@@ -129,18 +129,37 @@ export function InvitesAdmin({
                   </td>
                   <td className="px-4 py-3">
                     {!inv.acceptedAt && inv.expiresAt >= new Date() && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => copyInviteLink(inv.token, inv.id)}
-                      >
-                        {copiedId === inv.id ? (
-                          <><Check className="mr-1 h-3 w-3" />Copied</>
-                        ) : (
-                          <><Copy className="mr-1 h-3 w-3" />Copy link</>
-                        )}
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => copyInviteLink(inv.token, inv.id)}
+                        >
+                          {copiedId === inv.id ? (
+                            <><Check className="mr-1 h-3 w-3" />Copied</>
+                          ) : (
+                            <><Copy className="mr-1 h-3 w-3" />Copy link</>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={async () => {
+                            try {
+                              await sendInvestorInvite({ companyId: inv.company.id, assetId: inv.asset.id, email: inv.email });
+                              toast.success("Invitation resent");
+                              router.refresh();
+                            } catch {
+                              toast.error("Failed to resend");
+                            }
+                          }}
+                        >
+                          <Mail className="mr-1 h-3 w-3" />
+                          Resend
+                        </Button>
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(inv.createdAt)}</td>

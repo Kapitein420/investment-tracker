@@ -21,6 +21,12 @@ export async function uploadDocument(formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) throw new Error("No file provided");
 
+  // Validate file size (max 10MB for Vercel serverless)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File too large. Maximum size is 10MB.");
+  }
+
   const trackingId = formData.get("trackingId") as string;
   const stageId = formData.get("stageId") as string;
 
