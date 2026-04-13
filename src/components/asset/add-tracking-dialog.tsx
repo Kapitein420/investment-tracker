@@ -50,9 +50,9 @@ export function AddTrackingDialog({
     reset,
     setValue,
     formState: { errors },
-  } = useForm({
+  } = useForm<z.infer<typeof newCompanySchema>>({
     resolver: zodResolver(newCompanySchema),
-    defaultValues: { type: "INVESTOR" as const },
+    defaultValues: { name: "", type: "INVESTOR", contactName: "", contactEmail: "" },
   });
 
   async function handleAddExisting() {
