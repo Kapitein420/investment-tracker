@@ -66,6 +66,13 @@ export async function uploadDocument(formData: FormData) {
   return { document, signingUrl: `/sign/${token.token}` };
 }
 
+export async function getSignedDocumentUrl(documentId: string) {
+  await requireUser();
+  const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });
+  const url = await getSignedUrl(doc.fileUrl, 7200);
+  return url;
+}
+
 export async function getDocumentsByTracking(trackingId: string) {
   await requireUser();
 

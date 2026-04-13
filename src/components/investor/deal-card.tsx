@@ -67,20 +67,21 @@ export function DealCard({ tracking }: DealCardProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Stage progress mini-dots */}
-        <div className="flex items-center gap-1.5">
+        {/* Stage progress mini-dots with labels */}
+        <div className="flex items-center gap-2">
           {tracking.stageStatuses
             .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence)
             .map((ss: any) => (
-              <div key={ss.id} className="flex flex-col items-center gap-0.5">
+              <div key={ss.id} className="flex flex-col items-center gap-1">
                 <div
                   className={cn(
-                    "h-2 w-2 rounded-full",
+                    "h-2.5 w-2.5 rounded-full",
                     ss.status === "COMPLETED" ? "bg-emerald-500" :
                     ss.status === "IN_PROGRESS" ? "bg-blue-500" :
                     "bg-gray-200"
                   )}
                 />
+                <span className="text-[9px] text-muted-foreground leading-none">{ss.stage.label}</span>
               </div>
             ))}
         </div>

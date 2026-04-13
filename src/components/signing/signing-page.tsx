@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SignaturePad } from "@/components/signing/signature-pad";
-import { Building2, FileText, Check, X, AlertTriangle } from "lucide-react";
-import { signDocument, rejectDocument } from "@/actions/document-actions";
+import { Building2, FileText, Check, X, AlertTriangle, Download } from "lucide-react";
+import { signDocument, rejectDocument, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
 
 interface SigningPageProps {
@@ -85,11 +85,38 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               ? "Your signature has been recorded. The requesting party has been notified."
               : "Your response has been recorded. The requesting party has been notified."}
           </p>
+          {completed === "signed" && signatureData && (
+            <div className="mt-4 inline-block rounded-lg border bg-gray-50 p-3">
+              <p className="text-[10px] text-muted-foreground mb-1">Your signature</p>
+              <img src={signatureData} alt="Signature" className="h-10 opacity-80" />
+            </div>
+          )}
+
           <div className="mt-4 rounded-md bg-gray-50 p-3 text-xs text-muted-foreground">
             <p>{doc.tracking.asset.title}</p>
             <p>{doc.tracking.company.name} &middot; {doc.stage.label}</p>
             <p>{doc.fileName}</p>
           </div>
+
+          {completed === "signed" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={async () => {
+                try {
+                  const url = await getSignedDocumentUrl(doc.id);
+                  window.open(url, "_blank");
+                } catch {
+                  // Fallback: use the fileUrl directly
+                  window.open(doc.fileUrl, "_blank");
+                }
+              }}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Download Document
+            </Button>
+          )}
         </div>
       </div>
     );
