@@ -24,6 +24,11 @@ export async function createAssetContent(data: {
     throw new Error("assetId, stageKey, contentType, and title are required");
   }
 
+  // Prevent publishing PDF content without a file
+  if (data.contentType === "PDF" && data.isPublished && !data.fileUrl) {
+    throw new Error("Cannot publish PDF content without a file. Upload a file first.");
+  }
+
   const content = await prisma.assetContent.create({
     data: {
       assetId: data.assetId,

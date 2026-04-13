@@ -38,6 +38,7 @@ export default async function InvestorDealPage({ params }: { params: { assetId: 
   });
 
   if (!tracking) notFound();
+  if (tracking.lifecycleStatus === "DROPPED") notFound();
 
   // Fetch published content for this asset
   const rawContents = await prisma.assetContent.findMany({

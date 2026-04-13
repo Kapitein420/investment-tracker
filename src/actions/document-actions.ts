@@ -34,6 +34,14 @@ export async function uploadDocument(formData: FormData) {
     throw new Error("trackingId and stageId are required");
   }
 
+  // Prevent duplicate documents for the same tracking + stage
+  const existing = await prisma.document.findFirst({
+    where: { trackingId, stageId, status: { in: ["PENDING", "SIGNED"] } },
+  });
+  if (existing) {
+    throw new Error("A document already exists for this stage. Delete the existing one first.");
+  }
+
   // Parse field config or use defaults
   const fieldConfigRaw = formData.get("fieldConfig") as string | null;
   let fieldConfig: FieldPlacement[] = DEFAULT_FIELD_CONFIG;
