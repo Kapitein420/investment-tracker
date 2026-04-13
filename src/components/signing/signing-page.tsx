@@ -162,7 +162,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
             src={doc.fileUrl}
             type="application/pdf"
             className="w-full"
-            style={{ height: "500px" }}
+            style={{ height: "min(500px, 50vh)" }}
           />
         </div>
 
@@ -171,7 +171,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
           <div className="rounded-lg border bg-white p-6 space-y-4">
             <h2 className="font-semibold">Sign this document</h2>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Your full name</Label>
                 <Input

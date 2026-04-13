@@ -49,13 +49,23 @@ export async function sendInvestorInvite({
       },
     });
   } else {
-    // User exists — generate a new password so they get fresh credentials
-    plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, 12);
-    await prisma.user.update({
-      where: { id: investorUser.id },
-      data: { passwordHash },
+    // Check if investor has already logged in (any accepted invites)
+    const hasLoggedIn = await prisma.investorInvite.findFirst({
+      where: { email, companyId, acceptedAt: { not: null } },
     });
+
+    if (!hasLoggedIn) {
+      // Never logged in — safe to reset password
+      plainPassword = generatePassword();
+      const passwordHash = await bcrypt.hash(plainPassword, 12);
+      await prisma.user.update({
+        where: { id: investorUser.id },
+        data: { passwordHash },
+      });
+    } else {
+      // Already active — don't reset password, just send a reminder with login link
+      plainPassword = null; // Will skip password display in email
+    }
   }
 
   // Create invite record for tracking
@@ -99,10 +109,16 @@ export async function sendInvestorInvite({
                   <td style="color: #6b7280; padding: 6px 0; font-size: 14px; width: 80px;">Email</td>
                   <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600;">${email}</td>
                 </tr>
+                ${plainPassword ? `
                 <tr>
                   <td style="color: #6b7280; padding: 6px 0; font-size: 14px;">Password</td>
                   <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600; font-family: monospace; letter-spacing: 1px;">${plainPassword}</td>
                 </tr>
+                ` : `
+                <tr>
+                  <td colspan="2" style="color: #6b7280; padding: 6px 0; font-size: 14px;">Use your existing password to log in</td>
+                </tr>
+                `}
               </table>
             </div>
 

@@ -85,28 +85,30 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="space-y-2">
-          <p className="text-center text-xs text-muted-foreground">Quick login as:</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
-              Admin
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("editor")}>
-              Editor
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("viewer")}>
-              Viewer
+        {process.env.NODE_ENV === "development" && (
+          <div className="space-y-2">
+            <p className="text-center text-xs text-muted-foreground">Quick login as:</p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
+                Admin
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("editor")}>
+                Editor
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("viewer")}>
+                Viewer
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs border-gold-300 text-gold-700 hover:bg-gold-50"
+              onClick={() => quickLogin("investor")}
+            >
+              Investor (Portal View)
             </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs border-gold-300 text-gold-700 hover:bg-gold-50"
-            onClick={() => quickLogin("investor")}
-          >
-            Investor (Portal View)
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

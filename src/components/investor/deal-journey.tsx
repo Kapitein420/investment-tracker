@@ -252,6 +252,9 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 </Button>
                               </>
                             )}
+                            {doc.status === "REJECTED" && (
+                              <Badge className="bg-red-100 text-red-700 border-0 text-xs">Declined</Badge>
+                            )}
                           </div>
                         </div>
 
@@ -260,6 +263,13 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           <div className="mt-3 pt-3 border-t">
                             <p className="text-[10px] text-muted-foreground mb-1">Signature on file</p>
                             <img src={doc.signatureData} alt="Signature" className="h-10 opacity-70" />
+                          </div>
+                        )}
+                        {doc.status === "REJECTED" && (
+                          <div className="mt-2 rounded bg-red-50 px-3 py-2">
+                            <p className="text-xs text-red-700">
+                              You declined this document. Contact the deal team if you'd like to reconsider.
+                            </p>
                           </div>
                         )}
                       </div>
@@ -325,6 +335,13 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                       )}
                       <p className="text-xs text-muted-foreground italic">
                         You have been invited to review this investment opportunity. Proceed to the NDA stage to access detailed materials.
+                      </p>
+                    </div>
+                  ) : state === "action_needed" ? (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-sm text-blue-800 font-medium">Waiting for documents</p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        The deal team is preparing the documents for this stage. You'll be able to proceed once they're ready.
                       </p>
                     </div>
                   ) : (

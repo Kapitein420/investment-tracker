@@ -69,6 +69,13 @@ export async function updateUser(id: string, data: UpdateUserInput) {
   await requireRole("ADMIN");
   const validated = updateUserSchema.parse(data);
 
+  if (validated.email) {
+    const existing = await prisma.user.findFirst({
+      where: { email: validated.email, NOT: { id } },
+    });
+    if (existing) throw new Error("A user with this email already exists");
+  }
+
   const user = await prisma.user.update({
     where: { id },
     data: validated,

@@ -61,7 +61,15 @@ export async function updateAssetContent(
 ) {
   await requireRole("EDITOR");
 
-  const updateData: any = { ...data };
+  const allowedFields = ['title', 'fileUrl', 'fileName', 'htmlContent', 'description', 'isPublished'];
+  const sanitized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (allowedFields.includes(key)) {
+      sanitized[key] = value;
+    }
+  }
+
+  const updateData: any = { ...sanitized };
   if (data.keyMetrics) updateData.keyMetrics = JSON.parse(JSON.stringify(data.keyMetrics));
   if (data.imageUrls) updateData.imageUrls = JSON.parse(JSON.stringify(data.imageUrls));
 

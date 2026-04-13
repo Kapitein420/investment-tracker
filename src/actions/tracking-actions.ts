@@ -115,21 +115,18 @@ export async function updateTracking(
 export async function deleteTracking(id: string) {
   const user = await requireRole("ADMIN");
 
-  const tracking = await prisma.assetCompanyTracking.delete({
-    where: { id },
-  });
-
-  await prisma.activityLog.create({
-    data: {
-      entityType: "AssetCompanyTracking",
-      entityId: id,
-      action: "DELETED",
-      metadata: {
-        assetId: tracking.assetId,
-        companyId: tracking.companyId,
+  const tracking = await prisma.$transaction(async (tx) => {
+    const t = await tx.assetCompanyTracking.delete({ where: { id } });
+    await tx.activityLog.create({
+      data: {
+        entityType: "AssetCompanyTracking",
+        entityId: id,
+        action: "DELETED",
+        metadata: { assetId: t.assetId, companyId: t.companyId },
+        userId: user.id,
       },
-      userId: user.id,
-    },
+    });
+    return t;
   });
 
   revalidatePath(`/assets/${tracking.assetId}`);
@@ -140,6 +137,16 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
   const validated = updateStageStatusSchema.parse(data);
 
   const result = await prisma.$transaction(async (tx) => {
+    // Fetch the current status before updating
+    const currentStageStatus = await tx.stageStatus.findUniqueOrThrow({
+      where: {
+        trackingId_stageId: {
+          trackingId: validated.trackingId,
+          stageId: validated.stageId,
+        },
+      },
+    });
+
     // Update the StageStatus record
     const stageStatus = await tx.stageStatus.update({
       where: {
@@ -157,13 +164,13 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
       include: { stage: true },
     });
 
-    // Create a StageHistory entry
+    // Create a StageHistory entry with the actual old status
     await tx.stageHistory.create({
       data: {
         trackingId: validated.trackingId,
         stageId: validated.stageId,
         fieldName: "status",
-        oldValue: null,
+        oldValue: currentStageStatus.status,
         newValue: validated.status,
         changedByUserId: user.id,
       },
@@ -389,55 +396,60 @@ export async function bulkImportTrackings(
     orderBy: { sequence: "asc" },
   });
 
+  const validTypes = ["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"];
   let imported = 0;
 
-  for (const row of rows) {
-    // Find or create company
-    let company = await prisma.company.findFirst({
-      where: { name: { equals: row.companyName, mode: "insensitive" } },
-    });
+  await prisma.$transaction(async (tx) => {
+    for (const row of rows) {
+      let company = await tx.company.findFirst({
+        where: { name: { equals: row.companyName, mode: "insensitive" } },
+      });
 
-    if (!company) {
-      company = await prisma.company.create({
+      if (!company) {
+        const companyType = validTypes.includes(row.companyType?.toUpperCase())
+          ? row.companyType.toUpperCase()
+          : "INVESTOR";
+
+        company = await tx.company.create({
+          data: {
+            name: row.companyName,
+            type: companyType as any,
+            contactName: row.contactName || null,
+            contactEmail: row.contactEmail || null,
+          },
+        });
+      }
+
+      const existing = await tx.assetCompanyTracking.findUnique({
+        where: { assetId_companyId: { assetId, companyId: company.id } },
+      });
+
+      if (existing) continue;
+
+      const tracking = await tx.assetCompanyTracking.create({
         data: {
-          name: row.companyName,
-          type: (row.companyType?.toUpperCase() as any) || "INVESTOR",
-          contactName: row.contactName || null,
-          contactEmail: row.contactEmail || null,
+          assetId,
+          companyId: company.id,
+          relationshipType: row.companyType || "Investor",
+          interestLevel: row.interestLevel && ["HOT", "WARM", "COLD", "NONE"].includes(row.interestLevel.toUpperCase())
+              ? (row.interestLevel.toUpperCase() as any)
+              : null,
         },
       });
+
+      if (stages.length > 0) {
+        await tx.stageStatus.createMany({
+          data: stages.map((stage) => ({
+            trackingId: tracking.id,
+            stageId: stage.id,
+            status: "NOT_STARTED" as const,
+          })),
+        });
+      }
+
+      imported++;
     }
-
-    // Check if tracking already exists
-    const existing = await prisma.assetCompanyTracking.findUnique({
-      where: { assetId_companyId: { assetId, companyId: company.id } },
-    });
-
-    if (existing) continue; // skip duplicates
-
-    // Create tracking
-    const tracking = await prisma.assetCompanyTracking.create({
-      data: {
-        assetId,
-        companyId: company.id,
-        relationshipType: row.companyType || "Investor",
-        interestLevel: (row.interestLevel?.toUpperCase() as any) || null,
-      },
-    });
-
-    // Create stage statuses
-    if (stages.length > 0) {
-      await prisma.stageStatus.createMany({
-        data: stages.map((stage) => ({
-          trackingId: tracking.id,
-          stageId: stage.id,
-          status: "NOT_STARTED" as const,
-        })),
-      });
-    }
-
-    imported++;
-  }
+  });
 
   revalidatePath(`/assets/${assetId}`);
   return { imported, total: rows.length };

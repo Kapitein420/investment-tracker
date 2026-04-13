@@ -28,7 +28,6 @@ export default async function InvestorPortalPage() {
         orderBy: { stage: { sequence: "asc" } },
       },
       documents: {
-        where: { status: "PENDING" },
         include: { stage: true },
       },
     },

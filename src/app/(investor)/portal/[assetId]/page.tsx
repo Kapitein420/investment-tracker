@@ -59,10 +59,32 @@ export default async function InvestorDealPage({ params }: { params: { assetId: 
     })
   );
 
+  // Filter contents to only include stages the investor has access to
+  const unlockedStageKeys = new Set<string>();
+  const sortedStatuses = tracking.stageStatuses.sort((a: any, b: any) => a.stage.sequence - b.stage.sequence);
+
+  for (let i = 0; i < sortedStatuses.length; i++) {
+    const ss = sortedStatuses[i];
+    const prevSs = i > 0 ? sortedStatuses[i - 1] : null;
+
+    // Teaser always unlocked
+    if (!prevSs || ss.status === "COMPLETED" || ss.status === "IN_PROGRESS") {
+      unlockedStageKeys.add(ss.stage.key);
+    }
+    // Check if previous stage allows access
+    if (prevSs && prevSs.status === "COMPLETED") {
+      if (prevSs.stage.key !== "nda" || prevSs.approvedAt) {
+        unlockedStageKeys.add(ss.stage.key);
+      }
+    }
+  }
+
+  const filteredContents = contents.filter((c: any) => unlockedStageKeys.has(c.stageKey));
+
   return (
     <DealJourney
       tracking={tracking}
-      contents={contents}
+      contents={filteredContents}
     />
   );
 }

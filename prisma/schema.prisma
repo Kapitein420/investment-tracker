@@ -217,6 +217,9 @@ model StageHistory {
   tracking  AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   stage     PipelineStage?       @relation(fields: [stageId], references: [id])
   changedBy User                 @relation(fields: [changedByUserId], references: [id])
+
+  @@index([trackingId])
+  @@index([createdAt])
 }
 
 // ─── 9. ActivityLog ─────────────────────────────────────────────────────────
@@ -230,6 +233,9 @@ model ActivityLog {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 // ─── 10. SavedView ──────────────────────────────────────────────────────────

@@ -190,7 +190,7 @@ export function SigningModal({
                   src={pdfUrl}
                   type="application/pdf"
                   className="w-full"
-                  style={{ height: "400px" }}
+                  style={{ height: "min(400px, 50vh)" }}
                 />
               ) : (
                 <div className="flex items-center justify-center h-[400px] text-sm text-muted-foreground">
@@ -206,7 +206,7 @@ export function SigningModal({
               <div className="space-y-4">
                 <h3 className="font-semibold">Sign this document</h3>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Your full name</Label>
                     <Input
