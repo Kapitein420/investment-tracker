@@ -97,6 +97,14 @@ export default function LoginPage() {
               Viewer
             </Button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs border-gold-300 text-gold-700 hover:bg-gold-50"
+            onClick={() => quickLogin("investor")}
+          >
+            Investor (Portal View)
+          </Button>
         </div>
       </div>
     </div>
