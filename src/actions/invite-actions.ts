@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { getAppUrl } from "@/lib/app-url";
 
 function generatePassword(length = 12): string {
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -83,7 +84,7 @@ export async function sendInvestorInvite({
     },
   });
 
-  const loginUrl = `${process.env.NEXTAUTH_URL}/login`;
+  const loginUrl = `${getAppUrl()}/login`;
 
   try {
     await sendEmail({

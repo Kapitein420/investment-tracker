@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function approveStage(trackingId: string, stageKey: string) {
   const user = await requireRole("EDITOR");
@@ -108,7 +109,7 @@ export async function approveStage(trackingId: string, stageKey: string) {
                 You now have access to the Information Memorandum. Log in to your investor portal to review the materials.
               </p>
               <div style="text-align: center; margin: 32px 0;">
-                <a href="${process.env.NEXTAUTH_URL}/portal/${tracking.assetId}"
+                <a href="${getAppUrl()}/portal/${tracking.assetId}"
                    style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
                   View Information Memorandum
                 </a>

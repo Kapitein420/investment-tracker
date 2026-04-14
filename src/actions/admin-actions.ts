@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { getAppUrl } from "@/lib/app-url";
 import {
   createUserSchema,
   updateUserSchema,
@@ -166,7 +167,7 @@ export async function resetUserPassword(userId: string) {
               </table>
             </div>
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${process.env.NEXTAUTH_URL}/login" style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+              <a href="${getAppUrl()}/login" style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
                 Log in to Portal
               </a>
             </div>
