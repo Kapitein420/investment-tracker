@@ -8,9 +8,11 @@ export default async function InvestorPortalPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role !== "INVESTOR" && user.role !== "ADMIN") redirect("/");
-  if (!user.companyId && user.role === "INVESTOR") redirect("/login");
+  // ADMIN without a companyId can't use /portal (no deals scoped to them).
+  // Send them back to the admin dashboard.
+  if (!user.companyId) redirect(user.role === "ADMIN" ? "/" : "/login");
 
-  const companyId = user.companyId!;
+  const companyId = user.companyId;
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
