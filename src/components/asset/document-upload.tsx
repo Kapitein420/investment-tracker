@@ -70,7 +70,11 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
       formData.append("fieldConfig", JSON.stringify(fieldConfig));
 
       const result = await uploadDocument(formData);
-      toast.success("Document uploaded");
+      if (result.placementMode === "PLACEHOLDER") {
+        toast.success(`Document uploaded with ${result.placeholderCount} placeholders detected`);
+      } else {
+        toast.success("Document uploaded (using position grid mode)");
+      }
 
       // Copy signing link
       const baseUrl = window.location.origin;
@@ -99,6 +103,15 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
       {/* Upload form */}
       {editable && (
         <div className="space-y-3 rounded-md border border-dashed p-3">
+          <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
+            <p className="font-medium mb-1">Tip: Use placeholders for precise signing</p>
+            <p>
+              In your Word document, type <code className="bg-white px-1 rounded">{"{{SIGNATURE}}"}</code>,
+              <code className="bg-white px-1 rounded ml-1">{"{{NAME}}"}</code>,
+              <code className="bg-white px-1 rounded ml-1">{"{{DATE}}"}</code> where you want fields to appear.
+              Export to PDF and upload &mdash; we&apos;ll detect them automatically.
+            </p>
+          </div>
           <Label className="text-xs font-medium">Upload document for signing</Label>
           <div className="flex gap-2">
             <Select value={selectedStageId} onValueChange={setSelectedStageId}>

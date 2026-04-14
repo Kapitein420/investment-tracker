@@ -198,3 +198,78 @@ export async function generateSignedPdf(
 
   return pdfDoc.save();
 }
+
+export async function generateSignedPdfFromPlaceholders(
+  originalPdfBytes: Buffer | Uint8Array,
+  signatureDataUrl: string,
+  signerName: string,
+  signerDate: string,
+  placeholderMap: Record<string, any>,
+  signerEmail?: string,
+  signerCompany?: string,
+  signerTitle?: string
+): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const pdfDoc = await PDFDocument.load(originalPdfBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const pages = pdfDoc.getPages();
+
+  // Parse signature PNG
+  const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, "");
+  const signatureBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+  const signatureImage = await pdfDoc.embedPng(signatureBytes);
+
+  const values: Record<string, string | null> = {
+    NAME: signerName,
+    DATE: signerDate,
+    EMAIL: signerEmail ?? null,
+    COMPANY: signerCompany ?? null,
+    TITLE: signerTitle ?? null,
+  };
+
+  for (const [key, loc] of Object.entries(placeholderMap)) {
+    if (!loc || typeof loc.page !== "number") continue;
+    const pageIndex = loc.page - 1;
+    if (pageIndex < 0 || pageIndex >= pages.length) continue;
+    const page = pages[pageIndex];
+
+    // White-out the placeholder text
+    page.drawRectangle({
+      x: loc.x - 2,
+      y: loc.y - 2,
+      width: loc.width + 4,
+      height: loc.height + 4,
+      color: rgb(1, 1, 1),
+    });
+
+    // Check if it's a signature variant
+    const isSignature = key === "SIGNATURE" || key.startsWith("SIGNATURE_");
+
+    if (isSignature) {
+      // Embed signature image at placeholder location
+      const sigHeight = Math.max(loc.height * 2.5, 30);
+      const sigWidth = sigHeight * 3; // 3:1 aspect ratio
+      page.drawImage(signatureImage, {
+        x: loc.x,
+        y: loc.y - (sigHeight - loc.height) / 2,
+        width: sigWidth,
+        height: sigHeight,
+      });
+    } else {
+      // Draw text value
+      const value = values[key] ?? values[key.replace(/_\d+$/, "")] ?? "";
+      if (value) {
+        page.drawText(String(value), {
+          x: loc.x,
+          y: loc.y,
+          size: loc.fontSize || 11,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+      }
+    }
+  }
+
+  return pdfDoc.save();
+}

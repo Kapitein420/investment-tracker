@@ -4,7 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 hours
+    updateAge: 60 * 60, // refresh every hour
+  },
   pages: { signIn: "/login" },
   providers: [
     CredentialsProvider({
@@ -52,6 +56,17 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
+      }
+      // Refresh role/companyId from DB on each token refresh
+      if (token.id && !user) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, companyId: true, isActive: true },
+        });
+        if (dbUser && dbUser.isActive) {
+          token.role = dbUser.role;
+          token.companyId = dbUser.companyId;
+        }
       }
       return token;
     },

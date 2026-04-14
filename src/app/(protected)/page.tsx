@@ -13,6 +13,7 @@ export default async function DashboardPage() {
       createdBy: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
+    take: 100,
   });
 
   return <DashboardContent assets={assets} userRole={user.role} />;

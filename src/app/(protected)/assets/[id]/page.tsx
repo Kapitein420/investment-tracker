@@ -44,11 +44,13 @@ export default async function AssetDetailPage({ params }: { params: { id: string
 
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
+    take: 500,
   });
 
   const contents = await prisma.assetContent.findMany({
     where: { assetId: params.id },
     orderBy: { createdAt: "desc" },
+    take: 100,
   });
 
   return (

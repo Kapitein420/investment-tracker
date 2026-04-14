@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
@@ -69,7 +70,7 @@ export async function sendInvestorInvite({
   }
 
   // Create invite record for tracking
-  const token = Array.from({ length: 32 }, () => Math.random().toString(36).charAt(2)).join("");
+  const token = randomUUID() + "-" + randomUUID();
   const invite = await prisma.investorInvite.create({
     data: {
       companyId,

@@ -13,12 +13,16 @@ export async function createComment(data: CreateCommentInput) {
   const user = await requireRole("EDITOR");
   const validated = createCommentSchema.parse(data);
 
+  // Simple HTML stripping (plain text only comments)
+  const sanitizedBody = validated.body.replace(/<[^>]*>/g, '').trim();
+  if (!sanitizedBody) throw new Error("Comment cannot be empty");
+
   const result = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.create({
       data: {
         trackingId: validated.trackingId,
         authorUserId: user.id,
-        body: validated.body,
+        body: sanitizedBody,
       },
       include: {
         tracking: { select: { assetId: true } },
@@ -27,9 +31,9 @@ export async function createComment(data: CreateCommentInput) {
 
     // Update latestCommentPreview on the tracking row
     const preview =
-      validated.body.length > 120
-        ? validated.body.slice(0, 120) + "..."
-        : validated.body;
+      sanitizedBody.length > 120
+        ? sanitizedBody.slice(0, 120) + "..."
+        : sanitizedBody;
 
     await tx.assetCompanyTracking.update({
       where: { id: validated.trackingId },
@@ -71,9 +75,13 @@ export async function updateComment(id: string, body: string) {
     throw new Error("Forbidden: you can only edit your own comments");
   }
 
+  // Simple HTML stripping (plain text only comments)
+  const sanitizedBody = validated.body.replace(/<[^>]*>/g, '').trim();
+  if (!sanitizedBody) throw new Error("Comment cannot be empty");
+
   const updated = await prisma.comment.update({
     where: { id },
-    data: { body: validated.body },
+    data: { body: sanitizedBody },
   });
 
   revalidatePath(`/assets/${comment.tracking.assetId}`);

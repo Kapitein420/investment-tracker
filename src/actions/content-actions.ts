@@ -137,28 +137,38 @@ export async function getAssetContents(assetId: string) {
 export async function getSignedContentUrl(storagePath: string) {
   const user = await requireUser();
 
-  // Validate: the storage path must belong to an actual AssetContent record
-  // This prevents IDOR — users can't request signed URLs for arbitrary paths
+  // Find matching content or document
   const content = await prisma.assetContent.findFirst({
     where: { fileUrl: storagePath },
     select: { id: true, assetId: true },
   });
 
+  let doc = null;
   if (!content) {
-    // Also check Document table (for document PDFs accessed via content tab)
-    const doc = await prisma.document.findFirst({
+    doc = await prisma.document.findFirst({
       where: { OR: [{ fileUrl: storagePath }, { signedFileUrl: storagePath }] },
-      select: { id: true },
+      include: { tracking: { select: { assetId: true, companyId: true } } },
     });
-    if (!doc) throw new Error("Forbidden: file not found");
   }
 
-  // For INVESTOR role, verify they have access to this asset
-  if (user.role === "INVESTOR" && user.companyId && content) {
+  // Must exist in one of the tables
+  if (!content && !doc) throw new Error("Forbidden: file not found");
+
+  // INVESTOR check: must have access to the asset
+  if (user.role === "INVESTOR") {
+    if (!user.companyId) throw new Error("Forbidden");
+    const assetId = content?.assetId ?? doc?.tracking.assetId;
+    if (!assetId) throw new Error("Forbidden");
+
     const tracking = await prisma.assetCompanyTracking.findFirst({
-      where: { assetId: content.assetId, companyId: user.companyId },
+      where: { assetId, companyId: user.companyId },
     });
     if (!tracking) throw new Error("Forbidden: no access to this asset");
+
+    // If it's a Document, also check the document belongs to their company
+    if (doc && doc.tracking.companyId !== user.companyId) {
+      throw new Error("Forbidden");
+    }
   }
 
   return getSignedUrl(storagePath, 7200);
@@ -218,6 +228,16 @@ export async function uploadContentFile(formData: FormData) {
 
   const file = formData.get("file") as File | null;
   if (!file) throw new Error("No file provided");
+
+  const ALLOWED_MIMES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  if (!ALLOWED_MIMES.includes(file.type)) {
+    throw new Error("File type not allowed");
+  }
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File too large. Maximum 10MB.");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const path = `content/${Date.now()}-${file.name}`;

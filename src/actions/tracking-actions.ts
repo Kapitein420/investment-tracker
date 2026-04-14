@@ -336,7 +336,7 @@ export async function advanceToNextStage(trackingId: string) {
 }
 
 export async function getTrackingDetail(id: string) {
-  await requireUser();
+  const user = await requireUser();
 
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id },
@@ -376,6 +376,12 @@ export async function getTrackingDetail(id: string) {
   });
 
   if (!tracking) throw new Error("Tracking not found");
+
+  // Investors can only see their own company's trackings
+  if (user.role === "INVESTOR" && tracking.companyId !== user.companyId) {
+    throw new Error("Forbidden");
+  }
+
   return tracking;
 }
 

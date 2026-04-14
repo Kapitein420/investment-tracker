@@ -1,5 +1,18 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
+// In-memory cache for signed URLs within a function invocation
+const urlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function getCachedUrl(path: string): string | null {
+  const entry = urlCache.get(path);
+  if (entry && entry.expiresAt > Date.now()) return entry.url;
+  return null;
+}
+
+function cacheUrl(path: string, url: string, ttlSeconds: number) {
+  urlCache.set(path, { url, expiresAt: Date.now() + ttlSeconds * 1000 });
+}
+
 const BUCKET = "documents";
 
 let _supabase: SupabaseClient | null = null;
@@ -32,10 +45,16 @@ export async function uploadFile(file: Buffer, path: string, contentType: string
  * Default expiry: 2 hours (7200 seconds).
  */
 export async function getSignedUrl(path: string, expiresInSeconds = 7200): Promise<string> {
+  const cached = getCachedUrl(path);
+  if (cached) return cached;
+
   const { data, error } = await getSupabase().storage
     .from(BUCKET)
     .createSignedUrl(path, expiresInSeconds);
   if (error) throw new Error(`Signed URL failed: ${error.message}`);
+
+  // Cache for 90% of the TTL to avoid serving expired URLs
+  cacheUrl(path, data.signedUrl, Math.floor(expiresInSeconds * 0.9));
   return data.signedUrl;
 }
 

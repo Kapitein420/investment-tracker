@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
 import { uploadFile, getSignedUrl, downloadFile, uploadBytes } from "@/lib/supabase-storage";
-import { generateSignedPdf, type FieldPlacement } from "@/lib/pdf-signing";
+import { generateSignedPdf, generateSignedPdfFromPlaceholders, type FieldPlacement } from "@/lib/pdf-signing";
+import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { signDocumentSchema, rejectDocumentSchema } from "@/lib/validators";
@@ -25,6 +26,18 @@ export async function uploadDocument(formData: FormData) {
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   if (file.size > MAX_FILE_SIZE) {
     throw new Error("File too large. Maximum size is 10MB.");
+  }
+
+  // Validate MIME type
+  if (file.type !== "application/pdf" && file.type !== "application/x-pdf") {
+    throw new Error("Only PDF files are allowed");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Validate PDF magic bytes
+  if (!buffer.slice(0, 4).toString().startsWith("%PDF")) {
+    throw new Error("Invalid PDF file (failed magic byte check)");
   }
 
   const trackingId = formData.get("trackingId") as string;
@@ -53,7 +66,19 @@ export async function uploadDocument(formData: FormData) {
     }
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // Scan for placeholders
+  let placeholderMap: Record<string, any> | null = null;
+  let placementMode: "GRID" | "PLACEHOLDER" = "GRID";
+  try {
+    const detected = await scanPlaceholders(buffer);
+    if (Object.keys(detected).length > 0) {
+      placeholderMap = detected;
+      placementMode = "PLACEHOLDER";
+    }
+  } catch (e) {
+    console.error("Placeholder scan failed:", e);
+  }
+
   const path = `documents/${trackingId}/${Date.now()}_${file.name}`;
   const storagePath = await uploadFile(buffer, path, file.type);
 
@@ -67,6 +92,8 @@ export async function uploadDocument(formData: FormData) {
       fileSize: file.size,
       uploadedByUserId: user.id,
       fieldConfig: fieldConfig as any,
+      placeholderMap: placeholderMap as any,
+      placementMode,
     },
   });
 
@@ -88,12 +115,26 @@ export async function uploadDocument(formData: FormData) {
   });
 
   revalidatePath(`/assets`);
-  return { document, signingUrl: `/sign/${token.token}` };
+  return {
+    document,
+    signingUrl: `/sign/${token.token}`,
+    placementMode,
+    placeholderCount: placeholderMap ? Object.keys(placeholderMap).length : 0,
+  };
 }
 
 export async function getSignedDocumentUrl(documentId: string) {
-  await requireUser();
-  const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });
+  const user = await requireUser();
+  const doc = await prisma.document.findUniqueOrThrow({
+    where: { id: documentId },
+    include: { tracking: { select: { companyId: true } } },
+  });
+
+  // Investors can only access their own company's documents
+  if (user.role === "INVESTOR" && doc.tracking.companyId !== user.companyId) {
+    throw new Error("Forbidden");
+  }
+
   // Prefer signed version if available
   const path = doc.signedFileUrl ?? doc.fileUrl;
   return getSignedUrl(path, 7200);
@@ -241,16 +282,29 @@ export async function signDocument(data: {
   try {
     const originalPdfBytes = await downloadFile(document.fileUrl);
 
-    const fieldConfig: FieldPlacement[] =
-      (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
+    const docAny = document as any;
+    let signedPdfBytes;
+    if (docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap) {
+      signedPdfBytes = await generateSignedPdfFromPlaceholders(
+        originalPdfBytes,
+        validated.signatureData,
+        validated.signedByName,
+        formatDate(new Date()),
+        docAny.placeholderMap as any,
+        validated.signedByEmail
+      );
+    } else {
+      const fieldConfig: FieldPlacement[] =
+        (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
 
-    const signedPdfBytes = await generateSignedPdf(
-      originalPdfBytes,
-      validated.signatureData,
-      validated.signedByName,
-      formatDate(new Date()),
-      fieldConfig
-    );
+      signedPdfBytes = await generateSignedPdf(
+        originalPdfBytes,
+        validated.signatureData,
+        validated.signedByName,
+        formatDate(new Date()),
+        fieldConfig
+      );
+    }
 
     const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
     const signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");

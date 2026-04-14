@@ -186,6 +186,7 @@ model StageStatus {
   approvedBy User?                @relation("StageApprover", fields: [approvedByUserId], references: [id])
 
   @@unique([trackingId, stageId])
+  @@index([stageId])
 }
 
 // ─── 7. Comment ─────────────────────────────────────────────────────────────
@@ -200,6 +201,8 @@ model Comment {
 
   tracking AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   author   User                 @relation(fields: [authorUserId], references: [id])
+
+  @@index([trackingId])
 }
 
 // ─── 8. StageHistory ────────────────────────────────────────────────────────
@@ -269,6 +272,8 @@ model Document {
   signatureData    String?
   signedFileUrl    String?
   fieldConfig      Json?
+  placeholderMap   Json?     // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
+  placementMode    String    @default("GRID")  // "GRID" | "PLACEHOLDER"
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime       @default(now())
@@ -278,6 +283,9 @@ model Document {
   stage         PipelineStage        @relation(fields: [stageId], references: [id])
   uploadedBy    User                 @relation("DocumentUploader", fields: [uploadedByUserId], references: [id])
   signingTokens SigningToken[]
+
+  @@index([trackingId])
+  @@index([stageId])
 }
 
 // ─── 12. SigningToken ───────────────────────────────────────────────────────
@@ -290,6 +298,8 @@ model SigningToken {
   createdAt  DateTime  @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
 }
 
 // ─── 13. InvestorInvite ─────────────────────────────────────────────────────
@@ -307,6 +317,9 @@ model InvestorInvite {
   company   Company @relation(fields: [companyId], references: [id])
   asset     Asset   @relation(fields: [assetId], references: [id])
   createdBy User    @relation("InviteCreator", fields: [createdById], references: [id])
+
+  @@index([email, acceptedAt])
+  @@index([companyId])
 }
 
 // ─── 14. AssetContent ───────────────────────────────────────────────────────
@@ -327,4 +340,7 @@ model AssetContent {
   updatedAt   DateTime    @updatedAt
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, stageKey])
+  @@index([assetId, isPublished])
 }
