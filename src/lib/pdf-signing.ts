@@ -209,9 +209,7 @@ export async function generateSignedPdfFromPlaceholders(
   signerCompany?: string,
   signerTitle?: string
 ): Promise<Uint8Array> {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const pdfDoc = await PDFDocument.load(originalPdfBytes);
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const pages = pdfDoc.getPages();
 

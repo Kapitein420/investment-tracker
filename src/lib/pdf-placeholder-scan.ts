@@ -1,9 +1,6 @@
 // @ts-ignore - pdfjs-dist types are finicky
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
-// Disable worker for serverless
-pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-
 export interface PlaceholderLocation {
   page: number; // 1-indexed
   x: number; // PDF points from left
@@ -24,7 +21,8 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
     useWorkerFetch: false,
     isEvalSupported: false,
     useSystemFonts: true,
-  });
+    disableFontFace: true,
+  } as any);
   const pdf = await loadingTask.promise;
 
   const result: PlaceholderMap = {};
