@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,9 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X,
+  FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
-import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl } from "@/actions/content-actions";
+import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -32,15 +32,132 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
   const [addType, setAddType] = useState<"nda" | "im">("im");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // Separate NDA and IM content
+  // Separate NDA, Teaser, and IM content
   const ndaContent = contents.find((c) => c.stageKey === "nda" && c.contentType === "PDF");
+  const teaserContent = contents.find((c) => c.stageKey === "teaser" && c.contentType === "LANDING_PAGE");
   const imContents = contents.filter((c) => c.stageKey === "im");
+
+  // Teaser editor state
+  const teaserImageInputRef = useRef<HTMLInputElement>(null);
+  const [teaserDialogOpen, setTeaserDialogOpen] = useState(false);
+  const [teaserSaving, setTeaserSaving] = useState(false);
+  const [teaserImageUploading, setTeaserImageUploading] = useState(false);
+  const [teaserDescription, setTeaserDescription] = useState<string>("");
+  const [teaserImageUrls, setTeaserImageUrls] = useState<string[]>([]);
+  const [teaserImageSigned, setTeaserImageSigned] = useState<Record<string, string>>({});
+  const [teaserMetrics, setTeaserMetrics] = useState<{ price: string; size: string; yield: string; notes: string }>({
+    price: "", size: "", yield: "", notes: "",
+  });
+  const [teaserCustomMetrics, setTeaserCustomMetrics] = useState<Array<{ key: string; value: string }>>([]);
+
+  function openTeaserDialog() {
+    const existingMetrics = (teaserContent?.keyMetrics as Record<string, string>) || {};
+    setTeaserDescription(teaserContent?.description || "");
+    setTeaserImageUrls(Array.isArray(teaserContent?.imageUrls) ? (teaserContent!.imageUrls as string[]) : []);
+    setTeaserMetrics({
+      price: existingMetrics.price || "",
+      size: existingMetrics.size || "",
+      yield: existingMetrics.yield || "",
+      notes: existingMetrics.notes || "",
+    });
+    const reserved = new Set(["price", "size", "yield", "notes"]);
+    const custom = Object.entries(existingMetrics)
+      .filter(([k]) => !reserved.has(k))
+      .map(([key, value]) => ({ key, value: String(value) }));
+    setTeaserCustomMetrics(custom);
+    setTeaserDialogOpen(true);
+  }
+
+  async function resolveTeaserImageSigned(path: string) {
+    if (!path || path.startsWith("http") || teaserImageSigned[path]) return;
+    try {
+      const url = await getSignedContentUrl(path);
+      setTeaserImageSigned((prev) => ({ ...prev, [path]: url }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function handleTeaserImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const remaining = 5 - teaserImageUrls.length;
+    if (remaining <= 0) {
+      toast.error("Max 5 images");
+      return;
+    }
+    setTeaserImageUploading(true);
+    try {
+      const toUpload = Array.from(files).slice(0, remaining);
+      const paths: string[] = [];
+      for (const file of toUpload) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const path = await uploadContentFile(fd);
+        paths.push(path);
+      }
+      setTeaserImageUrls((prev) => [...prev, ...paths]);
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setTeaserImageUploading(false);
+      if (teaserImageInputRef.current) teaserImageInputRef.current.value = "";
+    }
+  }
+
+  function removeTeaserImage(idx: number) {
+    setTeaserImageUrls((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSaveTeaser() {
+    setTeaserSaving(true);
+    try {
+      const metrics: Record<string, string> = {};
+      if (teaserMetrics.price) metrics.price = teaserMetrics.price;
+      if (teaserMetrics.size) metrics.size = teaserMetrics.size;
+      if (teaserMetrics.yield) metrics.yield = teaserMetrics.yield;
+      if (teaserMetrics.notes) metrics.notes = teaserMetrics.notes;
+      for (const { key, value } of teaserCustomMetrics) {
+        if (key.trim() && value.trim()) metrics[key.trim()] = value.trim();
+      }
+      await upsertTeaserContent({
+        assetId,
+        description: teaserDescription,
+        imageUrls: teaserImageUrls,
+        keyMetrics: metrics,
+      });
+      toast.success("Teaser content saved");
+      setTeaserDialogOpen(false);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e.message || "Save failed");
+    } finally {
+      setTeaserSaving(false);
+    }
+  }
 
   // NDA signing stats from trackings
   const activeTrackings = trackings.filter((t: any) => t.lifecycleStatus !== "DROPPED");
   const ndaSignedCount = activeTrackings.filter((t: any) =>
     t.stageStatuses.some((ss: any) => ss.stage.key === "nda" && ss.status === "COMPLETED")
   ).length;
+
+  // Resolve signed URLs for any teaser images (preview thumbnails + dialog)
+  useEffect(() => {
+    const paths = new Set<string>();
+    if (Array.isArray(teaserContent?.imageUrls)) {
+      for (const p of teaserContent!.imageUrls as string[]) {
+        if (typeof p === "string" && !p.startsWith("http")) paths.add(p);
+      }
+    }
+    for (const p of teaserImageUrls) {
+      if (typeof p === "string" && !p.startsWith("http")) paths.add(p);
+    }
+    Array.from(paths).forEach((p) => {
+      if (!teaserImageSigned[p]) resolveTeaserImageSigned(p);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teaserContent, teaserImageUrls]);
 
   async function handleUploadContent(stageKey: string, title: string) {
     const file = fileRef.current?.files?.[0];
@@ -216,6 +333,78 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
 
       <Separator />
 
+      {/* Teaser Content Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold">Teaser Content</h3>
+            <p className="text-sm text-muted-foreground">
+              Property overview shown to investors before NDA — description, images, and key metrics
+            </p>
+          </div>
+          {editable && (
+            <Button size="sm" onClick={openTeaserDialog}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              {teaserContent ? "Edit Teaser" : "Add Teaser"}
+            </Button>
+          )}
+        </div>
+
+        {teaserContent ? (
+          <div className="rounded-lg border bg-white p-5 space-y-4">
+            {Array.isArray(teaserContent.imageUrls) && (teaserContent.imageUrls as string[]).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {(teaserContent.imageUrls as string[]).map((path, i) => {
+                  const src = path.startsWith("http") ? path : teaserImageSigned[path];
+                  return (
+                    <div key={i} className="h-20 w-20 rounded-md border overflow-hidden bg-gray-50">
+                      {src ? (
+                        <img src={src} alt={`Teaser ${i + 1}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {teaserContent.description && (
+              <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-4">{teaserContent.description}</p>
+            )}
+
+            {teaserContent.keyMetrics && typeof teaserContent.keyMetrics === "object" && (
+              <div className="flex flex-wrap gap-4 pt-3 border-t">
+                {Object.entries(teaserContent.keyMetrics as Record<string, any>)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <div key={k}>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</p>
+                      <p className="text-sm font-semibold">{String(v)}</p>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {!teaserContent.description
+              && (!Array.isArray(teaserContent.imageUrls) || (teaserContent.imageUrls as string[]).length === 0)
+              && (!teaserContent.keyMetrics || Object.keys(teaserContent.keyMetrics as object).length === 0) && (
+                <p className="text-sm text-muted-foreground italic">Teaser exists but is empty. Click Edit to add content.</p>
+              )}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-gray-50/50 p-8 text-center">
+            <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground/40" />
+            <p className="mt-2 text-sm text-muted-foreground">No teaser content yet</p>
+            <p className="text-xs text-muted-foreground/60">Add a description, images, and key metrics to attract investors</p>
+          </div>
+        )}
+      </section>
+
+      <Separator />
+
       {/* IM Materials Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -321,6 +510,161 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Teaser Edit Dialog */}
+      <Dialog open={teaserDialogOpen} onOpenChange={setTeaserDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{teaserContent ? "Edit Teaser" : "Add Teaser Content"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5">
+            {/* Description */}
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={teaserDescription}
+                onChange={(e) => setTeaserDescription(e.target.value)}
+                placeholder="Describe the investment opportunity..."
+                rows={6}
+              />
+            </div>
+
+            {/* Images */}
+            <div className="space-y-2">
+              <Label>Images ({teaserImageUrls.length}/5)</Label>
+              <div className="flex flex-wrap gap-2">
+                {teaserImageUrls.map((path, i) => {
+                  const src = path.startsWith("http") ? path : teaserImageSigned[path];
+                  return (
+                    <div key={i} className="relative h-[100px] w-[100px] rounded-md border overflow-hidden bg-gray-50">
+                      {src ? (
+                        <img src={src} alt={`Image ${i + 1}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeTeaserImage(i)}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                        aria-label="Remove image"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {teaserImageUrls.length < 5 && (
+                  <label className="h-[100px] w-[100px] rounded-md border border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50">
+                    <Upload className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground mt-1">
+                      {teaserImageUploading ? "Uploading..." : "Add image"}
+                    </span>
+                    <input
+                      ref={teaserImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleTeaserImageUpload}
+                      disabled={teaserImageUploading}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Key Metrics */}
+            <div className="space-y-3">
+              <Label>Key Metrics</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Price</Label>
+                  <Input
+                    value={teaserMetrics.price}
+                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, price: e.target.value }))}
+                    placeholder="€5M"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Size</Label>
+                  <Input
+                    value={teaserMetrics.size}
+                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, size: e.target.value }))}
+                    placeholder="2,500 m²"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Yield</Label>
+                  <Input
+                    value={teaserMetrics.yield}
+                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, yield: e.target.value }))}
+                    placeholder="5.8%"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Notes</Label>
+                  <Input
+                    value={teaserMetrics.notes}
+                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, notes: e.target.value }))}
+                    placeholder="Prime location"
+                  />
+                </div>
+              </div>
+
+              {/* Custom metrics */}
+              {teaserCustomMetrics.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Custom Metrics</Label>
+                  {teaserCustomMetrics.map((m, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        value={m.key}
+                        onChange={(e) => setTeaserCustomMetrics((prev) => prev.map((x, i) => i === idx ? { ...x, key: e.target.value } : x))}
+                        placeholder="Metric name"
+                        className="flex-1"
+                      />
+                      <Input
+                        value={m.value}
+                        onChange={(e) => setTeaserCustomMetrics((prev) => prev.map((x, i) => i === idx ? { ...x, value: e.target.value } : x))}
+                        placeholder="Value"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setTeaserCustomMetrics((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setTeaserCustomMetrics((prev) => [...prev, { key: "", value: "" }])}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add custom metric
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTeaserDialogOpen(false)} disabled={teaserSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTeaser} disabled={teaserSaving || teaserImageUploading}>
+              {teaserSaving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Upload Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>

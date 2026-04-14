@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile, getSignedUrl } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl, deleteFile } from "@/lib/supabase-storage";
 
 export async function createAssetContent(data: {
   assetId: string;
@@ -66,7 +66,7 @@ export async function updateAssetContent(
 ) {
   await requireRole("EDITOR");
 
-  const allowedFields = ['title', 'fileUrl', 'fileName', 'htmlContent', 'description', 'isPublished'];
+  const allowedFields = ['title', 'fileUrl', 'fileName', 'htmlContent', 'description', 'isPublished', 'imageUrls', 'keyMetrics'];
   const sanitized: Record<string, any> = {};
   for (const [key, value] of Object.entries(data)) {
     if (allowedFields.includes(key)) {
@@ -92,11 +92,34 @@ export async function updateAssetContent(
 export async function deleteAssetContent(id: string) {
   await requireRole("ADMIN");
 
-  const content = await prisma.assetContent.delete({
+  // Fetch first so we can clean up storage files
+  const existing = await prisma.assetContent.findUniqueOrThrow({
     where: { id },
   });
 
-  revalidatePath(`/assets/${content.assetId}`);
+  // Delete associated files from Supabase Storage
+  const pathsToDelete: string[] = [];
+  if (existing.fileUrl && !existing.fileUrl.startsWith("http")) {
+    pathsToDelete.push(existing.fileUrl);
+  }
+  if (Array.isArray(existing.imageUrls)) {
+    for (const url of existing.imageUrls as unknown[]) {
+      if (typeof url === "string" && !url.startsWith("http")) {
+        pathsToDelete.push(url);
+      }
+    }
+  }
+  for (const path of pathsToDelete) {
+    try {
+      await deleteFile(path);
+    } catch (e) {
+      console.error(`Failed to delete storage file ${path}:`, e);
+    }
+  }
+
+  await prisma.assetContent.delete({ where: { id } });
+
+  revalidatePath(`/assets/${existing.assetId}`);
   revalidatePath(`/portal`);
 }
 
@@ -139,6 +162,55 @@ export async function getSignedContentUrl(storagePath: string) {
   }
 
   return getSignedUrl(storagePath, 7200);
+}
+
+export async function upsertTeaserContent(data: {
+  assetId: string;
+  description?: string;
+  imageUrls?: string[];
+  keyMetrics?: Record<string, unknown>;
+}) {
+  await requireRole("EDITOR");
+
+  if (!data.assetId) throw new Error("assetId is required");
+
+  const existing = await prisma.assetContent.findFirst({
+    where: {
+      assetId: data.assetId,
+      stageKey: "teaser",
+      contentType: "LANDING_PAGE",
+    },
+  });
+
+  const payload = {
+    title: "Property Overview",
+    description: data.description ?? null,
+    imageUrls: data.imageUrls ? JSON.parse(JSON.stringify(data.imageUrls)) : [],
+    keyMetrics: data.keyMetrics ? JSON.parse(JSON.stringify(data.keyMetrics)) : undefined,
+    isPublished: true,
+  };
+
+  let content;
+  if (existing) {
+    content = await prisma.assetContent.update({
+      where: { id: existing.id },
+      data: payload,
+    });
+  } else {
+    content = await prisma.assetContent.create({
+      data: {
+        assetId: data.assetId,
+        stageKey: "teaser",
+        contentType: "LANDING_PAGE",
+        ...payload,
+      },
+    });
+  }
+
+  revalidatePath(`/assets/${data.assetId}`);
+  revalidatePath(`/portal`);
+
+  return content;
 }
 
 export async function uploadContentFile(formData: FormData) {

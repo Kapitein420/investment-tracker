@@ -200,6 +200,19 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               <SignaturePad onChange={setSignatureData} />
             </div>
 
+            <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
+              <p className="font-medium text-foreground">Data Privacy Notice</p>
+              <p>
+                By signing this document, you acknowledge that your name, email, signature image,
+                and signing timestamp will be stored by DILS Group B.V. as part of this deal process.
+                This data is used solely for contract execution and legal compliance under GDPR.
+              </p>
+              <p>
+                You have the right to access, rectify, or request deletion of your data. Contact
+                privacy@dils.com for any data protection inquiries.
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Button onClick={handleSign} disabled={submitting || !signerName || !signerEmail || !signatureData} className="flex-1">
                 {submitting ? "Signing..." : "Sign Document"}

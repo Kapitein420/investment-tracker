@@ -56,6 +56,20 @@ export default async function InvestorDealPage({ params }: { params: { assetId: 
           return c;
         }
       }
+      if (c.contentType === "LANDING_PAGE" && Array.isArray(c.imageUrls) && c.imageUrls.length > 0) {
+        const signedImages = await Promise.all(
+          (c.imageUrls as string[]).map(async (path) => {
+            if (!path || typeof path !== "string") return null;
+            if (path.startsWith("http")) return path;
+            try {
+              return await getSignedUrl(path, 7200);
+            } catch {
+              return null;
+            }
+          })
+        );
+        return { ...c, imageUrls: signedImages.filter(Boolean) };
+      }
       return c;
     })
   );

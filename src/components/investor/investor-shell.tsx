@@ -35,7 +35,14 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        {children}
+        <footer className="mt-16 pt-8 border-t text-center">
+          <p className="text-[10px] text-muted-foreground">
+            © 2026 DILS Group B.V. — <a href="mailto:privacy@dils.com" className="underline hover:text-foreground">Privacy</a>
+          </p>
+        </footer>
+      </main>
     </div>
   );
 }

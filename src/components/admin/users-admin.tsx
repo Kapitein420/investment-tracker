@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, UserCheck, UserX } from "lucide-react";
-import { createUser, updateUser } from "@/actions/admin-actions";
+import { Plus, UserCheck, UserX, KeyRound } from "lucide-react";
+import { resetUserPassword, createUser, updateUser } from "@/actions/admin-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
@@ -59,6 +59,16 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
       router.refresh();
     } catch {
       toast.error("Failed to update user");
+    }
+  }
+
+  async function handleResetPassword(userId: string, email: string) {
+    if (!confirm(`Reset password for ${email}? A new password will be emailed to them.`)) return;
+    try {
+      await resetUserPassword(userId);
+      toast.success(`Password reset email sent to ${email}`);
+    } catch {
+      toast.error("Failed to reset password");
     }
   }
 
@@ -133,6 +143,15 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                     ) : (
                       <><UserCheck className="mr-1 h-3 w-3" />Reactivate</>
                     )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => handleResetPassword(u.id, u.email)}
+                  >
+                    <KeyRound className="mr-1 h-3 w-3" />
+                    Reset Password
                   </Button>
                 </td>
               </tr>

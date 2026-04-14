@@ -145,7 +145,12 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           // (avoids duplicate NDA showing from both Document + AssetContent)
           const stageContent = stageDocs.length > 0
             ? []
-            : contents.filter((c: any) => c.stageKey === ss.stage.key);
+            : contents.filter((c: any) => {
+                if (c.stageKey !== ss.stage.key) return false;
+                // Teaser LANDING_PAGE is rendered inline in the teaser card below
+                if (ss.stage.key === "teaser" && c.contentType === "LANDING_PAGE") return false;
+                return true;
+              });
           const isExpanded = state !== "locked";
           const description = STAGE_DESCRIPTIONS[ss.stage.key] || "";
 
@@ -322,31 +327,68 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
               {/* Empty state — richer teaser or generic message */}
               {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && (
                 <div className="px-5 pb-5 ml-12">
-                  {ss.stage.key === "teaser" ? (
-                    <div className="rounded-lg border bg-white p-5 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-16 w-16 rounded-lg bg-gold-100 flex items-center justify-center">
-                          <Building className="h-8 w-8 text-gold-600" />
+                  {ss.stage.key === "teaser" ? (() => {
+                    const teaserContent = contents.find(
+                      (c: any) => c.stageKey === "teaser" && c.contentType === "LANDING_PAGE" && c.isPublished
+                    );
+                    const teaserImages: string[] = teaserContent?.imageUrls && Array.isArray(teaserContent.imageUrls)
+                      ? teaserContent.imageUrls
+                      : [];
+                    const teaserMetrics: Record<string, string> = teaserContent?.keyMetrics && typeof teaserContent.keyMetrics === "object"
+                      ? teaserContent.keyMetrics
+                      : {};
+                    const metricEntries = Object.entries(teaserMetrics).filter(([_, v]) => v);
+                    return (
+                      <div className="rounded-lg border bg-white p-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-16 w-16 rounded-lg bg-gold-100 flex items-center justify-center">
+                            <Building className="h-8 w-8 text-gold-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{tracking.asset.title}</h4>
+                            <p className="text-sm text-muted-foreground">{tracking.asset.address}, {tracking.asset.city}, {tracking.asset.country}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold">{tracking.asset.title}</h4>
-                          <p className="text-sm text-muted-foreground">{tracking.asset.address}, {tracking.asset.city}, {tracking.asset.country}</p>
-                        </div>
+                        {tracking.asset.assetType && (
+                          <div className="flex gap-2">
+                            <Badge variant="secondary">{tracking.asset.assetType}</Badge>
+                            {tracking.asset.transactionType && <Badge variant="outline">{tracking.asset.transactionType}</Badge>}
+                          </div>
+                        )}
+                        {teaserImages.length > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {teaserImages.map((url, i) => (
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`Property image ${i + 1}`}
+                                className="w-full h-32 object-cover rounded-md border"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {teaserContent?.description && (
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{teaserContent.description}</p>
+                        )}
+                        {!teaserContent?.description && tracking.asset.description && (
+                          <p className="text-sm text-muted-foreground">{tracking.asset.description}</p>
+                        )}
+                        {metricEntries.length > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
+                            {metricEntries.map(([key, value]) => (
+                              <div key={key}>
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{key}</p>
+                                <p className="text-sm font-semibold">{String(value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground italic">
+                          You have been invited to review this investment opportunity. Proceed to the NDA stage to access detailed materials.
+                        </p>
                       </div>
-                      {tracking.asset.assetType && (
-                        <div className="flex gap-2">
-                          <Badge variant="secondary">{tracking.asset.assetType}</Badge>
-                          {tracking.asset.transactionType && <Badge variant="outline">{tracking.asset.transactionType}</Badge>}
-                        </div>
-                      )}
-                      {tracking.asset.description && (
-                        <p className="text-sm text-muted-foreground">{tracking.asset.description}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground italic">
-                        You have been invited to review this investment opportunity. Proceed to the NDA stage to access detailed materials.
-                      </p>
-                    </div>
-                  ) : state === "action_needed" ? (
+                    );
+                  })() : state === "action_needed" ? (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                       <p className="text-sm text-blue-800 font-medium">Waiting for documents</p>
                       <p className="text-xs text-blue-600 mt-1">
