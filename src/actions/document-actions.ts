@@ -179,7 +179,14 @@ export async function getDocumentForSigning(token: string) {
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
 
-  const signedFileUrl = await getSignedUrl(signingToken.document.fileUrl, 7200);
+  // Generate signed URL — if it fails (file missing, env vars), still return doc info
+  let signedFileUrl: string;
+  try {
+    signedFileUrl = await getSignedUrl(signingToken.document.fileUrl, 7200);
+  } catch (e) {
+    console.error("Failed to generate signed URL for document:", e);
+    signedFileUrl = ""; // Empty URL — page will show "Unable to load document"
+  }
 
   return {
     ...signingToken.document,
