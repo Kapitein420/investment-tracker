@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Collaboration Flow — Investment Tracker</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+  --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+  --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+  --blue:#4a9eff;--green:#3ecf6e;--emerald:#10b981;--amber:#f0a030;--red:#e8453c;--purple:#a78bfa;--pink:#ec4899;--cyan:#22d3ee;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* Nav */
+nav{position:sticky;top:0;z-index:100;background:rgba(15,17,23,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--bg3);padding:12px 0}
+nav ul{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;list-style:none;max-width:1200px;margin:0 auto;padding:0 20px}
+nav a{color:var(--gray);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:6px;transition:.2s;white-space:nowrap}
+nav a:hover{color:var(--gold);background:var(--bg3)}
+nav a.active{color:var(--gold);background:var(--bg3)}
+
+header{text-align:center;padding:60px 20px 30px;background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%)}
+header h1{font-size:38px;font-weight:700;letter-spacing:-.5px}
+header h1 span{color:var(--gold)}
+header p{color:var(--gray);font-size:15px;margin-top:8px;max-width:600px;margin-left:auto;margin-right:auto}
+
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* Stats */
+.stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:30px 20px}
+.stat{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:16px 24px;text-align:center;min-width:120px}
+.stat-value{font-size:28px;font-weight:700;color:var(--gold)}
+.stat-label{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+.section-title{text-align:center;margin:60px 0 30px}
+.section-title h2{font-size:26px;font-weight:700}
+.section-title h2 span{color:var(--gold)}
+.section-title p{color:var(--gray);font-size:14px;margin-top:6px}
+
+/* The orchestration diagram */
+.orchestration{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:40px 30px;margin:30px 0}
+
+.orch-row{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+.orch-arrow{color:var(--gold);font-size:24px;font-weight:bold}
+
+.box{padding:14px 20px;border-radius:10px;font-size:13px;font-weight:600;text-align:center;min-width:140px;border:2px solid;transition:transform .2s}
+.box:hover{transform:translateY(-2px)}
+
+.box-user{background:rgba(212,168,67,.1);border-color:var(--gold);color:var(--gold)}
+.box-orch{background:rgba(74,158,255,.1);border-color:var(--blue);color:var(--blue)}
+.box-explore{background:rgba(34,211,238,.1);border-color:var(--cyan);color:var(--cyan)}
+.box-plan{background:rgba(167,139,250,.1);border-color:var(--purple);color:var(--purple)}
+.box-build{background:rgba(16,185,129,.1);border-color:var(--emerald);color:var(--emerald)}
+.box-qa{background:rgba(232,69,60,.1);border-color:var(--red);color:var(--red)}
+.box-fix{background:rgba(240,160,48,.1);border-color:var(--amber);color:var(--amber)}
+.box-doc{background:rgba(236,72,153,.1);border-color:var(--pink);color:var(--pink)}
+
+/* Wave timeline */
+.wave{margin:40px 0;border-left:3px solid var(--gold);padding-left:24px;position:relative}
+.wave::before{content:'';position:absolute;left:-9px;top:0;width:15px;height:15px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px var(--bg)}
+.wave-header{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.wave-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;background:rgba(212,168,67,.15);color:var(--gold);letter-spacing:1px}
+.wave-title{font-size:18px;font-weight:700}
+.wave-time{font-size:12px;color:var(--gray)}
+.wave-desc{color:var(--gray);font-size:13px;margin-bottom:16px}
+
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.agent-card{background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:12px;font-size:12px}
+.agent-card .agent-name{font-weight:700;font-size:13px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.agent-card .agent-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.agent-card .agent-task{color:var(--gray);font-size:11px;line-height:1.5}
+.agent-card .agent-result{margin-top:8px;padding-top:8px;border-top:1px solid var(--bg4);font-size:10px;color:var(--gray-dim)}
+.agent-card .agent-result strong{color:var(--emerald);display:block;margin-bottom:2px}
+
+/* Agent type legend */
+.legend{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:20px 0}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray)}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* Agent type breakdown */
+.types-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;padding-bottom:30px}
+.type-card{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:20px}
+.type-card h4{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.type-card .type-icon{font-size:18px}
+.type-card p{font-size:12px;color:var(--gray);margin-bottom:10px}
+.type-card .examples{font-size:11px;color:var(--gray-dim);font-style:italic;border-top:1px solid var(--bg3);padding-top:10px;margin-top:10px}
+
+/* Process patterns */
+.pattern-list{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin:20px 0}
+.pattern{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--bg3)}
+.pattern:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.pattern h4{font-size:15px;font-weight:700;margin-bottom:6px;color:var(--gold)}
+.pattern p{color:var(--gray);font-size:13px}
+.pattern code{background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--cyan)}
+
+/* Insight callout */
+.insight{background:linear-gradient(135deg,rgba(212,168,67,.08),rgba(212,168,67,.02));border:1px solid rgba(212,168,67,.2);border-radius:var(--radius);padding:24px;margin:30px 0}
+.insight h3{color:var(--gold);font-size:16px;margin-bottom:10px}
+.insight p{color:var(--gray);font-size:13px;line-height:1.7}
+
+footer{text-align:center;padding:40px 20px;color:var(--gray-dim);font-size:11px}
+
+@media(max-width:700px){
+  header h1{font-size:28px}
+  .agent-grid{grid-template-columns:1fr}
+  .orch-row{flex-direction:column;gap:10px}
+  .orch-arrow{transform:rotate(90deg)}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <ul>
+    <li><a href="architecture-overview.html">Architecture</a></li>
+    <li><a href="vendor-guide.html">Vendors</a></li>
+    <li><a href="project-report.html">Project Report</a></li>
+    <li><a href="bug-tracker.html">Bug Tracker</a></li>
+    <li><a href="kpi-dashboard.html">KPI Dashboard</a></li>
+    <li><a href="learning-journey.html">Learning Journey</a></li>
+    <li><a href="agent-collaboration.html" class="active">Agent Collaboration</a></li>
+  </ul>
+</nav>
+
+<header>
+  <h1>AI Agent <span>Collaboration Flow</span></h1>
+  <p>How a human-directed team of AI agents built and hardened an enterprise-grade investment portal in two days</p>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="stat-value">15+</div><div class="stat-label">Agents Used</div></div>
+  <div class="stat"><div class="stat-value">3</div><div class="stat-label">Waves</div></div>
+  <div class="stat"><div class="stat-value">8</div><div class="stat-label">Agent Types</div></div>
+  <div class="stat"><div class="stat-value">~14</div><div class="stat-label">Hours Total</div></div>
+  <div class="stat"><div class="stat-value">60+</div><div class="stat-label">Bugs Found</div></div>
+  <div class="stat"><div class="stat-value">55+</div><div class="stat-label">Bugs Fixed</div></div>
+</div>
+
+<div class="container">
+
+<!-- The core orchestration model -->
+<div class="section-title">
+  <h2>The <span>Orchestration Model</span></h2>
+  <p>Noah directs the strategy. Claude orchestrates. Specialized agents execute in parallel.</p>
+</div>
+
+<div class="orchestration">
+  <div class="orch-row">
+    <div class="box box-user">Noah<br><span style="font-weight:400;font-size:11px">Product Direction</span></div>
+    <div class="orch-arrow">→</div>
+    <div class="box box-orch">Claude<br><span style="font-weight:400;font-size:11px">Orchestrator</span></div>
+  </div>
+
+  <div class="orch-row">
+    <div class="orch-arrow" style="transform:rotate(90deg)">→</div>
+  </div>
+
+  <div class="orch-row">
+    <div class="box box-explore">Explore<br><span style="font-weight:400;font-size:11px">Read codebase</span></div>
+    <div class="box box-plan">Plan<br><span style="font-weight:400;font-size:11px">Design solution</span></div>
+    <div class="box box-build">Build<br><span style="font-weight:400;font-size:11px">Write code</span></div>
+    <div class="box box-qa">QA<br><span style="font-weight:400;font-size:11px">Find bugs</span></div>
+    <div class="box box-fix">Fix<br><span style="font-weight:400;font-size:11px">Patch issues</span></div>
+    <div class="box box-doc">Doc<br><span style="font-weight:400;font-size:11px">Document</span></div>
+  </div>
+
+  <div class="orch-row" style="margin-top:24px">
+    <div class="orch-arrow" style="transform:rotate(90deg)">→</div>
+  </div>
+
+  <div class="orch-row">
+    <div class="box box-orch">Claude verifies output</div>
+    <div class="orch-arrow">→</div>
+    <div class="box box-orch">Build + Push</div>
+    <div class="orch-arrow">→</div>
+    <div class="box box-user">Noah tests live</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--gold)"></span> Human</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span> Orchestrator</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--cyan)"></span> Explore Agent</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span> Plan Agent</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--emerald)"></span> Build Agent</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> QA Agent</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span> Fix Agent</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--pink)"></span> Doc Agent</div>
+  </div>
+</div>
+
+<!-- Wave timeline -->
+<div class="section-title">
+  <h2>Agent <span>Waves</span></h2>
+  <p>Each wave deploys multiple agents in parallel, briefed individually with full context</p>
+</div>
+
+<!-- WAVE: Day 1 Initial Build -->
+<div class="wave">
+  <div class="wave-header">
+    <span class="wave-tag">DAY 1 — INITIAL BUILD</span>
+    <span class="wave-title">Foundation Wave</span>
+    <span class="wave-time">~6 hours</span>
+  </div>
+  <p class="wave-desc">Build the core application from zero. Parallel agents handle backend while orchestrator builds frontend.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Server Actions Agent</div>
+      <div class="agent-task">Wrote 5 server action files: asset, tracking, comment, admin, view. Zod validation, role checks, transactions.</div>
+      <div class="agent-result"><strong>Output</strong>~2,500 lines across 5 files</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Seed Data Agent</div>
+      <div class="agent-task">Generated realistic seed: 18 companies, 5 stages, 90 stage statuses, 25 comments with varied lifecycle states.</div>
+      <div class="agent-result"><strong>Output</strong>1 seed file, 400+ rows</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Document Backend Agent</div>
+      <div class="agent-task">Built document upload, signing flow, public signing page actions. Supabase Storage integration.</div>
+      <div class="agent-result"><strong>Output</strong>document-actions.ts, supabase-storage.ts</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Investor Portal Agent</div>
+      <div class="agent-task">Built invite flow, approval actions, portal data fetching, content actions, email templates.</div>
+      <div class="agent-result"><strong>Output</strong>5 server action files</div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVE: Day 2 Morning -->
+<div class="wave">
+  <div class="wave-header">
+    <span class="wave-tag">DAY 2 — WAVE 1 (MORNING)</span>
+    <span class="wave-title">Feature Enhancement Wave</span>
+    <span class="wave-time">~2 hours</span>
+  </div>
+  <p class="wave-desc">Polish existing features and add testing infrastructure for upcoming team test.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Storage Cleanup Agent</div>
+      <div class="agent-task">Add Supabase Storage file removal when admin deletes content/documents.</div>
+      <div class="agent-result"><strong>Output</strong>Modified deleteAssetContent</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Teaser Editor Agent</div>
+      <div class="agent-task">Build rich teaser content editor: description, 5 images, key metrics. Plus investor portal display.</div>
+      <div class="agent-result"><strong>Output</strong>upsertTeaserContent + UI</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Password Reset Agent</div>
+      <div class="agent-task">Admin "Reset Password" button + branded email + activity log.</div>
+      <div class="agent-result"><strong>Output</strong>resetUserPassword action</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Privacy + Test Seed Agent</div>
+      <div class="agent-task">GDPR disclaimer on signing page + Keizersgracht 250 test asset with 5 fake companies.</div>
+      <div class="agent-result"><strong>Output</strong>seed-testing.ts + privacy text</div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVE: Day 2 Audit -->
+<div class="wave">
+  <div class="wave-header">
+    <span class="wave-tag">DAY 2 — WAVE 2 (MID-MORNING)</span>
+    <span class="wave-title">Audit Wave</span>
+    <span class="wave-time">~30 minutes</span>
+  </div>
+  <p class="wave-desc">Four parallel auditors stress-test the app from different angles. No code changes — pure analysis.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--red)"></span>Pen Test Agent</div>
+      <div class="agent-task">Multi-tenant security audit: IDOR, XSS, CSRF, token enumeration, session management, password brute force.</div>
+      <div class="agent-result"><strong>Found</strong>18 issues (3 CRITICAL, 7 HIGH)</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--red)"></span>Load Test Agent</div>
+      <div class="agent-task">Simulate 50 concurrent users across 5 scenarios: login, table view, signing, portal, mixed.</div>
+      <div class="agent-result"><strong>Found</strong>App breaks at ~10-50 users</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--cyan)"></span>Feature Verification Agent</div>
+      <div class="agent-task">Walk through every feature, verify data flows, identify partial implementations.</div>
+      <div class="agent-result"><strong>Result</strong>9/10 features working</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--purple)"></span>PDF Research Agent</div>
+      <div class="agent-task">Evaluate 5 approaches for precise PDF signing: placeholders, drag-drop, Word conversion, current grid, hybrid.</div>
+      <div class="agent-result"><strong>Recommended</strong>{{PLACEHOLDER}} approach</div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVE: Day 2 Hardening -->
+<div class="wave">
+  <div class="wave-header">
+    <span class="wave-tag">DAY 2 — WAVE 3 (LATE MORNING)</span>
+    <span class="wave-title">Hardening Wave</span>
+    <span class="wave-time">~1.5 hours</span>
+  </div>
+  <p class="wave-desc">Four parallel agents fix everything found in the audit. Orchestrator catches conflicts and emergent issues.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--amber)"></span>Critical Security Agent</div>
+      <div class="agent-task">Replace Math.random() tokens, add IDOR ownership checks, sanitize XSS, JWT timeout + role refresh.</div>
+      <div class="agent-result"><strong>Fixed</strong>5 critical security issues</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--amber)"></span>Scale Fixes Agent</div>
+      <div class="agent-task">Add 9 DB indexes, query limits, signed URL caching, MIME validation, security headers.</div>
+      <div class="agent-result"><strong>Fixed</strong>Scales to 50 users</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>PDF Placeholder Agent</div>
+      <div class="agent-task">Build pdfjs-dist scanner, generateSignedPdfFromPlaceholders, admin UI updates, schema changes.</div>
+      <div class="agent-result"><strong>Output</strong>pdf-placeholder-scan.ts + integration</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--emerald)"></span>Investor UX Polish Agent</div>
+      <div class="agent-task">Pre-fill name/email, mobile responsive, file size limits, signature size limits, signing UX.</div>
+      <div class="agent-result"><strong>Fixed</strong>10 UX issues</div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVE: Documentation -->
+<div class="wave">
+  <div class="wave-header">
+    <span class="wave-tag">DAY 2 — DOC WAVE</span>
+    <span class="wave-title">Documentation Wave</span>
+    <span class="wave-time">~30 minutes</span>
+  </div>
+  <p class="wave-desc">Generate stakeholder-ready documentation for CTO meeting and team handoff.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--pink)"></span>Architecture Docs Agent</div>
+      <div class="agent-task">Generate dark-themed HTML: system diagram, data model, security, vendor guide.</div>
+      <div class="agent-result"><strong>Output</strong>6 HTML pages, cross-linked</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--pink)"></span>Project Report Agent</div>
+      <div class="agent-task">Write CTO-ready: executive summary, decisions log, integration guide, cost analysis.</div>
+      <div class="agent-result"><strong>Output</strong>project-report.html</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--pink)"></span>Bug Tracker Agent</div>
+      <div class="agent-task">Comprehensive log of all 60+ bugs found and 55+ fixed with status, priority, fix details.</div>
+      <div class="agent-result"><strong>Output</strong>bug-tracker.html</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-name"><span class="agent-dot" style="background:var(--pink)"></span>KPI Dashboard Agent</div>
+      <div class="agent-task">Visual metrics: hours, LOC, files, agent utilization, cost efficiency comparison.</div>
+      <div class="agent-result"><strong>Output</strong>kpi-dashboard.html</div>
+    </div>
+  </div>
+</div>
+
+<!-- Agent types -->
+<div class="section-title">
+  <h2>Agent <span>Types</span></h2>
+  <p>Each agent type has a specific role. Briefing them well is the key skill.</p>
+</div>
+
+<div class="types-grid">
+  <div class="type-card" style="border-color:var(--cyan)">
+    <h4><span class="type-icon">🔍</span>Explore Agent</h4>
+    <p>Reads the codebase. No edits. Returns a structured analysis: file paths, line numbers, data flows.</p>
+    <div class="examples">"Find how auth works, what models exist, how signing connects."</div>
+  </div>
+  <div class="type-card" style="border-color:var(--purple)">
+    <h4><span class="type-icon">📐</span>Plan Agent</h4>
+    <p>Designs an implementation strategy. No code. Returns architecture decisions, file lists, trade-off analysis.</p>
+    <div class="examples">"Plan PDF signing field placement. Evaluate 5 approaches."</div>
+  </div>
+  <div class="type-card" style="border-color:var(--emerald)">
+    <h4><span class="type-icon">🛠️</span>Build Agent</h4>
+    <p>Writes new files or modifies existing ones. Most common type. Briefed with exact files + patterns to use.</p>
+    <div class="examples">"Create these 5 server action files with these signatures."</div>
+  </div>
+  <div class="type-card" style="border-color:var(--red)">
+    <h4><span class="type-icon">🐛</span>QA Agent</h4>
+    <p>Pen tests, audits, finds bugs. Returns prioritized issue lists with attack scenarios and fix recommendations.</p>
+    <div class="examples">"Audit multi-tenant security. Test all server actions for IDOR."</div>
+  </div>
+  <div class="type-card" style="border-color:var(--amber)">
+    <h4><span class="type-icon">🔧</span>Fix Agent</h4>
+    <p>Patches specific bugs from a list. Briefed with the exact issue, file, and proposed fix.</p>
+    <div class="examples">"Fix 5 critical security issues: tokens, IDOR, XSS, JWT, RLS."</div>
+  </div>
+  <div class="type-card" style="border-color:var(--pink)">
+    <h4><span class="type-icon">📝</span>Doc Agent</h4>
+    <p>Generates HTML documentation, reports, dashboards. Stakeholder-ready output.</p>
+    <div class="examples">"Generate CTO report with decisions log and cost analysis."</div>
+  </div>
+</div>
+
+<!-- Patterns -->
+<div class="section-title">
+  <h2>Coordination <span>Patterns</span></h2>
+  <p>How the orchestrator manages multiple agents working simultaneously</p>
+</div>
+
+<div class="pattern-list">
+  <div class="pattern">
+    <h4>Pattern 1: Parallel Execution</h4>
+    <p>Launch 3-4 agents simultaneously, each on independent files. Wait for completion notifications. Saves 60-70% time vs sequential.</p>
+  </div>
+  <div class="pattern">
+    <h4>Pattern 2: Complete Briefing</h4>
+    <p>Each agent gets full context — file paths, existing patterns, exact signatures, examples. Agents have no memory of prior conversations, so prompts are self-contained.</p>
+  </div>
+  <div class="pattern">
+    <h4>Pattern 3: Output Verification</h4>
+    <p>After agent completes, orchestrator verifies the work — runs <code>npm run build</code>, checks for type errors, fixes coordination issues like Prisma client regeneration.</p>
+  </div>
+  <div class="pattern">
+    <h4>Pattern 4: Conflict Detection</h4>
+    <p>When two agents touch the same file, orchestrator catches the merge issues. Example: PDF agent + Security agent both modified <code>document-actions.ts</code>. Caught and fixed manually.</p>
+  </div>
+  <div class="pattern">
+    <h4>Pattern 5: Audit Then Fix</h4>
+    <p>QA agents run first to produce a prioritized bug list. Fix agents are then briefed with specific items from that list. Avoids guessing what to fix.</p>
+  </div>
+  <div class="pattern">
+    <h4>Pattern 6: Background Tasks</h4>
+    <p>Long-running agents run in background while orchestrator handles other work. Tasks notify on completion. No idle waiting.</p>
+  </div>
+</div>
+
+<!-- Key insight -->
+<div class="insight">
+  <h3>The Meta-Skill</h3>
+  <p>
+    The hardest part isn't the code — agents handle that. The hardest part is <strong>orchestration</strong>:
+    knowing when to use which agent type, briefing them with enough context, verifying their output,
+    catching conflicts between parallel work, and deciding when to commit and push.
+  </p>
+  <p style="margin-top:12px">
+    This is what Noah is becoming. Not a developer who writes code, but a <strong>director who deploys
+    teams of AI agents to build production systems</strong>. The instinct for product, security, and
+    user experience that took years to develop is now the constraint — the code itself is no longer
+    the bottleneck.
+  </p>
+</div>
+
+</div>
+
+<footer>
+  <p>Generated April 14, 2026 — Investment Tracker Documentation</p>
+  <p style="margin-top:4px">Noah Maatoke · DILS Group · Lead Digital Transformation</p>
+</footer>
+
+</body>
+</html>

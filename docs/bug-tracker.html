@@ -129,6 +129,8 @@
     <li><a href="kpi-dashboard.html">KPI Dashboard</a></li>
     <li><a href="architecture-overview.html" class="ext">Architecture</a></li>
     <li><a href="vendor-guide.html" class="ext">Vendor Guide</a></li>
+    <li><a href="learning-journey.html" class="ext">Learning Journey</a></li>
+    <li><a href="agent-collaboration.html" class="ext">Agent Collaboration</a></li>
   </ul>
 </nav>
 
@@ -143,11 +145,11 @@
   <section id="summary">
     <div class="summary-grid">
       <div class="summary-card">
-        <div class="number num-total">18</div>
+        <div class="number num-total">40</div>
         <div class="label">Total Bugs</div>
       </div>
       <div class="summary-card">
-        <div class="number num-fixed">14</div>
+        <div class="number num-fixed">36</div>
         <div class="label">Fixed</div>
       </div>
       <div class="summary-card">
@@ -155,19 +157,19 @@
         <div class="label">Open</div>
       </div>
       <div class="summary-card">
-        <div class="number num-rate">78%</div>
+        <div class="number num-rate">90%</div>
         <div class="label">Resolution Rate</div>
       </div>
     </div>
 
     <div class="filters">
-      <button class="filter-btn active" onclick="filterBugs('all')">All <span class="count">18</span></button>
-      <button class="filter-btn" onclick="filterBugs('fixed')">Fixed <span class="count">14</span></button>
+      <button class="filter-btn active" onclick="filterBugs('all')">All <span class="count">40</span></button>
+      <button class="filter-btn" onclick="filterBugs('fixed')">Fixed <span class="count">36</span></button>
       <button class="filter-btn" onclick="filterBugs('open')">Open <span class="count">4</span></button>
-      <button class="filter-btn" onclick="filterBugs('critical')">Critical <span class="count">3</span></button>
-      <button class="filter-btn" onclick="filterBugs('high')">High <span class="count">6</span></button>
-      <button class="filter-btn" onclick="filterBugs('medium')">Medium <span class="count">5</span></button>
-      <button class="filter-btn" onclick="filterBugs('low')">Low <span class="count">4</span></button>
+      <button class="filter-btn" onclick="filterBugs('critical')">Critical <span class="count">6</span></button>
+      <button class="filter-btn" onclick="filterBugs('high')">High <span class="count">13</span></button>
+      <button class="filter-btn" onclick="filterBugs('medium')">Medium <span class="count">14</span></button>
+      <button class="filter-btn" onclick="filterBugs('low')">Low <span class="count">7</span></button>
     </div>
 
     <div class="table-wrap">
@@ -325,7 +327,185 @@
             <td><span class="priority p-low">Low</span></td>
             <td>No data privacy disclaimer on signing page</td>
             <td>User request</td>
-            <td>Planned</td>
+            <td>Fixed Apr 14 &mdash; GDPR disclaimer added</td>
+          </tr>
+
+          <!-- APRIL 14 BUGS -->
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-019</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>Invite tokens generated with <code>Math.random()</code> &mdash; predictable, not cryptographically secure</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; replaced with <code>crypto.randomUUID()</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-020</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>Signing tokens enumerable and endpoint lacked auth &mdash; anyone with a token could sign</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; added auth + token binding</td>
+          </tr>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-021</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>IDOR in <code>getSignedDocumentUrl</code> &mdash; any authenticated user could fetch any document URL</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; added company ownership check</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-022</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td><code>getTrackingDetail</code> missing ownership check &mdash; cross-tenant data leak risk</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; added INVESTOR role check</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-023</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>IDOR in <code>getSignedContentUrl</code> &mdash; access validation bypassable</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; rewrote with airtight access validation</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-024</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>XSS in comment bodies &mdash; user HTML rendered unescaped</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; added HTML stripping</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-025</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>JWT had no <code>maxAge</code> &mdash; session tokens valid indefinitely</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; 8h timeout + hourly refresh</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-026</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Stored XSS via <code>dangerouslySetInnerHTML</code> in deal-journey timeline</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; removed unsafe HTML rendering</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-027</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Missing DB indexes &mdash; slow queries on deal/investor lookups under load</td>
+            <td>Load Testing Agent</td>
+            <td>Apr 14 &mdash; added 9 indexes</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-028</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Unbounded <code>findMany</code> calls &mdash; memory exhaustion risk</td>
+            <td>Load Testing Agent</td>
+            <td>Apr 14 &mdash; added <code>take:100/500</code> limits</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-029</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>No signed URL caching &mdash; Supabase quota drain at scale</td>
+            <td>Load Testing Agent</td>
+            <td>Apr 14 &mdash; in-memory cache added</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-030</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>No file MIME validation on upload &mdash; arbitrary file types accepted</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; PDF magic byte check added</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-031</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>No security headers &mdash; missing X-Frame-Options, CSP, etc.</td>
+            <td>Pen Test Agent</td>
+            <td>Apr 14 &mdash; added X-Frame, CSP, HSTS</td>
+          </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-032</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Email invite link rendered as "undefined/login" &mdash; NEXTAUTH_URL not populated in serverless</td>
+            <td>UX Audit Agent</td>
+            <td>Apr 14 &mdash; centralized <code>getAppUrl()</code> utility with VERCEL_URL fallback</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-033</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Duplicate NDAs appearing in investor portal &mdash; Document + AssetContent both rendering</td>
+            <td>Feature Verification Agent</td>
+            <td>Apr 14 &mdash; Document model now hides AssetContent fallback</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-034</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>"Sign Now" button showing on completed stages</td>
+            <td>UX Audit Agent</td>
+            <td>Apr 14 &mdash; added stage status check</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-035</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>IM PDF not displaying in investor portal &mdash; signed URL generation broken</td>
+            <td>Feature Verification Agent</td>
+            <td>Apr 14 &mdash; fixed signed URL generation</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-036</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Storage leaks on delete &mdash; Supabase Storage files orphaned when DB record removed</td>
+            <td>Code review</td>
+            <td>Apr 14 &mdash; added Storage removal on delete</td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-037</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Re-invite resets active investor's password</td>
+            <td>UX Audit Agent</td>
+            <td>Apr 14 &mdash; added <code>hasLoggedIn</code> check</td>
+          </tr>
+          <tr data-status="fixed" data-priority="critical">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-038</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-critical">Critical</span></td>
+            <td>Vercel build crash &mdash; <code>supabaseUrl required</code> thrown at module init</td>
+            <td>Vercel build</td>
+            <td>Apr 14 &mdash; lazy-init Supabase client</td>
+          </tr>
+          <tr data-status="fixed" data-priority="low">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-039</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-low">Low</span></td>
+            <td>TypeScript error on Set spread (recurrence)</td>
+            <td>Vercel build</td>
+            <td>Apr 14 &mdash; <code>Array.from()</code></td>
+          </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-040</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Node 25 + pdf-lib hangs indefinitely in Vercel runtime</td>
+            <td>PDF Research Agent</td>
+            <td>Apr 14 &mdash; locked engines to Node 20&ndash;22</td>
           </tr>
         </tbody>
       </table>
@@ -335,7 +515,7 @@
 </div>
 
 <footer style="text-align:center;padding:48px 20px;color:var(--gray-dim);font-size:13px;border-top:1px solid var(--bg3)">
-  Investment Tracker — Bug Tracker &amp; Issue Log &middot; Generated April 13, 2026
+  Investment Tracker — Bug Tracker &amp; Issue Log &middot; Generated April 14, 2026
 </footer>
 
 <script>
