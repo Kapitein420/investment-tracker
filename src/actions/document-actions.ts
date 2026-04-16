@@ -66,17 +66,25 @@ export async function uploadDocument(formData: FormData) {
     }
   }
 
-  // Scan for placeholders
+  // Scan for placeholders with a 5s timeout so slow PDFs don't
+  // block the Vercel serverless function (default limit is 10s).
   let placeholderMap: Record<string, any> | null = null;
   let placementMode: "GRID" | "PLACEHOLDER" = "GRID";
   try {
-    const detected = await scanPlaceholders(buffer);
+    const scanPromise = scanPlaceholders(buffer);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Placeholder scan timed out after 5s")), 5000)
+    );
+    const detected = await Promise.race([scanPromise, timeoutPromise]);
     if (Object.keys(detected).length > 0) {
       placeholderMap = detected;
       placementMode = "PLACEHOLDER";
+      console.log(`[uploadDocument] Detected ${Object.keys(detected).length} placeholders`);
+    } else {
+      console.log("[uploadDocument] No placeholders detected — using GRID mode");
     }
   } catch (e) {
-    console.error("Placeholder scan failed:", e);
+    console.error("[uploadDocument] Placeholder scan failed (falling back to GRID):", e);
   }
 
   const path = `documents/${trackingId}/${Date.now()}_${file.name}`;
