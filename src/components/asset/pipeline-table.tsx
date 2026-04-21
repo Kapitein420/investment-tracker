@@ -35,6 +35,7 @@ import {
   LIFECYCLE_COLORS,
 } from "@/lib/stages";
 import { StageCell } from "@/components/asset/stage-cell";
+import { StageSelectCell } from "@/components/asset/stage-select-cell";
 import { updateTracking } from "@/actions/tracking-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -144,16 +145,15 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
             <ArrowUpDown className="ml-1 h-3 w-3" />
           </Button>
         ),
-        size: 80,
-        cell: ({ row }) => {
-          const key = row.original.currentStageKey;
-          const stage = stages.find((s) => s.key === key);
-          return stage ? (
-            <Badge variant="outline" className="text-xs">{stage.label}</Badge>
-          ) : (
-            <span className="text-xs text-muted-foreground">-</span>
-          );
-        },
+        size: 110,
+        cell: ({ row }) => (
+          <StageSelectCell
+            trackingId={row.original.id}
+            currentStageKey={row.original.currentStageKey ?? null}
+            stages={stages}
+            editable={editable}
+          />
+        ),
       },
       {
         accessorKey: "lifecycleStatus",
@@ -305,8 +305,12 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-3 py-2" onClick={(e) => {
-                    // prevent row click when clicking stage cells or actions
-                    if (cell.column.id.startsWith("stage_") || cell.column.id === "actions") {
+                    // prevent row click when clicking stage cells, stage dropdown, or actions
+                    if (
+                      cell.column.id.startsWith("stage_") ||
+                      cell.column.id === "currentStageKey" ||
+                      cell.column.id === "actions"
+                    ) {
                       e.stopPropagation();
                     }
                   }}>
