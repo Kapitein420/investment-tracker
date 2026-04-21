@@ -184,3 +184,66 @@ export async function getInvites(assetId?: string) {
 
   return invites;
 }
+
+/**
+ * Remove an investor completely: delete every InvestorInvite they have for
+ * the given company, then try to delete their User record. If the user is
+ * still referenced elsewhere (comments, uploads, signed docs, tracking
+ * ownership) we fall back to deactivating the account so the FK constraints
+ * stay intact but they lose portal access.
+ *
+ * Returns a small summary the UI can toast.
+ */
+export async function removeInvestor({
+  email,
+  companyId,
+}: {
+  email: string;
+  companyId: string;
+}): Promise<{ invitesDeleted: number; userDeleted: boolean; userDeactivated: boolean }> {
+  const actor = await requireRole("EDITOR");
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Delete every invite for this investor+company
+    const { count: invitesDeleted } = await tx.investorInvite.deleteMany({
+      where: { email, companyId },
+    });
+
+    // Find the matching INVESTOR user (one per company+email)
+    const investor = await tx.user.findFirst({
+      where: { email, companyId, role: "INVESTOR" },
+    });
+
+    let userDeleted = false;
+    let userDeactivated = false;
+
+    if (investor) {
+      try {
+        await tx.user.delete({ where: { id: investor.id } });
+        userDeleted = true;
+      } catch {
+        // FK violation — fall back to deactivate so admin can still recreate
+        await tx.user.update({
+          where: { id: investor.id },
+          data: { isActive: false, email: `${investor.email}.removed-${Date.now()}` },
+        });
+        userDeactivated = true;
+      }
+    }
+
+    return { invitesDeleted, userDeleted, userDeactivated };
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "InvestorInvite",
+      entityId: "bulk",
+      action: "INVESTOR_REMOVED",
+      metadata: { email, companyId, ...result },
+      userId: actor.id,
+    },
+  });
+
+  revalidatePath("/admin/invites");
+  return result;
+}
