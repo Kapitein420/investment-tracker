@@ -77,26 +77,30 @@ export function InvitesAdmin({
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Investor Invitations</h1>
-          <p className="text-sm text-muted-foreground">Send and manage portal access invitations</p>
+          <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+            Investor Invitations
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground max-w-prose">
+            Send and manage portal access invitations
+          </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" strokeWidth={2} />
           Send Invite
         </Button>
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-md border border-dils-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr className="border-b">
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Company</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Asset</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Email</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Link</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Sent</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">By</th>
+          <thead className="bg-dils-50">
+            <tr className="border-b border-dils-100">
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Company</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Asset</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Email</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Status</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Link</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Sent</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">By</th>
             </tr>
           </thead>
           <tbody>
@@ -108,7 +112,7 @@ export function InvitesAdmin({
               </tr>
             ) : (
               invites.map((inv) => (
-                <tr key={inv.id} className="border-b">
+                <tr key={inv.id} className="border-b border-dils-100 hover:bg-dils-50/50">
                   <td className="px-4 py-3 font-medium">{inv.company.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{inv.asset.title}</td>
                   <td className="px-4 py-3 text-muted-foreground">{inv.email}</td>

@@ -55,13 +55,17 @@ export function StagesAdmin({ stages }: { stages: PipelineStage[] }) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Pipeline Stages</h1>
-        <p className="text-sm text-muted-foreground">Configure the deal pipeline stages</p>
+        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+          Pipeline Stages
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground max-w-prose">
+          Configure the deal pipeline stages
+        </p>
       </div>
 
       <div className="max-w-lg space-y-2">
         {stages.map((stage, idx) => (
-          <div key={stage.id} className="flex items-center gap-3 rounded-lg border bg-white p-3">
+          <div key={stage.id} className="flex items-center gap-3 rounded-md border border-dils-200 bg-white p-3">
             <div className="flex flex-col gap-0.5">
               <Button
                 variant="ghost"

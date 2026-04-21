@@ -90,23 +90,25 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b bg-gradient-to-r from-gold-50 to-gold-100/50 px-6 py-4">
+      <div className="border-b border-dils-200 bg-white px-6 py-5">
         <div className="flex items-center gap-2 mb-2">
-          <Link href="/" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
+          <Link href="/" className="text-muted-foreground hover:text-dils-black">
+            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           </Link>
-          <span className="text-sm text-muted-foreground">Assets</span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">Assets</span>
         </div>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-semibold">{asset.title}</h1>
-            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+            <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+              {asset.title}
+            </h1>
+            <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
+                <MapPin className="h-3.5 w-3.5" strokeWidth={2} />
                 {asset.address}, {asset.city}
               </span>
               {asset.assetType && <Badge variant="secondary" className="text-xs">{asset.assetType}</Badge>}
-              {asset.transactionType && <Badge variant="outline" className="text-xs">{asset.transactionType}</Badge>}
+              {asset.transactionType && <Badge variant="outline" className="text-xs border-dils-300 text-dils-700">{asset.transactionType}</Badge>}
               {asset.brokerLabel && <span>Broker: {asset.brokerLabel}</span>}
             </div>
           </div>
@@ -181,7 +183,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 onClick={() => setStageFilter(isFiltered ? "all" : stage.key)}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  isFiltered ? "bg-gold-100 ring-1 ring-gold-300" : "bg-gray-50 hover:bg-gray-100"
+                  isFiltered ? "bg-dils-black text-white" : "bg-dils-50 hover:bg-dils-100"
                 )}
               >
                 <span className="font-medium">{stage.label}</span>

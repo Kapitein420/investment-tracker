@@ -4,26 +4,30 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 220 15% 15%;
+    /* Dils brand tokens
+       Primary: Pantone Black 6 (#101820) and white
+       Accent:  Pantone 1788 red (#EE2E24) — used sparingly
+       Brass:   Pantone 10127 (#AB8B5F) — warm decorative accent */
+    --background: 0 0% 100%;                /* white */
+    --foreground: 215 33% 10%;              /* dils black #101820 */
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
+    --card-foreground: 215 33% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
-    --primary: 38 70% 50%;
+    --popover-foreground: 215 33% 10%;
+    --primary: 215 33% 10%;                 /* dils black */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 15% 15%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 8% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 220 15% 15%;
-    --destructive: 0 84% 60%;
+    --secondary: 215 15% 96%;               /* very light neutral */
+    --secondary-foreground: 215 33% 10%;
+    --muted: 215 15% 96%;
+    --muted-foreground: 215 10% 42%;
+    --accent: 215 15% 96%;
+    --accent-foreground: 215 33% 10%;
+    --destructive: 3 85% 54%;               /* dils red #EE2E24 */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 38 70% 50%;
-    --radius: 0.5rem;
+    --border: 215 14% 89%;
+    --input: 215 14% 89%;
+    --ring: 215 33% 10%;
+    --radius: 0.375rem;                     /* tighter radii, more editorial */
   }
 }
 
@@ -31,8 +35,30 @@
   * {
     @apply border-border;
   }
+  html {
+    font-family: var(--font-nunito), system-ui, -apple-system, Arial, sans-serif;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-rufina), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Editorial accent bar — narrow red underline under section headings */
+  .dils-accent {
+    position: relative;
+  }
+  .dils-accent::after {
+    content: "";
+    display: block;
+    width: 2rem;
+    height: 2px;
+    background-color: #EE2E24;
+    margin-top: 0.5rem;
   }
 }

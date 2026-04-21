@@ -88,11 +88,13 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           Back to deals
         </Link>
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gold-100">
-            <Building className="h-7 w-7 text-gold-600" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
+            <Building className="h-7 w-7 text-dils-black" strokeWidth={2} />
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-semibold">{tracking.asset.title}</h1>
+            <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+              {tracking.asset.title}
+            </h1>
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
@@ -107,22 +109,22 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="mb-6 rounded-lg border bg-white p-4">
+      <div className="mb-6 rounded-md border border-dils-200 bg-white p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">Progress</span>
+          <span className="text-xs uppercase tracking-wider font-semibold text-dils-600">Progress</span>
           <span className="text-sm text-muted-foreground">{completedCount} of {stages.length} stages</span>
         </div>
-        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-2 rounded-full bg-dils-100 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-500 transition-all duration-500"
+            className="h-full rounded-full bg-dils-black transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
 
       {/* Next step guidance */}
-      <div className="mb-6 rounded-lg border bg-gold-50/50 border-gold-200 p-4">
-        <p className="text-sm text-gold-800">
+      <div className="mb-6 rounded-md border border-dils-200 bg-dils-50 p-4">
+        <p className="text-sm text-dils-black">
           {stages.every((s: any) => s.status === "COMPLETED")
             ? "All stages are complete. Thank you for your participation in this investment process."
             : stages.find((s: any) => s.status === "IN_PROGRESS")
@@ -341,8 +343,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                     return (
                       <div className="rounded-lg border bg-white p-5 space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-16 w-16 rounded-lg bg-gold-100 flex items-center justify-center">
-                            <Building className="h-8 w-8 text-gold-600" />
+                          <div className="h-16 w-16 rounded-md bg-dils-50 border border-dils-200 flex items-center justify-center">
+                            <Building className="h-8 w-8 text-dils-black" strokeWidth={2} />
                           </div>
                           <div>
                             <h4 className="font-semibold">{tracking.asset.title}</h4>

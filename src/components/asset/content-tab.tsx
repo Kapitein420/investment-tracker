@@ -264,8 +264,8 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
           <div className="rounded-lg border bg-white p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-100">
-                  <FileText className="h-5 w-5 text-gold-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
+                  <FileText className="h-5 w-5 text-dils-black" strokeWidth={2} />
                 </div>
                 <div>
                   <p className="font-medium">{ndaContent.fileName || ndaContent.title}</p>
@@ -681,7 +681,7 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
                 ref={fileRef}
                 type="file"
                 accept=".pdf"
-                className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-gold-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-gold-700 hover:file:bg-gold-200"
+                className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-dils-black file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-dils-800"
               />
             </div>
           </div>

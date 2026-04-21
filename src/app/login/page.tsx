@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,14 +42,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border bg-white p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-gold-100">
-            <Building2 className="h-6 w-6 text-gold-600" />
+    <div className="flex min-h-screen items-center justify-center bg-dils-50">
+      <div className="w-full max-w-sm space-y-8 rounded-md border border-dils-200 bg-white p-8 shadow-sm">
+        <div className="space-y-3 text-center">
+          <h1 className="font-heading text-5xl font-bold tracking-tight text-dils-black">DILS</h1>
+          <div className="space-y-1">
+            <p className="dils-accent inline-block text-sm font-medium text-dils-black">
+              Investment Tracker
+            </p>
+            <p className="text-xs text-muted-foreground">Sign in to your account</p>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Investment Tracker</h1>
-          <p className="text-sm text-muted-foreground">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,8 +87,8 @@ export default function LoginPage() {
         </form>
 
         {process.env.NODE_ENV === "development" && (
-          <div className="space-y-2">
-            <p className="text-center text-xs text-muted-foreground">Quick login as:</p>
+          <div className="space-y-2 pt-2 border-t border-dils-100">
+            <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground">Quick login</p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
                 Admin
@@ -102,7 +103,7 @@ export default function LoginPage() {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs border-gold-300 text-gold-700 hover:bg-gold-50"
+              className="w-full text-xs border-dils-300 text-dils-black hover:bg-dils-50"
               onClick={() => quickLogin("investor")}
             >
               Investor (Portal View)

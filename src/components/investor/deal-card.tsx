@@ -66,24 +66,24 @@ export function DealCard({ tracking }: DealCardProps) {
   return (
     <Link
       href={`/portal/${tracking.assetId}`}
-      className="flex items-center justify-between rounded-xl border bg-white p-5 transition-all hover:border-gold-300 hover:shadow-sm"
+      className="flex items-center justify-between rounded-md border border-dils-200 bg-white p-5 transition-all hover:border-dils-black hover:shadow-sm"
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gold-100">
-          <Building className="h-6 w-6 text-gold-600" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
+          <Building className="h-6 w-6 text-dils-black" strokeWidth={2} />
         </div>
         <div>
-          <h3 className="font-semibold">{tracking.asset.title}</h3>
+          <h3 className="font-heading font-semibold text-dils-black">{tracking.asset.title}</h3>
           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
+              <MapPin className="h-3 w-3" strokeWidth={2} />
               {tracking.asset.city}, {tracking.asset.country}
             </span>
             {tracking.asset.assetType && (
               <Badge variant="secondary" className="text-xs">{tracking.asset.assetType}</Badge>
             )}
           </div>
-          <p className="mt-2 text-sm text-gold-700 font-medium">{nextAction}</p>
+          <p className="mt-2 text-sm text-dils-black font-medium">{nextAction}</p>
         </div>
       </div>
 

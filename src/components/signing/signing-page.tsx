@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SignaturePad } from "@/components/signing/signature-pad";
-import { Building2, FileText, Check, X, AlertTriangle, Download } from "lucide-react";
+import { FileText, Check, X, AlertTriangle, Download } from "lucide-react";
 import { signDocument, rejectDocument, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
 
@@ -123,16 +123,18 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-dils-50/60">
       {/* Header */}
-      <div className="border-b bg-white">
-        <div className="mx-auto max-w-3xl px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-100">
-              <Building2 className="h-5 w-5 text-gold-600" />
+      <div className="border-b border-dils-200 bg-white">
+        <div className="mx-auto max-w-3xl px-6 py-5">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col leading-none">
+              <span className="font-heading text-2xl font-bold tracking-tight text-dils-black">DILS</span>
+              <span className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Document Signing</span>
             </div>
+            <div className="h-10 w-px bg-dils-200" />
             <div>
-              <h1 className="font-semibold">Document Signing Request</h1>
+              <h1 className="font-heading text-lg font-semibold">Document Signing Request</h1>
               <p className="text-sm text-muted-foreground">
                 {doc.tracking.asset.title} &middot; {doc.tracking.company.name}
               </p>

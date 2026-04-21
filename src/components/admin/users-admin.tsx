@@ -86,30 +86,34 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground">Manage user accounts and roles</p>
+          <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+            Users
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground max-w-prose">
+            Manage user accounts and roles
+          </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" strokeWidth={2} />
           Create User
         </Button>
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-md border border-dils-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr className="border-b">
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Email</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Role</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Created</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Actions</th>
+          <thead className="bg-dils-50">
+            <tr className="border-b border-dils-100">
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Name</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Email</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Role</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Status</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Created</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-b">
+              <tr key={u.id} className="border-b border-dils-100 hover:bg-dils-50/50">
                 <td className="px-4 py-3 font-medium">{u.name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3">
