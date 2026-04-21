@@ -266,12 +266,8 @@ export async function generateSignedPdf(
 export async function generateSignedPdfFromPlaceholders(
   originalPdfBytes: Buffer | Uint8Array,
   signatureDataUrl: string,
-  signerName: string,
-  signerDate: string,
-  placeholderMap: Record<string, any>,
-  signerEmail?: string,
-  signerCompany?: string,
-  signerTitle?: string
+  fieldValues: Record<string, string | null | undefined>,
+  placeholderMap: Record<string, any>
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(originalPdfBytes);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -281,14 +277,6 @@ export async function generateSignedPdfFromPlaceholders(
   const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, "");
   const signatureBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
   const signatureImage = await pdfDoc.embedPng(signatureBytes);
-
-  const values: Record<string, string | null> = {
-    NAME: signerName,
-    DATE: signerDate,
-    EMAIL: signerEmail ?? null,
-    COMPANY: signerCompany ?? null,
-    TITLE: signerTitle ?? null,
-  };
 
   for (const [key, loc] of Object.entries(placeholderMap)) {
     if (!loc || typeof loc.page !== "number") continue;
@@ -319,8 +307,9 @@ export async function generateSignedPdfFromPlaceholders(
         height: sigHeight,
       });
     } else {
-      // Draw text value
-      const value = values[key] ?? values[key.replace(/_\d+$/, "")] ?? "";
+      // Draw text value — accept exact key or trailing _N variant (e.g. NAME_2)
+      const value =
+        fieldValues[key] ?? fieldValues[key.replace(/_\d+$/, "")] ?? "";
       if (value) {
         page.drawText(String(value), {
           x: loc.x,

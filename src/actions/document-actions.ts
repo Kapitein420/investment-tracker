@@ -181,6 +181,24 @@ export async function getDocumentsByTracking(trackingId: string) {
   });
 }
 
+/**
+ * Returns the placeholder map for a document (as detected by the PLACEHOLDER
+ * scan). Used by the signing UI to render a dynamic form of custom fields.
+ * Returns null when the document is not in PLACEHOLDER mode.
+ */
+export async function getDocumentPlaceholderMap(
+  documentId: string
+): Promise<Record<string, unknown> | null> {
+  await requireUser();
+  const doc = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { placementMode: true, placeholderMap: true },
+  });
+  if (!doc) return null;
+  if (doc.placementMode !== "PLACEHOLDER") return null;
+  return (doc.placeholderMap as Record<string, unknown> | null) ?? null;
+}
+
 export async function getDocumentForSigning(token: string) {
   const signingToken = await prisma.signingToken.findUnique({
     where: { token },
@@ -223,6 +241,7 @@ export async function signDocument(data: {
   signedByName: string;
   signedByEmail: string;
   signatureData: string;
+  fieldValues?: Record<string, string>;
 }) {
   const validated = signDocumentSchema.parse(data);
 
@@ -316,13 +335,19 @@ export async function signDocument(data: {
     const docAny = document as any;
     let signedPdfBytes;
     if (docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap) {
+      // Merge investor-supplied values with the system-known ones.
+      // System values win so NAME / EMAIL / DATE are always legally accurate.
+      const mergedValues: Record<string, string> = {
+        ...validated.fieldValues,
+        NAME: validated.signedByName,
+        EMAIL: validated.signedByEmail,
+        DATE: formatDate(new Date()),
+      };
       signedPdfBytes = await generateSignedPdfFromPlaceholders(
         originalPdfBytes,
         validated.signatureData,
-        validated.signedByName,
-        formatDate(new Date()),
-        docAny.placeholderMap as any,
-        validated.signedByEmail
+        mergedValues,
+        docAny.placeholderMap as any
       );
     } else if (docAny.placementMode === "MANUAL") {
       // Use the manual drag-drop placements (already contain explicit x/y/w/h)

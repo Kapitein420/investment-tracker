@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SignaturePad } from "@/components/signing/signature-pad";
+import { DynamicFieldInputs, extractCustomFields } from "@/components/signing/dynamic-fields";
 import { FileText, Check, X, AlertTriangle, Download } from "lucide-react";
 import { signDocument, rejectDocument, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
@@ -18,6 +19,8 @@ interface SigningPageProps {
     fileUrl: string;
     status: string;
     stage: { label: string };
+    placementMode?: string | null;
+    placeholderMap?: unknown;
     tracking: {
       company: { name: string };
       asset: { title: string };
@@ -35,14 +38,38 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<"signed" | "rejected" | null>(null);
 
+  const customFieldKeys = useMemo(
+    () =>
+      doc.placementMode === "PLACEHOLDER"
+        ? extractCustomFields(
+            (doc.placeholderMap ?? null) as Record<string, unknown> | null
+          )
+        : [],
+    [doc.placementMode, doc.placeholderMap]
+  );
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const allCustomFieldsFilled = customFieldKeys.every(
+    (k) => (fieldValues[k] ?? "").trim().length > 0
+  );
+
   async function handleSign() {
     if (!signerName || !signerEmail || !signatureData) {
       toast.error("Please fill in all fields and provide your signature");
       return;
     }
+    if (!allCustomFieldsFilled) {
+      toast.error("Please fill in all document fields");
+      return;
+    }
     setSubmitting(true);
     try {
-      await signDocument({ token, signedByName: signerName, signedByEmail: signerEmail, signatureData });
+      await signDocument({
+        token,
+        signedByName: signerName,
+        signedByEmail: signerEmail,
+        signatureData,
+        fieldValues,
+      });
       setCompleted("signed");
     } catch (e: any) {
       toast.error(e.message || "Failed to sign document");
@@ -197,6 +224,23 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
             </div>
 
+            {customFieldKeys.length > 0 && (
+              <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4">
+                <div>
+                  <p className="font-heading text-sm font-semibold text-dils-black">Document fields</p>
+                  <p className="text-xs text-muted-foreground">
+                    These values replace the <code className="text-[10px]">{"{{...}}"}</code> placeholders in the document.
+                  </p>
+                </div>
+                <DynamicFieldInputs
+                  fieldKeys={customFieldKeys}
+                  values={fieldValues}
+                  onChange={setFieldValues}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Your signature</Label>
               <SignaturePad onChange={setSignatureData} />
@@ -216,7 +260,17 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button onClick={handleSign} disabled={submitting || !signerName || !signerEmail || !signatureData} className="flex-1">
+              <Button
+                onClick={handleSign}
+                disabled={
+                  submitting ||
+                  !signerName ||
+                  !signerEmail ||
+                  !signatureData ||
+                  !allCustomFieldsFilled
+                }
+                className="flex-1"
+              >
                 {submitting ? "Signing..." : "Sign Document"}
               </Button>
               <Button variant="outline" className="text-destructive" onClick={() => setMode("reject")}>

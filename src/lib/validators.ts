@@ -100,6 +100,12 @@ export const signDocumentSchema = z.object({
   signedByName: z.string().min(1, "Name is required"),
   signedByEmail: z.string().email("Valid email is required"),
   signatureData: z.string().min(1, "Signature is required").max(500000, "Signature data too large"),
+  // Arbitrary placeholder values the investor fills in (e.g. COMPANY, ADDRESS, KVK).
+  // Keys must match the {{TOKEN}} syntax the scanner produces: A-Z, 0-9, _
+  fieldValues: z
+    .record(z.string().regex(/^[A-Z_][A-Z0-9_]*$/), z.string().max(1000))
+    .optional()
+    .default({}),
 });
 
 export const rejectDocumentSchema = z.object({

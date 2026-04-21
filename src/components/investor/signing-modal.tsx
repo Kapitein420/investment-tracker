@@ -10,10 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { SignaturePad } from "@/components/signing/signature-pad";
+import { DynamicFieldInputs, extractCustomFields } from "@/components/signing/dynamic-fields";
 import {
   FileText, Check, X, AlertTriangle, Pen, Download, Loader2,
 } from "lucide-react";
-import { signDocument, rejectDocument, getSignedDocumentUrl } from "@/actions/document-actions";
+import {
+  signDocument,
+  rejectDocument,
+  getSignedDocumentUrl,
+  getDocumentPlaceholderMap,
+} from "@/actions/document-actions";
 import { toast } from "sonner";
 
 interface SigningModalProps {
@@ -54,7 +60,13 @@ export function SigningModal({
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<"signed" | "rejected" | null>(null);
 
-  // Fetch signed URL when modal opens
+  const [customFieldKeys, setCustomFieldKeys] = useState<string[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const allCustomFieldsFilled = customFieldKeys.every(
+    (k) => (fieldValues[k] ?? "").trim().length > 0
+  );
+
+  // Fetch signed URL + placeholder map when modal opens
   useEffect(() => {
     if (open && !pdfUrl) {
       setLoadingPdf(true);
@@ -62,6 +74,10 @@ export function SigningModal({
         .then(setPdfUrl)
         .catch(() => toast.error("Failed to load document"))
         .finally(() => setLoadingPdf(false));
+
+      getDocumentPlaceholderMap(doc.id)
+        .then((map) => setCustomFieldKeys(extractCustomFields(map)))
+        .catch(() => setCustomFieldKeys([]));
     }
   }, [open, doc.id, pdfUrl]);
 
@@ -75,21 +91,33 @@ export function SigningModal({
       setSignatureData(null);
       setRejectionReason("");
       setSubmitting(false);
+      setFieldValues({});
+      setCustomFieldKeys([]);
       if (completed) {
         setCompleted(null);
         router.refresh();
       }
     }
-  }, [open, completed, router]);
+  }, [open, completed, router, defaultName, defaultEmail]);
 
   async function handleSign() {
     if (!signerName || !signerEmail || !signatureData) {
       toast.error("Please fill in all fields and provide your signature");
       return;
     }
+    if (!allCustomFieldsFilled) {
+      toast.error("Please fill in all document fields");
+      return;
+    }
     setSubmitting(true);
     try {
-      await signDocument({ token, signedByName: signerName, signedByEmail: signerEmail, signatureData });
+      await signDocument({
+        token,
+        signedByName: signerName,
+        signedByEmail: signerEmail,
+        signatureData,
+        fieldValues,
+      });
       setCompleted("signed");
     } catch (e: any) {
       toast.error(e.message || "Failed to sign document");
@@ -230,6 +258,23 @@ export function SigningModal({
                   </div>
                 </div>
 
+                {customFieldKeys.length > 0 && (
+                  <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4">
+                    <div>
+                      <p className="font-heading text-sm font-semibold text-dils-black">Document fields</p>
+                      <p className="text-xs text-muted-foreground">
+                        These values replace the <code className="text-[10px]">{"{{...}}"}</code> placeholders in the document.
+                      </p>
+                    </div>
+                    <DynamicFieldInputs
+                      fieldKeys={customFieldKeys}
+                      values={fieldValues}
+                      onChange={setFieldValues}
+                      disabled={submitting}
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label>Your signature</Label>
                   <SignaturePad onChange={setSignatureData} />
@@ -251,7 +296,13 @@ export function SigningModal({
                 <div className="flex gap-3 pt-2">
                   <Button
                     onClick={handleSign}
-                    disabled={submitting || !signerName || !signerEmail || !signatureData}
+                    disabled={
+                      submitting ||
+                      !signerName ||
+                      !signerEmail ||
+                      !signatureData ||
+                      !allCustomFieldsFilled
+                    }
                     className="flex-1"
                   >
                     {submitting ? (
