@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { StageStatusValue } from "@prisma/client";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { recordInvestorStageEvent } from "@/actions/portal-actions";
 import { toast } from "sonner";
 
 interface DealJourneyProps {
@@ -34,9 +35,12 @@ function getStageState(ss: any, prevSs: any | null): StageState {
   // Check if previous stage allows access
   if (!prevSs) return ss.status === "NOT_STARTED" ? "available" : "locked";
 
-  // Previous stage must be completed; NDA specifically needs approval
+  // Previous stage must be completed; NDA specifically needs approval.
+  // If the NDA has been signed (COMPLETED) but not yet admin-approved, show
+  // the next stage (IM) as pending_review so the investor understands the
+  // deal team is reviewing their NDA, not that they need to do something.
   if (prevSs.status === "COMPLETED") {
-    if (prevSs.stage.key === "nda" && !prevSs.approvedAt) return "locked";
+    if (prevSs.stage.key === "nda" && !prevSs.approvedAt) return "pending_review";
     return "available";
   }
   return "locked";
@@ -70,10 +74,64 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
   const completedCount = stages.filter((s: any) => s.status === "COMPLETED").length;
   const progressPct = Math.round((completedCount / stages.length) * 100);
 
-  async function handleDownload(docId: string) {
+  // Fire-and-forget: record that the investor has opened this deal page.
+  // - TEASER is the first thing they see, so opening the portal page for
+  //   this asset is equivalent to "opened the teaser". We only fire once
+  //   per page load; the server refuses to regress past COMPLETED.
+  // - IM is read-only content embedded on the page, so if the IM stage is
+  //   visible (NDA already approved) we also register a VIEWED_DOCUMENT
+  //   so the deal team sees the investor has actually looked at it.
+  const fireOnceRef = useRef(false);
+  useEffect(() => {
+    if (fireOnceRef.current) return;
+    fireOnceRef.current = true;
+
+    const trackingId = tracking.id;
+
+    // Always report the teaser open — server guards against regression.
+    recordInvestorStageEvent({
+      trackingId,
+      stageKey: "teaser",
+      event: "OPENED",
+    }).catch(() => {
+      // Swallow: tracking event failures must never break the portal.
+    });
+
+    // If IM is unlocked (either already IN_PROGRESS/COMPLETED, or the NDA
+    // before it has been approved), register a document view for IM so the
+    // deal team knows the investor has seen the materials.
+    const imStage = stages.find((s: any) => s.stage.key === "im");
+    const ndaStage = stages.find((s: any) => s.stage.key === "nda");
+    const imUnlocked =
+      imStage &&
+      (imStage.status === "IN_PROGRESS" ||
+        imStage.status === "COMPLETED" ||
+        (ndaStage?.status === "COMPLETED" && ndaStage?.approvedAt));
+
+    if (imUnlocked) {
+      recordInvestorStageEvent({
+        trackingId,
+        stageKey: "im",
+        event: "VIEWED_DOCUMENT",
+      }).catch(() => {});
+    }
+    // tracking.id is stable for the life of the page — run only once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleDownload(docId: string, stageKey?: string) {
     try {
       const url = await getSignedDocumentUrl(docId);
       window.open(url, "_blank");
+      // Fire-and-forget: record the download. Only IM downloads advance
+      // state — the server no-ops for other stages.
+      if (stageKey) {
+        recordInvestorStageEvent({
+          trackingId: tracking.id,
+          stageKey,
+          event: "DOWNLOADED",
+        }).catch(() => {});
+      }
     } catch {
       toast.error("Failed to get download link");
     }
@@ -199,7 +257,9 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                       {state === "pending_review" && (
                         <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {config.hint}
+                          {ss.stage.key === "nda"
+                            ? config.hint
+                            : "Waiting for the deal team to review your NDA. You'll be notified once approved."}
                         </p>
                       )}
                       {state === "locked" && (
@@ -263,7 +323,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
                                   <Check className="mr-1 h-3 w-3" />Signed
                                 </Badge>
-                                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleDownload(doc.id)}>
+                                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleDownload(doc.id, ss.stage.key)}>
                                   <Download className="mr-1 h-3 w-3" />
                                   Download
                                 </Button>
@@ -307,7 +367,19 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                             type="application/pdf"
                             className="h-[50vh] min-h-[300px] w-full rounded-md border md:h-[400px]"
                           />
-                          <a href={content.fileUrl} target="_blank" rel="noopener">
+                          <a
+                            href={content.fileUrl}
+                            target="_blank"
+                            rel="noopener"
+                            onClick={() => {
+                              // Opening the IM PDF in a new tab counts as a download.
+                              recordInvestorStageEvent({
+                                trackingId: tracking.id,
+                                stageKey: ss.stage.key,
+                                event: "DOWNLOADED",
+                              }).catch(() => {});
+                            }}
+                          >
                             <Button variant="outline" size="sm" className="mt-2 h-7 text-xs">
                               <Download className="mr-1.5 h-3 w-3" />
                               Open PDF in a new tab
