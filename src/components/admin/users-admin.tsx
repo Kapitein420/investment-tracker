@@ -87,15 +87,15 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
-            Users
+            Team
           </h1>
           <p className="mt-2 text-sm text-muted-foreground max-w-prose">
-            Manage user accounts and roles
+            Internal team accounts (Admin, Editor, Viewer). Investor accounts live on the Investors page.
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" strokeWidth={2} />
-          Create User
+          Add Team Member
         </Button>
       </div>
 
@@ -125,7 +125,6 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                       <SelectItem value="ADMIN">Admin</SelectItem>
                       <SelectItem value="EDITOR">Editor</SelectItem>
                       <SelectItem value="VIEWER">Viewer</SelectItem>
-                      <SelectItem value="INVESTOR">Investor</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
@@ -167,8 +166,8 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create User</DialogTitle>
-            <DialogDescription>Add a new user account.</DialogDescription>
+            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogDescription>Create an internal team account (Admin, Editor, or Viewer).</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">

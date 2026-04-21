@@ -16,6 +16,20 @@ export default async function AdminInvitesPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Pull the INVESTOR User records linked to any of the invited investors.
+  // Keyed by `${companyId}|${email.toLowerCase()}` on the client so the
+  // Investors page can show account status alongside invite status.
+  const investorUsers = await prisma.user.findMany({
+    where: { role: "INVESTOR" },
+    select: {
+      id: true,
+      email: true,
+      companyId: true,
+      isActive: true,
+      createdAt: true,
+    },
+  });
+
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, contactEmail: true },
@@ -26,5 +40,12 @@ export default async function AdminInvitesPage() {
     select: { id: true, title: true },
   });
 
-  return <InvitesAdmin invites={invites} companies={companies} assets={assets} />;
+  return (
+    <InvitesAdmin
+      invites={invites}
+      investorUsers={investorUsers}
+      companies={companies}
+      assets={assets}
+    />
+  );
 }

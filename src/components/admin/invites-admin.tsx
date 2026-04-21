@@ -27,6 +27,14 @@ type InviteRow = {
   createdBy: { name: string };
 };
 
+type InvestorUser = {
+  id: string;
+  email: string;
+  companyId: string | null;
+  isActive: boolean;
+  createdAt: Date;
+};
+
 type InvestorGroup = {
   key: string;                        // `${companyId}|${email}`
   email: string;
@@ -34,11 +42,22 @@ type InvestorGroup = {
   invites: InviteRow[];               // one per asset, newest first
   status: "accepted" | "pending" | "expired";
   latestCreatedAt: Date;
+  account: InvestorUser | null;
 };
 
-function groupByInvestor(invites: InviteRow[]): InvestorGroup[] {
+function groupByInvestor(
+  invites: InviteRow[],
+  investorUsers: InvestorUser[]
+): InvestorGroup[] {
   const byKey = new Map<string, InvestorGroup>();
   const now = new Date();
+
+  // Build a quick lookup of investor users by `${companyId}|${email}` key.
+  const userByKey = new Map<string, InvestorUser>();
+  for (const u of investorUsers) {
+    if (!u.companyId) continue;
+    userByKey.set(`${u.companyId}|${u.email.toLowerCase()}`, u);
+  }
 
   for (const inv of invites) {
     const key = `${inv.company.id}|${inv.email.toLowerCase()}`;
@@ -51,6 +70,7 @@ function groupByInvestor(invites: InviteRow[]): InvestorGroup[] {
         invites: [],
         status: "expired",
         latestCreatedAt: inv.createdAt,
+        account: userByKey.get(key) ?? null,
       };
       byKey.set(key, group);
     }
@@ -79,10 +99,12 @@ function groupByInvestor(invites: InviteRow[]): InvestorGroup[] {
 
 export function InvitesAdmin({
   invites,
+  investorUsers,
   companies,
   assets,
 }: {
   invites: InviteRow[];
+  investorUsers: InvestorUser[];
   companies: Array<{ id: string; name: string; contactEmail: string | null }>;
   assets: Array<{ id: string; title: string }>;
 }) {
@@ -97,7 +119,10 @@ export function InvitesAdmin({
   const [confirmRemove, setConfirmRemove] = useState<InvestorGroup | null>(null);
   const [resendingKey, setResendingKey] = useState<string | null>(null);
 
-  const groups = useMemo(() => groupByInvestor(invites), [invites]);
+  const groups = useMemo(
+    () => groupByInvestor(invites, investorUsers),
+    [invites, investorUsers]
+  );
 
   async function copyInviteLink(token: string) {
     const url = `${window.location.origin}/invite/${token}`;
@@ -175,15 +200,15 @@ export function InvitesAdmin({
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
-            Investor Invitations
+            Investors
           </h1>
           <p className="mt-2 text-sm text-muted-foreground max-w-prose">
-            One row per investor. Each investor can be invited to multiple assets.
+            Every investor with portal access. One row per investor — grants, resends and account status in one place.
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" strokeWidth={2} />
-          Send Invite
+          Invite Investor
         </Button>
       </div>
 
@@ -194,6 +219,7 @@ export function InvitesAdmin({
               <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Investor</th>
               <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Assets</th>
               <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Status</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Account</th>
               <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Last sent</th>
               <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-semibold text-dils-600">Actions</th>
             </tr>
@@ -201,8 +227,8 @@ export function InvitesAdmin({
           <tbody>
             {groups.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No invitations sent yet
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No investors yet
                 </td>
               </tr>
             ) : (
@@ -263,6 +289,26 @@ export function InvitesAdmin({
                       ) : (
                         <Badge className="bg-red-100 text-red-700 border-0 text-xs">
                           <X className="mr-1 h-3 w-3" />Expired
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {group.account == null ? (
+                        <Badge className="bg-dils-100 text-dils-600 border-0 text-xs">
+                          No account
+                        </Badge>
+                      ) : group.account.isActive ? (
+                        <div className="space-y-0.5">
+                          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                            <Check className="mr-1 h-3 w-3" />Active
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground/70">
+                            Since {formatDate(group.account.createdAt)}
+                          </p>
+                        </div>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+                          <X className="mr-1 h-3 w-3" />Deactivated
                         </Badge>
                       )}
                     </td>
@@ -335,7 +381,7 @@ export function InvitesAdmin({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Send Investor Invitation</DialogTitle>
+            <DialogTitle>Invite Investor</DialogTitle>
             <DialogDescription>The investor will receive an email with portal access.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

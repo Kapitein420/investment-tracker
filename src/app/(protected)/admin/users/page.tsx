@@ -8,6 +8,7 @@ export default async function AdminUsersPage() {
   if (!user || user.role !== "ADMIN") redirect("/");
 
   const users = await prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "EDITOR", "VIEWER"] } },
     orderBy: { createdAt: "desc" },
     take: 500,
     select: {

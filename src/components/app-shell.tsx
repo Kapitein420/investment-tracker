@@ -15,9 +15,9 @@ const navItems = [
 ];
 
 const adminItems = [
-  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/users", label: "Team", icon: Users },
   { href: "/admin/stages", label: "Stages", icon: Settings },
-  { href: "/admin/invites", label: "Invites", icon: Mail },
+  { href: "/admin/invites", label: "Investors", icon: Mail },
 ];
 
 function SidebarContent({
