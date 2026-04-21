@@ -21,6 +21,7 @@ interface SigningPageProps {
     stage: { label: string };
     placementMode?: string | null;
     placeholderMap?: unknown;
+    assetFieldDefaults?: Record<string, string>;
     tracking: {
       company: { name: string };
       asset: { title: string };
@@ -38,15 +39,20 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<"signed" | "rejected" | null>(null);
 
-  const customFieldKeys = useMemo(
+  const assetDefaults = useMemo<Record<string, string>>(
     () =>
-      doc.placementMode === "PLACEHOLDER"
-        ? extractCustomFields(
-            (doc.placeholderMap ?? null) as Record<string, unknown> | null
-          )
-        : [],
-    [doc.placementMode, doc.placeholderMap]
+      ((doc as unknown as { assetFieldDefaults?: Record<string, string> })
+        .assetFieldDefaults ?? {}),
+    [doc]
   );
+  const customFieldKeys = useMemo(() => {
+    if (doc.placementMode !== "PLACEHOLDER") return [];
+    const all = extractCustomFields(
+      (doc.placeholderMap ?? null) as Record<string, unknown> | null
+    );
+    // Hide tokens the admin has already filled in at asset level
+    return all.filter((k) => !(k in assetDefaults));
+  }, [doc.placementMode, doc.placeholderMap, assetDefaults]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const allCustomFieldsFilled = customFieldKeys.every(
     (k) => (fieldValues[k] ?? "").trim().length > 0

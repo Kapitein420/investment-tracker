@@ -182,21 +182,43 @@ export async function getDocumentsByTracking(trackingId: string) {
 }
 
 /**
- * Returns the placeholder map for a document (as detected by the PLACEHOLDER
- * scan). Used by the signing UI to render a dynamic form of custom fields.
- * Returns null when the document is not in PLACEHOLDER mode.
+ * Returns the placeholder map for a document plus the project-level defaults
+ * already set on the asset. The signing UI uses this to render a dynamic form
+ * and to hide any token the admin has already filled in.
  */
-export async function getDocumentPlaceholderMap(
+export async function getDocumentPlaceholderInfo(
   documentId: string
-): Promise<Record<string, unknown> | null> {
+): Promise<{
+  placeholderMap: Record<string, unknown> | null;
+  assetFieldDefaults: Record<string, string>;
+} | null> {
   await requireUser();
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
-    select: { placementMode: true, placeholderMap: true },
+    select: {
+      placementMode: true,
+      placeholderMap: true,
+      tracking: { select: { asset: { select: { fieldDefaults: true } } } },
+    },
   });
   if (!doc) return null;
-  if (doc.placementMode !== "PLACEHOLDER") return null;
-  return (doc.placeholderMap as Record<string, unknown> | null) ?? null;
+  if (doc.placementMode !== "PLACEHOLDER") {
+    return { placeholderMap: null, assetFieldDefaults: {} };
+  }
+  return {
+    placeholderMap:
+      (doc.placeholderMap as Record<string, unknown> | null) ?? null,
+    assetFieldDefaults:
+      (doc.tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {},
+  };
+}
+
+/** Kept for backwards compatibility with any existing callers. */
+export async function getDocumentPlaceholderMap(
+  documentId: string
+): Promise<Record<string, unknown> | null> {
+  const info = await getDocumentPlaceholderInfo(documentId);
+  return info?.placeholderMap ?? null;
 }
 
 export async function getDocumentForSigning(token: string) {
@@ -208,7 +230,7 @@ export async function getDocumentForSigning(token: string) {
           tracking: {
             include: {
               company: { select: { name: true } },
-              asset: { select: { title: true } },
+              asset: { select: { title: true, fieldDefaults: true } },
             },
           },
           stage: { select: { label: true } },
@@ -233,6 +255,9 @@ export async function getDocumentForSigning(token: string) {
   return {
     ...signingToken.document,
     fileUrl: signedFileUrl,
+    assetFieldDefaults:
+      (signingToken.document.tracking?.asset
+        ?.fieldDefaults as Record<string, string> | null) ?? {},
   };
 }
 
@@ -335,10 +360,26 @@ export async function signDocument(data: {
     const docAny = document as any;
     let signedPdfBytes;
     if (docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap) {
-      // Merge investor-supplied values with the system-known ones.
-      // System values win so NAME / EMAIL / DATE are always legally accurate.
+      // Pull project-level defaults off the asset so admin-set fields like
+      // BUILDING_NAME / VENDOR / CITY always win over anything the investor
+      // might submit.
+      const assetRecord = await prisma.document.findUnique({
+        where: { id: document.id },
+        select: {
+          tracking: { select: { asset: { select: { fieldDefaults: true } } } },
+        },
+      });
+      const assetDefaults =
+        (assetRecord?.tracking?.asset?.fieldDefaults as Record<string, string> | null) ??
+        {};
+
+      // Merge order (later overrides earlier):
+      //   1. investor-supplied values (lowest)
+      //   2. admin-set asset defaults
+      //   3. system-authoritative identity / date (highest)
       const mergedValues: Record<string, string> = {
         ...validated.fieldValues,
+        ...assetDefaults,
         NAME: validated.signedByName,
         EMAIL: validated.signedByEmail,
         DATE: formatDate(new Date()),

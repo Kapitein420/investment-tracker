@@ -7,6 +7,7 @@ import {
   createAssetSchema,
   updateAssetSchema,
   createCompanySchema,
+  assetFieldDefaultsSchema,
   type CreateAssetInput,
   type UpdateAssetInput,
   type CreateCompanyInput,
@@ -49,6 +50,71 @@ export async function updateAsset(id: string, data: UpdateAssetInput) {
   revalidatePath("/assets");
   revalidatePath(`/assets/${id}`);
   return asset;
+}
+
+/** Save the admin-supplied project-level defaults for document placeholders.
+ *  These pre-fill NDA / IM fields when an investor signs and hide those keys
+ *  from the investor-facing form so they cannot be edited. */
+export async function updateAssetFieldDefaults(
+  assetId: string,
+  defaults: Record<string, string>
+) {
+  const user = await requireRole("EDITOR");
+  const validated = assetFieldDefaultsSchema.parse(defaults);
+
+  // Drop empty-string entries so the form never shows stale blank defaults
+  const cleaned: Record<string, string> = {};
+  for (const [k, v] of Object.entries(validated)) {
+    const trimmed = v.trim();
+    if (trimmed.length > 0) cleaned[k] = trimmed;
+  }
+
+  const asset = await prisma.asset.update({
+    where: { id: assetId },
+    data: { fieldDefaults: cleaned },
+    select: { id: true, fieldDefaults: true },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "Asset",
+      entityId: asset.id,
+      action: "ASSET_FIELD_DEFAULTS_UPDATED",
+      metadata: { keys: Object.keys(cleaned) },
+      userId: user.id,
+    },
+  });
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath(`/portal/${assetId}`);
+  return asset;
+}
+
+/** Return the merged set of tokens detected across this asset's PENDING
+ *  PLACEHOLDER documents. Used by the admin UI to show which defaults can
+ *  be set. */
+export async function getAssetPlaceholderTokens(
+  assetId: string
+): Promise<string[]> {
+  await requireUser();
+  const docs = await prisma.document.findMany({
+    where: {
+      tracking: { assetId },
+      placementMode: "PLACEHOLDER",
+      status: { in: ["PENDING", "SIGNED"] },
+    },
+    select: { placeholderMap: true },
+    take: 50,
+  });
+  const set = new Set<string>();
+  for (const d of docs) {
+    if (d.placeholderMap && typeof d.placeholderMap === "object") {
+      for (const key of Object.keys(d.placeholderMap as Record<string, unknown>)) {
+        set.add(key);
+      }
+    }
+  }
+  return Array.from(set).sort();
 }
 
 export async function deleteAsset(id: string) {

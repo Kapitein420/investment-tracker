@@ -93,6 +93,12 @@ model Asset {
   transactionType String?
   ownerEntity     String?
   description     String?
+  // Admin-supplied defaults for document placeholders, keyed by UPPERCASE
+  // token name (e.g. { "BUILDING_NAME": "Keizersgracht 250", "VENDOR": "Dils" }).
+  // When a document is signed, these override any matching values the
+  // investor might have typed — they are the source of truth for
+  // project-level info such as building name, vendor, address.
+  fieldDefaults   Json?
   createdById     String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

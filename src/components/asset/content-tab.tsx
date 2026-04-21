@@ -14,6 +14,7 @@ import {
   FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
+import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -22,9 +23,10 @@ interface ContentTabProps {
   contents: any[];
   trackings: any[];
   editable: boolean;
+  assetFieldDefaults?: Record<string, string>;
 }
 
-export function ContentTab({ assetId, contents, trackings, editable }: ContentTabProps) {
+export function ContentTab({ assetId, contents, trackings, editable, assetFieldDefaults }: ContentTabProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -329,6 +331,15 @@ export function ContentTab({ assetId, contents, trackings, editable }: ContentTa
             <p className="text-xs text-muted-foreground/60">Upload an NDA that all invited companies will need to sign</p>
           </div>
         )}
+
+        {/* Project-level placeholder defaults */}
+        <div className="mt-4">
+          <AssetFieldDefaultsEditor
+            assetId={assetId}
+            initialDefaults={assetFieldDefaults ?? {}}
+            editable={editable}
+          />
+        </div>
       </section>
 
       <Separator />

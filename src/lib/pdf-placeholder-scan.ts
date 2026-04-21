@@ -12,7 +12,10 @@ export interface PlaceholderLocation {
 
 export type PlaceholderMap = Record<string, PlaceholderLocation>;
 
-const PLACEHOLDER_REGEX = /\{\{([A-Z_][A-Z0-9_]*)\}\}/g;
+// Match {TOKEN} or {{TOKEN}}, any case. The capture group is normalised to
+// UPPERCASE downstream so scanners / generators / form can share one keyspace.
+// We accept {a} and {{a}}, but never mismatched ({a}} or {{a}).
+const PLACEHOLDER_REGEX = /(?:\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}|\{([a-zA-Z_][a-zA-Z0-9_]*)\})/g;
 
 export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap> {
   const uint8 = new Uint8Array(pdfBytes);
@@ -60,7 +63,10 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
       let match;
       PLACEHOLDER_REGEX.lastIndex = 0;
       while ((match = PLACEHOLDER_REGEX.exec(combined)) !== null) {
-        const key = match[1];
+        // Capture group 1 is the double-brace variant, group 2 the single-brace
+        const rawKey = match[1] ?? match[2];
+        if (!rawKey) continue;
+        const key = rawKey.toUpperCase();
         // Approximate bbox using start item transform
         const [, , , , x, y] = startItem.transform;
         const fontSize = Math.abs(startItem.transform[0]) || 11;

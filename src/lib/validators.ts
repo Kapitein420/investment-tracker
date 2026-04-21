@@ -15,6 +15,13 @@ export const createAssetSchema = z.object({
 
 export const updateAssetSchema = createAssetSchema.partial();
 
+// Map of UPPERCASE placeholder token → default value. Used to pre-fill
+// project-level fields on NDA / IM documents before the investor signs.
+export const assetFieldDefaultsSchema = z.record(
+  z.string().regex(/^[A-Z_][A-Z0-9_]*$/),
+  z.string().max(1000)
+);
+
 // ─── Company ────────────────────────────────────────────────────────────────
 export const createCompanySchema = z.object({
   name: z.string().min(1, "Company name is required"),

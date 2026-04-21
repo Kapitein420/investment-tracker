@@ -18,7 +18,7 @@ import {
   signDocument,
   rejectDocument,
   getSignedDocumentUrl,
-  getDocumentPlaceholderMap,
+  getDocumentPlaceholderInfo,
 } from "@/actions/document-actions";
 import { toast } from "sonner";
 
@@ -75,8 +75,17 @@ export function SigningModal({
         .catch(() => toast.error("Failed to load document"))
         .finally(() => setLoadingPdf(false));
 
-      getDocumentPlaceholderMap(doc.id)
-        .then((map) => setCustomFieldKeys(extractCustomFields(map)))
+      getDocumentPlaceholderInfo(doc.id)
+        .then((info) => {
+          if (!info) {
+            setCustomFieldKeys([]);
+            return;
+          }
+          const all = extractCustomFields(info.placeholderMap);
+          // Hide tokens the admin has already set as defaults on the asset
+          const visible = all.filter((k) => !(k in info.assetFieldDefaults));
+          setCustomFieldKeys(visible);
+        })
         .catch(() => setCustomFieldKeys([]));
     }
   }, [open, doc.id, pdfUrl]);
