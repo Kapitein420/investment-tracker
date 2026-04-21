@@ -52,6 +52,25 @@ export const INTEREST_COLORS = {
   NONE: "bg-gray-100 text-gray-500",
 } as const;
 
+/** Map a free-form assetType string to a Dils business-unit color class.
+ *  Unit palette from the Brand Identity Guidelines 2025-05-14. */
+export function assetTypeToUnit(assetType: string | null | undefined): {
+  key: "office" | "logistics" | "hospitality" | "living" | "retail" | "default";
+  bar: string;
+  tint: string;
+  label: string;
+} {
+  const t = (assetType ?? "").toLowerCase();
+  if (t.includes("office"))       return { key: "office",       bar: "bg-unit-office",       tint: "bg-unit-office/15",      label: "Office" };
+  if (t.includes("logistic"))     return { key: "logistics",    bar: "bg-unit-logistics",    tint: "bg-unit-logistics/20",   label: "Logistics" };
+  if (t.includes("hospit") || t.includes("hotel"))
+                                  return { key: "hospitality",  bar: "bg-unit-hospitality",  tint: "bg-unit-hospitality/15", label: "Hospitality" };
+  if (t.includes("living") || t.includes("residential") || t.includes("resi"))
+                                  return { key: "living",       bar: "bg-unit-living",       tint: "bg-unit-living/25",      label: "Living" };
+  if (t.includes("retail"))       return { key: "retail",       bar: "bg-unit-retail",       tint: "bg-unit-retail/15",      label: "Retail" };
+  return { key: "default", bar: "bg-dils-200", tint: "bg-dils-50", label: assetType ?? "Other" };
+}
+
 /** Derive the current stage from stage statuses (furthest completed or in-progress). */
 export function deriveCurrentStage(
   stageStatuses: Array<{ stage: Pick<PipelineStage, "key" | "sequence">; status: StageStatusValue }>,
