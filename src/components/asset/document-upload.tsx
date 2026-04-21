@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2 } from "lucide-react";
+import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2, MousePointer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { uploadDocument } from "@/actions/document-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { PdfPlacementDialog } from "@/components/admin/pdf-placement-dialog";
 
 const DOC_STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
@@ -34,6 +35,8 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
   const [uploading, setUploading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showFieldConfig, setShowFieldConfig] = useState(false);
+  const [uploadMode, setUploadMode] = useState<"AUTO" | "MANUAL">("AUTO");
+  const [placementDocId, setPlacementDocId] = useState<string | null>(null);
   const [fieldConfig, setFieldConfig] = useState([
     { type: "signature" as const, page: -1, position: "bottom-center" },
     { type: "name" as const, page: -1, position: "bottom-left" },
@@ -68,18 +71,27 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
       formData.append("trackingId", trackingId);
       formData.append("stageId", selectedStageId);
       formData.append("fieldConfig", JSON.stringify(fieldConfig));
+      if (uploadMode === "MANUAL") {
+        formData.append("placementMode", "MANUAL");
+      }
 
       const result = await uploadDocument(formData);
-      if (result.placementMode === "PLACEHOLDER") {
+      if (result.placementMode === "MANUAL") {
+        toast.success("Document uploaded — now place signing fields");
+        // Open the placement editor for the freshly-uploaded doc
+        setPlacementDocId(result.document.id);
+      } else if (result.placementMode === "PLACEHOLDER") {
         toast.success(`Document uploaded with ${result.placeholderCount} placeholders detected`);
       } else {
         toast.success("Document uploaded (using position grid mode)");
       }
 
-      // Copy signing link
-      const baseUrl = window.location.origin;
-      await navigator.clipboard.writeText(`${baseUrl}${result.signingUrl}`);
-      toast.success("Signing link copied to clipboard");
+      // Copy signing link (unless MANUAL — then let admin place fields first)
+      if (result.placementMode !== "MANUAL") {
+        const baseUrl = window.location.origin;
+        await navigator.clipboard.writeText(`${baseUrl}${result.signingUrl}`);
+        toast.success("Signing link copied to clipboard");
+      }
 
       router.refresh();
     } catch (err: any) {
@@ -111,8 +123,41 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
               <code className="bg-white px-1 rounded ml-1">{"{{DATE}}"}</code> where you want fields to appear.
               Export to PDF and upload &mdash; we&apos;ll detect them automatically.
             </p>
+            <p className="mt-1">
+              Or choose <span className="font-medium">Manual placement</span> below and drag-drop the
+              signing fields after upload.
+            </p>
           </div>
           <Label className="text-xs font-medium">Upload document for signing</Label>
+
+          {/* Placement mode toggle */}
+          <div className="flex items-center gap-2 rounded-md bg-gray-50 p-1 text-[10px]">
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded px-2 py-1 transition",
+                uploadMode === "AUTO"
+                  ? "bg-white font-medium text-dils-black shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setUploadMode("AUTO")}
+            >
+              Auto (placeholders / grid)
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded px-2 py-1 transition",
+                uploadMode === "MANUAL"
+                  ? "bg-white font-medium text-dils-black shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setUploadMode("MANUAL")}
+            >
+              Manual (drag-drop)
+            </button>
+          </div>
+
           <div className="flex gap-2">
             <Select value={selectedStageId} onValueChange={setSelectedStageId}>
               <SelectTrigger className="h-8 w-[140px] text-xs">
@@ -228,7 +273,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
                 )}
 
                 {doc.status === "PENDING" && activeToken && editable && (
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     <Button
                       variant="outline"
                       size="sm"
@@ -240,6 +285,16 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
                       ) : (
                         <><Copy className="mr-1 h-3 w-3" />Copy signing link</>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px]"
+                      onClick={() => setPlacementDocId(doc.id)}
+                      title="Drag-drop signature/name/date fields onto the PDF"
+                    >
+                      <MousePointer className="mr-1 h-3 w-3" />
+                      {doc.placementMode === "MANUAL" ? "Edit fields" : "Place fields"}
                     </Button>
                     <Button
                       variant="ghost"
@@ -255,6 +310,15 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
             );
           })}
         </div>
+      )}
+
+      {/* Manual placement editor modal */}
+      {placementDocId && (
+        <PdfPlacementDialog
+          documentId={placementDocId}
+          open={true}
+          onClose={() => setPlacementDocId(null)}
+        />
       )}
     </div>
   );

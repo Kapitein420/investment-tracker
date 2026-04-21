@@ -273,7 +273,7 @@ model Document {
   signedFileUrl    String?
   fieldConfig      Json?
   placeholderMap   Json?     // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
-  placementMode    String    @default("GRID")  // "GRID" | "PLACEHOLDER"
+  placementMode    String    @default("GRID")  // "GRID" | "PLACEHOLDER" | "MANUAL"
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime       @default(now())

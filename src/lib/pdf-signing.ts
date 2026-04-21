@@ -3,7 +3,13 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 export interface FieldPlacement {
   type: "signature" | "name" | "date";
   page: number; // -1 = last page, or 1-indexed
-  position: string; // e.g. "bottom-center"
+  // Legacy/grid mode: named position like "bottom-center"
+  position?: string;
+  // Manual mode: explicit PDF points (origin bottom-left, pdf-lib convention)
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 }
 
 const SIGNATURE_WIDTH = 150;
@@ -86,113 +92,171 @@ export async function generateSignedPdf(
     const page = pages[pageIndex];
     const { width: pageWidth, height: pageHeight } = page.getSize();
 
+    // MANUAL mode: use explicit x/y/width/height if present (pdf-lib coords: origin bottom-left)
+    const hasExplicitCoords =
+      typeof field.x === "number" &&
+      typeof field.y === "number" &&
+      typeof field.width === "number" &&
+      typeof field.height === "number";
+
     if (field.type === "signature") {
-      const { x, y } = getCoordinates(
-        field.position,
-        pageWidth,
-        pageHeight,
-        SIGNATURE_WIDTH,
-        SIGNATURE_HEIGHT + 20 // extra for label
-      );
+      if (hasExplicitCoords) {
+        const x = field.x as number;
+        const y = field.y as number;
+        const w = field.width as number;
+        const h = field.height as number;
 
-      // Draw signature label
-      page.drawText("Signature", {
-        x,
-        y: y + SIGNATURE_HEIGHT + 4,
-        size: LABEL_SIZE,
-        font,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+        // Embed signature image filling the exact rectangle
+        page.drawImage(signatureImage, { x, y, width: w, height: h });
 
-      // Draw signature image
-      page.drawImage(signatureImage, {
-        x,
-        y,
-        width: SIGNATURE_WIDTH,
-        height: SIGNATURE_HEIGHT,
-      });
+        // Thin baseline under signature
+        page.drawLine({
+          start: { x, y: y - 2 },
+          end: { x: x + w, y: y - 2 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7),
+        });
+      } else {
+        const { x, y } = getCoordinates(
+          field.position ?? "bottom-center",
+          pageWidth,
+          pageHeight,
+          SIGNATURE_WIDTH,
+          SIGNATURE_HEIGHT + 20 // extra for label
+        );
 
-      // Draw line under signature
-      page.drawLine({
-        start: { x, y: y - 2 },
-        end: { x: x + SIGNATURE_WIDTH, y: y - 2 },
-        thickness: 0.5,
-        color: rgb(0.7, 0.7, 0.7),
-      });
+        // Draw signature label
+        page.drawText("Signature", {
+          x,
+          y: y + SIGNATURE_HEIGHT + 4,
+          size: LABEL_SIZE,
+          font,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+
+        // Draw signature image
+        page.drawImage(signatureImage, {
+          x,
+          y,
+          width: SIGNATURE_WIDTH,
+          height: SIGNATURE_HEIGHT,
+        });
+
+        // Draw line under signature
+        page.drawLine({
+          start: { x, y: y - 2 },
+          end: { x: x + SIGNATURE_WIDTH, y: y - 2 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7),
+        });
+      }
     }
 
     if (field.type === "name") {
-      const textWidth = font.widthOfTextAtSize(signerName, FONT_SIZE);
-      const { x, y } = getCoordinates(
-        field.position,
-        pageWidth,
-        pageHeight,
-        Math.max(textWidth, 120),
-        FONT_SIZE + 20
-      );
+      if (hasExplicitCoords) {
+        const x = field.x as number;
+        const y = field.y as number;
+        const w = field.width as number;
+        const h = field.height as number;
 
-      // Label
-      page.drawText("Name", {
-        x,
-        y: y + FONT_SIZE + 8,
-        size: LABEL_SIZE,
-        font,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+        // Fit font size to the box height (leave small padding)
+        const size = Math.max(8, Math.min(FONT_SIZE, h - 4));
+        // Draw name; pdf-lib text origin is baseline at (x, y), so offset by a small pad
+        page.drawText(signerName, {
+          x,
+          y: y + 2,
+          size,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+      } else {
+        const textWidth = font.widthOfTextAtSize(signerName, FONT_SIZE);
+        const { x, y } = getCoordinates(
+          field.position ?? "bottom-left",
+          pageWidth,
+          pageHeight,
+          Math.max(textWidth, 120),
+          FONT_SIZE + 20
+        );
 
-      // Name text
-      page.drawText(signerName, {
-        x,
-        y,
-        size: FONT_SIZE,
-        font: fontBold,
-        color: rgb(0.1, 0.1, 0.1),
-      });
+        // Label
+        page.drawText("Name", {
+          x,
+          y: y + FONT_SIZE + 8,
+          size: LABEL_SIZE,
+          font,
+          color: rgb(0.5, 0.5, 0.5),
+        });
 
-      // Underline
-      page.drawLine({
-        start: { x, y: y - 3 },
-        end: { x: x + Math.max(textWidth, 120), y: y - 3 },
-        thickness: 0.5,
-        color: rgb(0.7, 0.7, 0.7),
-      });
+        // Name text
+        page.drawText(signerName, {
+          x,
+          y,
+          size: FONT_SIZE,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+
+        // Underline
+        page.drawLine({
+          start: { x, y: y - 3 },
+          end: { x: x + Math.max(textWidth, 120), y: y - 3 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7),
+        });
+      }
     }
 
     if (field.type === "date") {
-      const textWidth = font.widthOfTextAtSize(signerDate, FONT_SIZE);
-      const { x, y } = getCoordinates(
-        field.position,
-        pageWidth,
-        pageHeight,
-        Math.max(textWidth, 80),
-        FONT_SIZE + 20
-      );
+      if (hasExplicitCoords) {
+        const x = field.x as number;
+        const y = field.y as number;
+        const h = field.height as number;
 
-      // Label
-      page.drawText("Date", {
-        x,
-        y: y + FONT_SIZE + 8,
-        size: LABEL_SIZE,
-        font,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+        const size = Math.max(8, Math.min(FONT_SIZE, h - 4));
+        page.drawText(signerDate, {
+          x,
+          y: y + 2,
+          size,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+      } else {
+        const textWidth = font.widthOfTextAtSize(signerDate, FONT_SIZE);
+        const { x, y } = getCoordinates(
+          field.position ?? "bottom-right",
+          pageWidth,
+          pageHeight,
+          Math.max(textWidth, 80),
+          FONT_SIZE + 20
+        );
 
-      // Date text
-      page.drawText(signerDate, {
-        x,
-        y,
-        size: FONT_SIZE,
-        font: fontBold,
-        color: rgb(0.1, 0.1, 0.1),
-      });
+        // Label
+        page.drawText("Date", {
+          x,
+          y: y + FONT_SIZE + 8,
+          size: LABEL_SIZE,
+          font,
+          color: rgb(0.5, 0.5, 0.5),
+        });
 
-      // Underline
-      page.drawLine({
-        start: { x, y: y - 3 },
-        end: { x: x + Math.max(textWidth, 80), y: y - 3 },
-        thickness: 0.5,
-        color: rgb(0.7, 0.7, 0.7),
-      });
+        // Date text
+        page.drawText(signerDate, {
+          x,
+          y,
+          size: FONT_SIZE,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+
+        // Underline
+        page.drawLine({
+          start: { x, y: y - 3 },
+          end: { x: x + Math.max(textWidth, 80), y: y - 3 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7),
+        });
+      }
     }
   }
 

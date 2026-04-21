@@ -107,6 +107,24 @@ export const rejectDocumentSchema = z.object({
   rejectionReason: z.string().optional(),
 });
 
+// ─── Field Placement (manual drag-drop mode) ───────────────────────────────
+export const fieldPlacementSchema = z.object({
+  page: z.number().int().min(1, "Page must be >= 1"),
+  type: z.enum(["signature", "name", "date"]),
+  x: z.number().nonnegative(),
+  y: z.number().nonnegative(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
+export const saveDocumentPlacementsSchema = z.object({
+  documentId: z.string().min(1),
+  placements: z.array(fieldPlacementSchema).max(50, "Too many placements"),
+});
+
+export type FieldPlacementInput = z.infer<typeof fieldPlacementSchema>;
+export type SaveDocumentPlacementsInput = z.infer<typeof saveDocumentPlacementsSchema>;
+
 export type SignDocumentInput = z.infer<typeof signDocumentSchema>;
 export type RejectDocumentInput = z.infer<typeof rejectDocumentSchema>;
 

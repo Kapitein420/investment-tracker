@@ -7,7 +7,11 @@ import { generateSignedPdf, generateSignedPdfFromPlaceholders, type FieldPlaceme
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { signDocumentSchema, rejectDocumentSchema } from "@/lib/validators";
+import {
+  signDocumentSchema,
+  rejectDocumentSchema,
+  saveDocumentPlacementsSchema,
+} from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
@@ -66,25 +70,37 @@ export async function uploadDocument(formData: FormData) {
     }
   }
 
-  // Scan for placeholders with a 5s timeout so slow PDFs don't
-  // block the Vercel serverless function (default limit is 10s).
+  // Optional: admin can request MANUAL placement mode on upload
+  // (drag-drop editor will supply placements via saveDocumentPlacements)
+  const requestedMode = formData.get("placementMode") as string | null;
+
   let placeholderMap: Record<string, any> | null = null;
-  let placementMode: "GRID" | "PLACEHOLDER" = "GRID";
-  try {
-    const scanPromise = scanPlaceholders(buffer);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Placeholder scan timed out after 5s")), 5000)
-    );
-    const detected = await Promise.race([scanPromise, timeoutPromise]);
-    if (Object.keys(detected).length > 0) {
-      placeholderMap = detected;
-      placementMode = "PLACEHOLDER";
-      console.log(`[uploadDocument] Detected ${Object.keys(detected).length} placeholders`);
-    } else {
-      console.log("[uploadDocument] No placeholders detected — using GRID mode");
+  let placementMode: "GRID" | "PLACEHOLDER" | "MANUAL" = "GRID";
+
+  if (requestedMode === "MANUAL") {
+    placementMode = "MANUAL";
+    // Start with empty placements — admin fills them in via the editor
+    fieldConfig = [];
+    console.log("[uploadDocument] MANUAL mode requested — skipping placeholder scan");
+  } else {
+    // Scan for placeholders with a 5s timeout so slow PDFs don't
+    // block the Vercel serverless function (default limit is 10s).
+    try {
+      const scanPromise = scanPlaceholders(buffer);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Placeholder scan timed out after 5s")), 5000)
+      );
+      const detected = await Promise.race([scanPromise, timeoutPromise]);
+      if (Object.keys(detected).length > 0) {
+        placeholderMap = detected;
+        placementMode = "PLACEHOLDER";
+        console.log(`[uploadDocument] Detected ${Object.keys(detected).length} placeholders`);
+      } else {
+        console.log("[uploadDocument] No placeholders detected — using GRID mode");
+      }
+    } catch (e) {
+      console.error("[uploadDocument] Placeholder scan failed (falling back to GRID):", e);
     }
-  } catch (e) {
-    console.error("[uploadDocument] Placeholder scan failed (falling back to GRID):", e);
   }
 
   const path = `documents/${trackingId}/${Date.now()}_${file.name}`;
@@ -308,6 +324,18 @@ export async function signDocument(data: {
         docAny.placeholderMap as any,
         validated.signedByEmail
       );
+    } else if (docAny.placementMode === "MANUAL") {
+      // Use the manual drag-drop placements (already contain explicit x/y/w/h)
+      const manualPlacements: FieldPlacement[] =
+        (document.fieldConfig as FieldPlacement[] | null) ?? [];
+
+      signedPdfBytes = await generateSignedPdf(
+        originalPdfBytes,
+        validated.signatureData,
+        validated.signedByName,
+        formatDate(new Date()),
+        manualPlacements.length > 0 ? manualPlacements : DEFAULT_FIELD_CONFIG
+      );
     } else {
       const fieldConfig: FieldPlacement[] =
         (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
@@ -390,4 +418,92 @@ export async function rejectDocument(data: {
   });
 
   return { success: true };
+}
+
+/**
+ * Save manual drag-drop placements for a document.
+ * Sets placementMode = "MANUAL" and stores placements as fieldConfig.
+ * Only callable by EDITOR+.
+ */
+export async function saveDocumentPlacements(
+  documentId: string,
+  placements: FieldPlacement[]
+) {
+  const user = await requireRole("EDITOR");
+
+  const validated = saveDocumentPlacementsSchema.parse({ documentId, placements });
+
+  const existing = await prisma.document.findUnique({
+    where: { id: validated.documentId },
+    select: { id: true, trackingId: true, status: true },
+  });
+  if (!existing) throw new Error("Document not found");
+  if (existing.status === "SIGNED") {
+    throw new Error("Cannot edit placements on a signed document");
+  }
+
+  await prisma.document.update({
+    where: { id: validated.documentId },
+    data: {
+      fieldConfig: validated.placements as any,
+      placementMode: "MANUAL",
+      // Clear placeholder map so MANUAL takes precedence on sign
+      placeholderMap: null as any,
+    },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "Document",
+      entityId: validated.documentId,
+      action: "DOCUMENT_PLACEMENTS_SAVED",
+      metadata: {
+        trackingId: existing.trackingId,
+        placementCount: validated.placements.length,
+      },
+      userId: user.id,
+    },
+  });
+
+  revalidatePath(`/assets`);
+  revalidatePath(`/assets/${existing.trackingId}`);
+  return { success: true, count: validated.placements.length };
+}
+
+/**
+ * Fetch a short-lived signed URL + basic metadata for a document
+ * so the admin placement editor can render the PDF in the browser.
+ * Only callable by EDITOR+.
+ */
+export async function getDocumentForPlacement(documentId: string) {
+  await requireRole("EDITOR");
+
+  const doc = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: {
+      id: true,
+      fileName: true,
+      fileUrl: true,
+      placementMode: true,
+      fieldConfig: true,
+      status: true,
+    },
+  });
+  if (!doc) throw new Error("Document not found");
+
+  let signedUrl = "";
+  try {
+    signedUrl = await getSignedUrl(doc.fileUrl, 3600);
+  } catch (e) {
+    console.error("Failed to generate signed URL for placement editor:", e);
+  }
+
+  return {
+    id: doc.id,
+    fileName: doc.fileName,
+    pdfUrl: signedUrl,
+    placementMode: doc.placementMode,
+    placements: (doc.fieldConfig as FieldPlacement[] | null) ?? [],
+    status: doc.status,
+  };
 }
