@@ -8,6 +8,7 @@ import {
   getAssetPlaceholderTokens,
   updateAssetFieldDefaults,
 } from "@/actions/asset-actions";
+import { rescanAssetPlaceholders } from "@/actions/document-actions";
 import { humanizeToken } from "@/components/signing/dynamic-fields";
 import { toast } from "sonner";
 import { Save, RefreshCw, Sparkles } from "lucide-react";
@@ -39,19 +40,29 @@ export function AssetFieldDefaultsEditor({
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
 
-  const loadTokens = () => {
+  const loadTokens = async (rescanFiles = false) => {
     setLoading(true);
-    getAssetPlaceholderTokens(assetId)
-      .then((keys) => {
-        const projectKeys = keys.filter((k) => !isSystemToken(k));
-        setTokens(projectKeys);
-      })
-      .catch(() => toast.error("Could not load placeholders"))
-      .finally(() => setLoading(false));
+    try {
+      if (rescanFiles) {
+        const r = await rescanAssetPlaceholders(assetId);
+        if (r.scanned === 0) {
+          toast.info("No PDFs to rescan");
+        } else {
+          toast.success(`Rescanned ${r.scanned} document${r.scanned === 1 ? "" : "s"}`);
+        }
+      }
+      const keys = await getAssetPlaceholderTokens(assetId);
+      const projectKeys = keys.filter((k) => !isSystemToken(k));
+      setTokens(projectKeys);
+    } catch {
+      toast.error("Could not load placeholders");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadTokens();
+    loadTokens(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetId]);
 
@@ -98,9 +109,9 @@ export function AssetFieldDefaultsEditor({
         <Button
           variant="outline"
           size="sm"
-          onClick={loadTokens}
+          onClick={() => loadTokens(true)}
           disabled={loading || pending}
-          title="Re-scan uploaded documents for new placeholders"
+          title="Re-download each PDF and re-run the placeholder scanner"
         >
           <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} strokeWidth={2} />
           Rescan

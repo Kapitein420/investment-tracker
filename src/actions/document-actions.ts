@@ -221,6 +221,80 @@ export async function getDocumentPlaceholderMap(
   return info?.placeholderMap ?? null;
 }
 
+/**
+ * Re-download the document file and re-run the placeholder scanner with the
+ * current scan logic. Used to refresh documents that were uploaded under an
+ * older scan implementation (e.g. before single-brace / lower-case support).
+ * Updates the document's placeholderMap and promotes placementMode to
+ * PLACEHOLDER when any are found.
+ */
+export async function rescanDocumentPlaceholders(
+  documentId: string
+): Promise<{ keysFound: number; placementMode: string }> {
+  await requireRole("EDITOR");
+
+  const doc = await prisma.document.findUniqueOrThrow({
+    where: { id: documentId },
+    select: { id: true, fileUrl: true },
+  });
+
+  const pdfBytes = await downloadFile(doc.fileUrl);
+  const placeholderMap = await scanPlaceholders(Buffer.from(pdfBytes));
+  const keysFound = Object.keys(placeholderMap).length;
+
+  const placementMode = keysFound > 0 ? "PLACEHOLDER" : "GRID";
+
+  await prisma.document.update({
+    where: { id: doc.id },
+    data: {
+      placeholderMap: keysFound > 0 ? (placeholderMap as any) : undefined,
+      placementMode,
+    },
+  });
+
+  revalidatePath("/assets");
+  return { keysFound, placementMode };
+}
+
+/** Rescan every PLACEHOLDER / GRID document attached to an asset's trackings. */
+export async function rescanAssetPlaceholders(
+  assetId: string
+): Promise<{ scanned: number; totalKeys: number }> {
+  await requireRole("EDITOR");
+
+  const docs = await prisma.document.findMany({
+    where: {
+      tracking: { assetId },
+      status: { in: ["PENDING", "SIGNED"] },
+      placementMode: { in: ["GRID", "PLACEHOLDER"] },
+    },
+    select: { id: true, fileUrl: true },
+    take: 50,
+  });
+
+  let totalKeys = 0;
+  for (const d of docs) {
+    try {
+      const pdfBytes = await downloadFile(d.fileUrl);
+      const map = await scanPlaceholders(Buffer.from(pdfBytes));
+      const count = Object.keys(map).length;
+      totalKeys += count;
+      await prisma.document.update({
+        where: { id: d.id },
+        data: {
+          placeholderMap: count > 0 ? (map as any) : undefined,
+          placementMode: count > 0 ? "PLACEHOLDER" : "GRID",
+        },
+      });
+    } catch (e) {
+      console.error(`[rescanAssetPlaceholders] failed for doc ${d.id}:`, e);
+    }
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  return { scanned: docs.length, totalKeys };
+}
+
 export async function getDocumentForSigning(token: string) {
   const signingToken = await prisma.signingToken.findUnique({
     where: { token },

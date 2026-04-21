@@ -14,7 +14,6 @@ export type PlaceholderMap = Record<string, PlaceholderLocation>;
 
 // Match {TOKEN} or {{TOKEN}}, any case. The capture group is normalised to
 // UPPERCASE downstream so scanners / generators / form can share one keyspace.
-// We accept {a} and {{a}}, but never mismatched ({a}} or {{a}).
 const PLACEHOLDER_REGEX = /(?:\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}|\{([a-zA-Z_][a-zA-Z0-9_]*)\})/g;
 
 export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap> {
@@ -32,12 +31,16 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1 });
     const textContent = await page.getTextContent();
-
-    // Concatenate text items into lines (by Y coordinate)
-    // Group items that appear on same line
     const items = textContent.items as any[];
+
+    // Group items into lines by Y coordinate. Each line is walked as a single
+    // concatenated string so that a token split across two runs (e.g. Word
+    // emitting `{BUILDING` + `_NAME}` as separate items) still matches the
+    // regex. Every character in the concatenated string carries back to the
+    // original item that produced it, so when we find a match we can read the
+    // coordinate from the item the token actually STARTED in — critical when a
+    // single line contains more than one placeholder (e.g. "{BUILDING_NAME}, {CITY}").
 
     // Sort by Y descending (top first), then X ascending
     const sorted = [...items].sort((a, b) => {
@@ -47,58 +50,61 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
       return a.transform[4] - b.transform[4];
     });
 
-    // Walk through items looking for placeholders (may span multiple items)
-    let combined = "";
-    let startItem: any = null;
-    let endItem: any = null;
+    // Build lines
+    const lines: Array<{ items: any[]; y: number }> = [];
+    let current: { items: any[]; y: number } | null = null;
+    for (const item of sorted) {
+      const y = item.transform[5];
+      if (!current || Math.abs(current.y - y) > 2) {
+        current = { items: [item], y };
+        lines.push(current);
+      } else {
+        current.items.push(item);
+      }
+    }
 
-    for (let i = 0; i < sorted.length; i++) {
-      const item = sorted[i];
-      const text = item.str || "";
-      if (!combined) startItem = item;
-      combined += text;
-      endItem = item;
+    for (const line of lines) {
+      // Concatenate with a character-to-item index
+      let combined = "";
+      // itemByChar[i] = the item that produced the character at index i in `combined`
+      const itemByChar: any[] = [];
+      for (const item of line.items) {
+        const text: string = item.str || "";
+        for (let c = 0; c < text.length; c++) {
+          itemByChar.push(item);
+        }
+        combined += text;
+      }
 
-      // Check if we have a placeholder
-      let match;
+      // Find all placeholder matches and read coordinates from the item each
+      // match started in, not from the first item of the line.
       PLACEHOLDER_REGEX.lastIndex = 0;
+      let match;
       while ((match = PLACEHOLDER_REGEX.exec(combined)) !== null) {
-        // Capture group 1 is the double-brace variant, group 2 the single-brace
         const rawKey = match[1] ?? match[2];
         if (!rawKey) continue;
         const key = rawKey.toUpperCase();
-        // Approximate bbox using start item transform
-        const [, , , , x, y] = startItem.transform;
+        if (result[key]) continue; // Keep first occurrence only
+
+        const startIdx = match.index;
+        const endIdx = startIdx + match[0].length - 1;
+        const startItem = itemByChar[startIdx] ?? line.items[0];
+        const endItem = itemByChar[endIdx] ?? startItem;
+
+        const [, , , , startX, startY] = startItem.transform;
         const fontSize = Math.abs(startItem.transform[0]) || 11;
-        const width = (endItem.transform[4] + (endItem.width || 0)) - x;
+        const endX = endItem.transform[4] + (endItem.width || 0);
+        const width = Math.max(endX - startX, fontSize * match[0].length * 0.5);
         const height = fontSize * 1.2;
 
-        // Convert pdfjs (top-left origin going down via baseline) to pdf-lib coords
-        // pdfjs y is baseline from bottom. pdf-lib y is also from bottom.
-        // So we can use y directly, but subtract descender for better alignment.
-        const pdfLibY = y;
-
-        if (!result[key]) {
-          result[key] = {
-            page: pageNum,
-            x,
-            y: pdfLibY,
-            width,
-            height,
-            fontSize,
-          };
-        }
-      }
-
-      // Reset if we drift to a new line
-      if (i + 1 < sorted.length) {
-        const nextItem = sorted[i + 1];
-        const currentY = item.transform[5];
-        const nextY = nextItem.transform[5];
-        if (Math.abs(currentY - nextY) > 2) {
-          combined = "";
-          startItem = null;
-        }
+        result[key] = {
+          page: pageNum,
+          x: startX,
+          y: startY,
+          width,
+          height,
+          fontSize,
+        };
       }
     }
   }
