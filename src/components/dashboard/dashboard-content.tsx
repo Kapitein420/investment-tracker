@@ -61,14 +61,14 @@ export function DashboardContent({
   }, [assets]);
 
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-10">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-10">
       {/* Editorial hero */}
-      <div className="mb-10 flex items-start justify-between gap-6">
+      <div className="mb-10 flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-dils-brass">
             Investment Sales · Pipeline
           </p>
-          <h1 className="dils-accent mt-3 inline-block font-heading text-4xl font-bold tracking-tight text-dils-black">
+          <h1 className="dils-accent mt-3 inline-block font-heading text-3xl font-bold tracking-tight text-dils-black sm:text-4xl">
             Assets
           </h1>
           <p className="mt-3 max-w-prose text-sm text-muted-foreground">
@@ -77,7 +77,7 @@ export function DashboardContent({
           </p>
         </div>
         {canEdit(userRole) && (
-          <Button onClick={() => setDialogOpen(true)} size="lg" className="shrink-0">
+          <Button onClick={() => setDialogOpen(true)} size="lg" className="w-full shrink-0 sm:w-auto">
             <Plus className="mr-2 h-4 w-4" strokeWidth={2} />
             New Asset
           </Button>
@@ -155,7 +155,7 @@ export function DashboardContent({
                 {/* Business-unit colored edge */}
                 <div className={`w-1.5 shrink-0 ${unit.bar}`} aria-hidden />
 
-                <div className="flex flex-1 items-center justify-between gap-6 p-4 pl-5">
+                <div className="flex flex-1 flex-col gap-4 p-4 pl-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${unit.tint} font-heading text-lg font-bold text-dils-black`}>
                       {asset.title.slice(0, 2).toUpperCase()}
@@ -164,7 +164,7 @@ export function DashboardContent({
                       <h3 className="font-heading font-semibold text-dils-black truncate">
                         {asset.title}
                       </h3>
-                      <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" strokeWidth={2} />
                           {asset.city}, {asset.country}
@@ -179,8 +179,8 @@ export function DashboardContent({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
+                  <div className="flex items-center gap-6 pl-16 sm:pl-0">
+                    <div className="text-left sm:text-right">
                       <p className="font-heading text-3xl font-bold leading-none text-dils-black tabular-nums">
                         {asset._count.trackings}
                       </p>
@@ -188,7 +188,7 @@ export function DashboardContent({
                         companies
                       </p>
                     </div>
-                    <div className="hidden text-right text-sm text-muted-foreground sm:block">
+                    <div className="text-left text-sm text-muted-foreground sm:text-right">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" strokeWidth={2} />
                         <span className="text-xs">{formatDate(asset.updatedAt)}</span>
@@ -222,7 +222,7 @@ function KpiTile({
       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {label}
       </p>
-      <p className="mt-3 font-heading text-5xl font-bold leading-none text-dils-black tabular-nums">
+      <p className="mt-3 font-heading text-4xl font-bold leading-none text-dils-black tabular-nums sm:text-5xl">
         {value}
       </p>
     </div>

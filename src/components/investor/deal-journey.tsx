@@ -87,15 +87,15 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to deals
         </Link>
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
-            <Building className="h-7 w-7 text-dils-black" strokeWidth={2} />
+        <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-dils-50 border border-dils-200 sm:h-14 sm:w-14">
+            <Building className="h-6 w-6 text-dils-black sm:h-7 sm:w-7" strokeWidth={2} />
           </div>
-          <div className="flex-1">
-            <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+          <div className="flex-1 min-w-0">
+            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
               {tracking.asset.title}
             </h1>
-            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
                 {tracking.asset.address}, {tracking.asset.city}
@@ -166,11 +166,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
               )}
             >
               {/* Stage header */}
-              <div className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3 min-w-0">
                     <div className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg mt-0.5",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg mt-0.5",
                       state === "completed" ? "bg-emerald-100" :
                       state === "action_needed" ? "bg-blue-100" :
                       state === "pending_review" ? "bg-amber-100" :
@@ -178,8 +178,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                     )}>
                       <Icon className={cn("h-4.5 w-4.5", config.color)} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold text-base">{ss.stage.label}</h3>
                         <Badge variant="outline" className={cn("text-[10px] font-medium", config.color)}>
                           {config.label}
@@ -210,7 +210,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                       )}
                     </div>
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground mt-1">
+                  <span className="text-sm font-medium text-muted-foreground mt-1 shrink-0">
                     {idx + 1}/{stages.length}
                   </span>
                 </div>
@@ -218,7 +218,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
               {/* Expanded content */}
               {isExpanded && (stageDocs.length > 0 || stageContent.length > 0) && (
-                <div className="px-5 pb-5 ml-12 space-y-3">
+                <div className="px-4 pb-4 space-y-3 sm:px-5 sm:pb-5 sm:ml-12">
                   {/* Documents */}
                   {stageDocs.map((doc: any) => {
                     const activeToken = doc.signingTokens?.[0]?.token;
@@ -227,11 +227,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
                     return (
                       <div key={doc.id} className="rounded-lg border bg-white p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">{doc.fileName}</p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{doc.fileName}</p>
                               <p className="text-[11px] text-muted-foreground">
                                 {doc.status === "SIGNED"
                                   ? `Signed by ${doc.signedByName} on ${formatDate(doc.signedAt)}`
@@ -244,10 +244,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             {canSign && (
                               <Button
                                 size="sm"
+                                className="w-full sm:w-auto"
                                 onClick={() => {
                                   setSigningDoc(doc);
                                   setSigningToken(activeToken);
@@ -304,13 +305,12 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           <embed
                             src={content.fileUrl}
                             type="application/pdf"
-                            className="w-full rounded-md border"
-                            style={{ height: "400px" }}
+                            className="h-[50vh] min-h-[300px] w-full rounded-md border md:h-[400px]"
                           />
                           <a href={content.fileUrl} target="_blank" rel="noopener">
                             <Button variant="outline" size="sm" className="mt-2 h-7 text-xs">
                               <Download className="mr-1.5 h-3 w-3" />
-                              Download PDF
+                              Open PDF in a new tab
                             </Button>
                           </a>
                         </div>
@@ -328,7 +328,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
               {/* Empty state — richer teaser or generic message */}
               {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && (
-                <div className="px-5 pb-5 ml-12">
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5 sm:ml-12">
                   {ss.stage.key === "teaser" ? (() => {
                     const teaserContent = contents.find(
                       (c: any) => c.stageKey === "teaser" && c.contentType === "LANDING_PAGE" && c.isPublished

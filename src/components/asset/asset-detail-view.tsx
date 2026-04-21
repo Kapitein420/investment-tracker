@@ -90,19 +90,19 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-dils-200 bg-white px-6 py-5">
+      <div className="border-b border-dils-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center gap-2 mb-2">
           <Link href="/" className="text-muted-foreground hover:text-dils-black">
             <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           </Link>
           <span className="text-xs uppercase tracking-wider text-muted-foreground">Assets</span>
         </div>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
               {asset.title}
             </h1>
-            <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" strokeWidth={2} />
                 {asset.address}, {asset.city}
@@ -112,7 +112,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               {asset.brokerLabel && <span>Broker: {asset.brokerLabel}</span>}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <div className="flex rounded-md border bg-muted p-0.5">
               <button
                 onClick={() => setView("table")}
@@ -157,22 +157,22 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
       </div>
 
       {/* Stage summary strip */}
-      <div className="border-b bg-white px-6 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 rounded-md bg-gray-50 px-3 py-2 text-sm">
+      <div className="border-b bg-white px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3 overflow-x-auto">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-gray-50 px-3 py-2 text-sm">
             <span className="font-semibold text-foreground">{asset.trackings.length}</span>
             <span className="text-muted-foreground">Total</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-sm">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-sm">
             <span className="font-semibold text-emerald-700">{activeCount}</span>
             <span className="text-emerald-600">Active</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-md bg-red-50 px-3 py-2 text-sm">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-red-50 px-3 py-2 text-sm">
             <span className="font-semibold text-red-700">{droppedCount}</span>
             <span className="text-red-600">Dropped</span>
           </div>
 
-          <div className="mx-2 h-6 w-px bg-border" />
+          <div className="mx-2 h-6 w-px shrink-0 bg-border" />
 
           {stages.map((stage) => {
             const counts = stageSummary[stage.key] || { completed: 0, inProgress: 0, total: 0 };
@@ -182,7 +182,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 key={stage.key}
                 onClick={() => setStageFilter(isFiltered ? "all" : stage.key)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                  "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                   isFiltered ? "bg-dils-black text-white" : "bg-dils-50 hover:bg-dils-100"
                 )}
               >
@@ -206,9 +206,9 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
       {view === "table" ? (
         <>
           {/* Filters */}
-          <div className="border-b bg-white px-6 py-2.5">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-xs">
+          <div className="border-b bg-white px-4 py-2.5 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="relative w-full sm:max-w-xs sm:flex-1">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search companies..."
@@ -255,14 +255,14 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                   Clear filters
                 </Button>
               )}
-              <span className="text-xs text-muted-foreground ml-auto">
+              <span className="text-xs text-muted-foreground sm:ml-auto">
                 {filteredTrackings.length} of {asset.trackings.length} rows
               </span>
             </div>
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto px-6 py-3">
+          <div className="flex-1 overflow-auto px-4 py-3 sm:px-6">
             <PipelineTable
               trackings={filteredTrackings}
               stages={stages}
@@ -274,11 +274,11 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
           </div>
         </>
       ) : view === "overview" ? (
-        <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="flex-1 overflow-auto px-4 py-6 sm:px-6">
           <PipelineOverview trackings={asset.trackings} stages={stages} />
         </div>
       ) : (
-        <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="flex-1 overflow-auto px-4 py-6 sm:px-6">
           <ContentTab
             assetId={asset.id}
             contents={contents}

@@ -42,10 +42,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-dils-50">
-      <div className="w-full max-w-sm space-y-8 rounded-md border border-dils-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-dils-50 p-4">
+      <div className="w-full max-w-sm space-y-8 rounded-md border border-dils-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="space-y-3 text-center">
-          <h1 className="font-heading text-5xl font-bold tracking-tight text-dils-black">DILS</h1>
+          <h1 className="font-heading text-4xl font-bold tracking-tight text-dils-black sm:text-5xl">DILS</h1>
           <div className="space-y-1">
             <p className="dils-accent inline-block text-sm font-medium text-dils-black">
               Investment Tracker

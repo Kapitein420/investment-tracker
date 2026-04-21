@@ -66,6 +66,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           </Button>
         ),
         size: 80,
+        meta: { cellClass: "hidden md:table-cell" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">{row.original.relationshipType}</span>
         ),
@@ -98,6 +99,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
         accessorKey: "latestCommentPreview",
         header: "Comments",
         size: 180,
+        meta: { cellClass: "hidden lg:table-cell" },
         cell: ({ row }) => {
           const preview = row.original.latestCommentPreview;
           if (!preview) return <span className="text-xs text-muted-foreground">-</span>;
@@ -116,12 +118,13 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
       },
     ];
 
-    // Stage columns
+    // Stage columns — hidden on <md (per-stage status visible via "Stage" dropdown column)
     for (const stage of stages) {
       cols.push({
         id: `stage_${stage.key}`,
         header: stage.label,
         size: 90,
+        meta: { cellClass: "hidden md:table-cell" },
         cell: ({ row }) => {
           const ss = row.original.stageStatuses.find((s: any) => s.stage.key === stage.key);
           if (!ss) return null;
@@ -164,6 +167,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           </Button>
         ),
         size: 90,
+        meta: { cellClass: "hidden md:table-cell" },
         cell: ({ row }) => {
           const status = row.original.lifecycleStatus as keyof typeof LIFECYCLE_LABELS;
           return (
@@ -183,6 +187,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           </Button>
         ),
         size: 100,
+        meta: { cellClass: "hidden lg:table-cell" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {row.original.ownerUser?.name ?? "-"}
@@ -198,6 +203,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           </Button>
         ),
         size: 100,
+        meta: { cellClass: "hidden md:table-cell" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">{formatDate(row.original.updatedAt)}</span>
         ),
@@ -276,20 +282,26 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
 
   return (
     <div className="rounded-md border bg-white">
-      <div className="overflow-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b">
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-3 py-2 text-left text-xs font-medium text-muted-foreground"
-                    style={{ width: header.getSize() }}
-                  >
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const cellClass = (header.column.columnDef.meta as { cellClass?: string } | undefined)?.cellClass;
+                  return (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "px-3 py-2 text-left text-xs font-medium text-muted-foreground",
+                        cellClass
+                      )}
+                      style={{ width: header.getSize() }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
@@ -303,20 +315,27 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
                 )}
                 onClick={() => onRowClick(row.original.id)}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2" onClick={(e) => {
-                    // prevent row click when clicking stage cells, stage dropdown, or actions
-                    if (
-                      cell.column.id.startsWith("stage_") ||
-                      cell.column.id === "currentStageKey" ||
-                      cell.column.id === "actions"
-                    ) {
-                      e.stopPropagation();
-                    }
-                  }}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const cellClass = (cell.column.columnDef.meta as { cellClass?: string } | undefined)?.cellClass;
+                  return (
+                    <td
+                      key={cell.id}
+                      className={cn("px-3 py-2", cellClass)}
+                      onClick={(e) => {
+                        // prevent row click when clicking stage cells, stage dropdown, or actions
+                        if (
+                          cell.column.id.startsWith("stage_") ||
+                          cell.column.id === "currentStageKey" ||
+                          cell.column.id === "actions"
+                        ) {
+                          e.stopPropagation();
+                        }
+                      }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

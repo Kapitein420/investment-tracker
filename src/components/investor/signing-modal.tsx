@@ -154,15 +154,15 @@ export function SigningModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-h-[95vh] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto p-0 sm:max-h-[90vh] sm:w-full">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <h2 className="font-semibold">{doc.fileName}</h2>
-                <p className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 min-w-0 pr-8">
+              <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <h2 className="truncate font-semibold text-sm sm:text-base">{doc.fileName}</h2>
+                <p className="truncate text-xs text-muted-foreground">
                   {assetTitle} &middot; {companyName} &middot;
                   <Badge variant="outline" className="ml-1 text-[10px]">{doc.stage.label}</Badge>
                 </p>
@@ -215,22 +215,32 @@ export function SigningModal({
 
         {/* Signing flow */}
         {!completed && (
-          <div className="p-6 space-y-6">
+          <div className="p-4 space-y-6 sm:p-6">
             {/* PDF viewer */}
             <div className="rounded-lg border overflow-hidden bg-gray-50">
               {loadingPdf ? (
-                <div className="flex items-center justify-center h-[400px]">
+                <div className="flex h-[50vh] min-h-[300px] items-center justify-center md:h-[500px]">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : pdfUrl ? (
-                <embed
-                  src={pdfUrl}
-                  type="application/pdf"
-                  className="w-full"
-                  style={{ height: "min(400px, 50vh)" }}
-                />
+                <>
+                  <embed
+                    src={pdfUrl}
+                    type="application/pdf"
+                    className="h-[50vh] min-h-[300px] w-full md:h-[500px]"
+                  />
+                  <div className="border-t bg-white px-4 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => window.open(pdfUrl, "_blank")}
+                      className="text-xs text-dils-black underline hover:text-dils-red"
+                    >
+                      Open PDF in a new tab
+                    </button>
+                  </div>
+                </>
               ) : (
-                <div className="flex items-center justify-center h-[400px] text-sm text-muted-foreground">
+                <div className="flex h-[50vh] min-h-[300px] items-center justify-center text-sm text-muted-foreground md:h-[500px]">
                   Unable to load document
                 </div>
               )}
@@ -302,7 +312,7 @@ export function SigningModal({
                   </p>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
                   <Button
                     onClick={handleSign}
                     disabled={
@@ -312,7 +322,7 @@ export function SigningModal({
                       !signatureData ||
                       !allCustomFieldsFilled
                     }
-                    className="flex-1"
+                    className="w-full sm:flex-1"
                   >
                     {submitting ? (
                       <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Signing...</>
@@ -320,7 +330,7 @@ export function SigningModal({
                       <><Pen className="mr-1.5 h-4 w-4" />Sign Document</>
                     )}
                   </Button>
-                  <Button variant="outline" className="text-destructive" onClick={() => setMode("reject")}>
+                  <Button variant="outline" className="w-full text-destructive sm:w-auto" onClick={() => setMode("reject")}>
                     <AlertTriangle className="mr-1.5 h-4 w-4" />
                     Decline
                   </Button>
@@ -340,11 +350,11 @@ export function SigningModal({
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Reason for declining..."
                 />
-                <div className="flex gap-3">
-                  <Button variant="destructive" onClick={handleReject} disabled={submitting} className="flex-1">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <Button variant="destructive" onClick={handleReject} disabled={submitting} className="w-full sm:flex-1">
                     {submitting ? "Submitting..." : "Confirm Decline"}
                   </Button>
-                  <Button variant="outline" onClick={() => setMode(null)}>
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMode(null)}>
                     Go Back
                   </Button>
                 </div>

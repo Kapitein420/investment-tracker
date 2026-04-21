@@ -159,16 +159,16 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
     <div className="min-h-screen bg-dils-50/60">
       {/* Header */}
       <div className="border-b border-dils-200 bg-white">
-        <div className="mx-auto max-w-3xl px-6 py-5">
-          <div className="flex items-center gap-4">
+        <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex flex-col leading-none">
-              <span className="font-heading text-2xl font-bold tracking-tight text-dils-black">DILS</span>
+              <span className="font-heading text-xl font-bold tracking-tight text-dils-black sm:text-2xl">DILS</span>
               <span className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Document Signing</span>
             </div>
             <div className="h-10 w-px bg-dils-200" />
-            <div>
-              <h1 className="font-heading text-lg font-semibold">Document Signing Request</h1>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0">
+              <h1 className="font-heading text-base font-semibold sm:text-lg">Document Signing Request</h1>
+              <p className="truncate text-xs text-muted-foreground sm:text-sm">
                 {doc.tracking.asset.title} &middot; {doc.tracking.company.name}
               </p>
             </div>
@@ -176,7 +176,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl p-6 space-y-6">
+      <div className="mx-auto max-w-3xl p-4 space-y-6 sm:p-6">
         {/* Document info */}
         <div className="rounded-lg border bg-white p-4">
           <div className="flex items-center gap-3">
@@ -196,9 +196,17 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
           <embed
             src={doc.fileUrl}
             type="application/pdf"
-            className="w-full"
-            style={{ height: "min(500px, 50vh)" }}
+            className="h-[50vh] min-h-[300px] w-full md:h-[500px]"
           />
+          <div className="border-t bg-gray-50 px-4 py-2 text-center">
+            <button
+              type="button"
+              onClick={() => window.open(doc.fileUrl, "_blank")}
+              className="text-xs text-dils-black underline hover:text-dils-red"
+            >
+              Open PDF in a new tab
+            </button>
+          </div>
         </div>
 
         {/* Signing form */}
@@ -265,7 +273,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
               <Button
                 onClick={handleSign}
                 disabled={
@@ -275,11 +283,11 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
                   !signatureData ||
                   !allCustomFieldsFilled
                 }
-                className="flex-1"
+                className="w-full sm:flex-1"
               >
                 {submitting ? "Signing..." : "Sign Document"}
               </Button>
-              <Button variant="outline" className="text-destructive" onClick={() => setMode("reject")}>
+              <Button variant="outline" className="w-full text-destructive sm:w-auto" onClick={() => setMode("reject")}>
                 <AlertTriangle className="mr-1.5 h-4 w-4" />
                 Decline
               </Button>
@@ -299,11 +307,11 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Reason for declining..."
             />
-            <div className="flex gap-3">
-              <Button variant="destructive" onClick={handleReject} disabled={submitting} className="flex-1">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <Button variant="destructive" onClick={handleReject} disabled={submitting} className="w-full sm:flex-1">
                 {submitting ? "Submitting..." : "Confirm Decline"}
               </Button>
-              <Button variant="outline" onClick={() => setMode(null)}>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMode(null)}>
                 Go Back
               </Button>
             </div>

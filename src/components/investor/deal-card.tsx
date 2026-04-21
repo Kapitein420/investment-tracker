@@ -66,15 +66,15 @@ export function DealCard({ tracking }: DealCardProps) {
   return (
     <Link
       href={`/portal/${tracking.assetId}`}
-      className="flex items-center justify-between rounded-md border border-dils-200 bg-white p-5 transition-all hover:border-dils-black hover:shadow-sm"
+      className="flex flex-col gap-4 rounded-md border border-dils-200 bg-white p-4 transition-all hover:border-dils-black hover:shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
     >
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
+      <div className="flex items-start gap-4 min-w-0 sm:items-center">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
           <Building className="h-6 w-6 text-dils-black" strokeWidth={2} />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className="font-heading font-semibold text-dils-black">{tracking.asset.title}</h3>
-          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3" strokeWidth={2} />
               {tracking.asset.city}, {tracking.asset.country}
@@ -87,8 +87,8 @@ export function DealCard({ tracking }: DealCardProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Stage progress mini-dots with labels */}
+      <div className="flex items-center justify-between gap-4 sm:justify-end">
+        {/* Stage progress mini-dots with labels (labels hidden on xs) */}
         <div className="flex items-center gap-2">
           {tracking.stageStatuses
             .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence)
@@ -102,7 +102,7 @@ export function DealCard({ tracking }: DealCardProps) {
                     "bg-gray-200"
                   )}
                 />
-                <span className="text-[9px] text-muted-foreground leading-none">{ss.stage.label}</span>
+                <span className="hidden text-[9px] text-muted-foreground leading-none sm:inline">{ss.stage.label}</span>
               </div>
             ))}
         </div>
@@ -114,7 +114,7 @@ export function DealCard({ tracking }: DealCardProps) {
           </Badge>
         )}
 
-        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </div>
     </Link>
   );
