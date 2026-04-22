@@ -87,7 +87,7 @@ export function SignaturePad({ onChange, width = 500, height = 200 }: SignatureP
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-lg border-2 border-dashed border-border bg-white">
+      <div className="relative rounded-lg border-2 border-dashed border-gray-300 bg-white">
         <canvas
           ref={canvasRef}
           width={width}
@@ -102,8 +102,8 @@ export function SignaturePad({ onChange, width = 500, height = 200 }: SignatureP
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
         />
-        <div className="pointer-events-none absolute bottom-4 left-4 right-4 border-b border-border" />
-        <span className="pointer-events-none absolute bottom-1 left-4 text-[10px] text-muted-foreground">
+        <div className="pointer-events-none absolute bottom-4 left-4 right-4 border-b border-gray-300" />
+        <span className="pointer-events-none absolute bottom-1 left-4 text-[10px] text-gray-400">
           Sign above this line
         </span>
       </div>

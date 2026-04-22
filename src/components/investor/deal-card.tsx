@@ -5,17 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Building, MapPin, ChevronRight, FileText, Lock, Check, Clock, Pen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StageStatusValue } from "@prisma/client";
-import { assetTypeToUnit } from "@/lib/stages";
 
 interface DealCardProps {
   tracking: any; // complex nested prisma type
 }
 
 function getStageIcon(status: StageStatusValue, hasApproval: boolean) {
-  if (status === "COMPLETED" && hasApproval) return <Check className="h-3.5 w-3.5 text-status-success" />;
-  if (status === "COMPLETED") return <Clock className="h-3.5 w-3.5 text-status-warning" />;
-  if (status === "IN_PROGRESS") return <Pen className="h-3.5 w-3.5 text-status-info" />;
-  return <Lock className="h-3.5 w-3.5 text-muted-foreground" />;
+  if (status === "COMPLETED" && hasApproval) return <Check className="h-3.5 w-3.5 text-emerald-600" />;
+  if (status === "COMPLETED") return <Clock className="h-3.5 w-3.5 text-amber-500" />;
+  if (status === "IN_PROGRESS") return <Pen className="h-3.5 w-3.5 text-blue-500" />;
+  return <Lock className="h-3.5 w-3.5 text-gray-300" />;
 }
 
 function getNextAction(stageStatuses: any[], documents: any[]): string {
@@ -63,34 +62,28 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
 export function DealCard({ tracking }: DealCardProps) {
   const nextAction = getNextAction(tracking.stageStatuses, tracking.documents);
   const pendingDocs = tracking.documents?.filter((d: any) => d.status === "PENDING").length ?? 0;
-  const unit = assetTypeToUnit(tracking.asset.assetType);
 
   return (
     <Link
       href={`/portal/${tracking.assetId}`}
-      className="group relative flex flex-col gap-4 overflow-hidden rounded-lg border border-border bg-card p-4 shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-md border border-dils-200 bg-white p-4 transition-all hover:border-dils-black hover:shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
     >
-      {/* Category accent edge */}
-      <span className={cn("absolute inset-y-0 left-0 w-1", unit.bar)} aria-hidden />
-
       <div className="flex items-start gap-4 min-w-0 sm:items-center">
-        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-md", unit.tint)}>
-          <Building className="h-6 w-6 text-foreground" strokeWidth={2} />
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
+          <Building className="h-6 w-6 text-dils-black" strokeWidth={2} />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-heading font-semibold text-foreground">{tracking.asset.title}</h3>
+          <h3 className="font-heading font-semibold text-dils-black">{tracking.asset.title}</h3>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3" strokeWidth={2} />
               {tracking.asset.city}, {tracking.asset.country}
             </span>
             {tracking.asset.assetType && (
-              <Badge className={cn("border-0 text-[11px] font-medium", unit.tint, "text-foreground")}>
-                {unit.label}
-              </Badge>
+              <Badge variant="secondary" className="text-xs">{tracking.asset.assetType}</Badge>
             )}
           </div>
-          <p className="mt-2 text-sm text-foreground font-medium">{nextAction}</p>
+          <p className="mt-2 text-sm text-dils-black font-medium">{nextAction}</p>
         </div>
       </div>
 
@@ -104,9 +97,9 @@ export function DealCard({ tracking }: DealCardProps) {
                 <div
                   className={cn(
                     "h-2.5 w-2.5 rounded-full",
-                    ss.status === "COMPLETED" ? "bg-status-success" :
-                    ss.status === "IN_PROGRESS" ? "bg-status-info" :
-                    "bg-border"
+                    ss.status === "COMPLETED" ? "bg-emerald-500" :
+                    ss.status === "IN_PROGRESS" ? "bg-blue-500" :
+                    "bg-gray-200"
                   )}
                 />
                 <span className="hidden text-[9px] text-muted-foreground leading-none sm:inline">{ss.stage.label}</span>
@@ -115,13 +108,13 @@ export function DealCard({ tracking }: DealCardProps) {
         </div>
 
         {pendingDocs > 0 && (
-          <Badge className="bg-retail-soft text-retail border-0 text-xs">
+          <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
             <FileText className="mr-1 h-3 w-3" />
             {pendingDocs} to sign
           </Badge>
         )}
 
-        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </div>
     </Link>
   );

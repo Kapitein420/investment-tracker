@@ -91,12 +91,12 @@ export function AssetFieldDefaultsEditor({
   }
 
   return (
-    <div className="rounded-md border border-border bg-white">
-      <div className="flex items-start justify-between gap-3 border-b border-border p-4">
+    <div className="rounded-md border border-dils-200 bg-white">
+      <div className="flex items-start justify-between gap-3 border-b border-dils-200 p-4">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-retail" strokeWidth={2} />
-            <h3 className="font-heading text-sm font-semibold text-foreground">
+            <Sparkles className="h-4 w-4 text-dils-brass" strokeWidth={2} />
+            <h3 className="font-heading text-sm font-semibold text-dils-black">
               Project fields
             </h3>
           </div>
@@ -124,8 +124,8 @@ export function AssetFieldDefaultsEditor({
         ) : allKeys.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No placeholders detected yet. Upload a PDF that contains{" "}
-            <code className="rounded bg-muted px-1 text-[11px]">{"{TOKEN}"}</code>{" "}
-            or <code className="rounded bg-muted px-1 text-[11px]">{"{{TOKEN}}"}</code>{" "}
+            <code className="rounded bg-dils-50 px-1 text-[11px]">{"{TOKEN}"}</code>{" "}
+            or <code className="rounded bg-dils-50 px-1 text-[11px]">{"{{TOKEN}}"}</code>{" "}
             tokens and come back here.
           </p>
         ) : (
@@ -134,7 +134,7 @@ export function AssetFieldDefaultsEditor({
               <div key={key} className="space-y-1.5">
                 <Label htmlFor={`default-${key}`} className="flex items-center gap-2">
                   <span>{humanizeToken(key)}</span>
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] tracking-wider text-muted-foreground">
+                  <code className="rounded bg-dils-50 px-1.5 py-0.5 text-[10px] tracking-wider text-dils-600">
                     {`{{${key}}}`}
                   </code>
                 </Label>
@@ -151,7 +151,7 @@ export function AssetFieldDefaultsEditor({
         )}
 
         {editable && allKeys.length > 0 && (
-          <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
+          <div className="mt-5 flex items-center justify-between border-t border-dils-200 pt-4">
             <p className="text-[11px] text-muted-foreground">
               Empty fields are shown to the investor as inputs to fill in.
             </p>

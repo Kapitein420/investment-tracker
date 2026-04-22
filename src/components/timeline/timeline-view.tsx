@@ -25,16 +25,16 @@ interface TimelineViewProps {
 const TYPE_CONFIG = {
   stage_change: {
     icon: GitCommitHorizontal,
-    color: "bg-status-info",
-    borderColor: "border-office/30",
-    bgColor: "bg-office-soft",
+    color: "bg-blue-500",
+    borderColor: "border-blue-200",
+    bgColor: "bg-blue-50",
     label: "Stage Changes",
   },
   comment: {
     icon: MessageSquare,
-    color: "bg-muted-foreground",
-    borderColor: "border-border",
-    bgColor: "bg-muted",
+    color: "bg-gray-400",
+    borderColor: "border-gray-200",
+    bgColor: "bg-gray-50",
     label: "Comments",
   },
   document: {
@@ -46,9 +46,9 @@ const TYPE_CONFIG = {
   },
   lifecycle: {
     icon: Activity,
-    color: "bg-status-warning",
-    borderColor: "border-retail/30",
-    bgColor: "bg-retail-soft",
+    color: "bg-amber-500",
+    borderColor: "border-amber-200",
+    bgColor: "bg-amber-50",
     label: "Lifecycle",
   },
 };

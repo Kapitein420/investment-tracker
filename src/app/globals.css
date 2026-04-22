@@ -4,90 +4,30 @@
 
 @layer base {
   :root {
-    /* next-portal-enterprise-soft — Phase 1 tokens
-       Muted category colors, soft alpha pills, 10px radius, minimal shadow.
-       shadcn/ui HSL vars are re-tuned so every primitive picks up the new
-       palette automatically. Dils red is retained for destructive actions;
-       everything else softens toward enterprise neutrals. */
-
-    /* shadcn base (HSL) — re-tuned */
-    --background: 220 14% 97%;            /* #F6F7F9  app bg */
-    --foreground: 220 21% 17%;            /* #1F2937  primary text */
-    --card: 0 0% 100%;                    /* white surfaces */
-    --card-foreground: 220 21% 17%;
+    /* Dils brand tokens
+       Primary: Pantone Black 6 (#101820) and white
+       Accent:  Pantone 1788 red (#EE2E24) — used sparingly
+       Brass:   Pantone 10127 (#AB8B5F) — warm decorative accent */
+    --background: 0 0% 100%;                /* white */
+    --foreground: 215 33% 10%;              /* dils black #101820 */
+    --card: 0 0% 100%;
+    --card-foreground: 215 33% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 21% 17%;
-    --primary: 220 21% 17%;               /* #1F2937  buttons / emphasis */
+    --popover-foreground: 215 33% 10%;
+    --primary: 215 33% 10%;                 /* dils black */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 98%;             /* #F9FAFB  surface-alt */
-    --secondary-foreground: 220 21% 17%;
-    --muted: 220 14% 98%;
-    --muted-foreground: 220 9% 46%;       /* #6B7280  secondary text */
-    --accent: 220 14% 98%;
-    --accent-foreground: 220 21% 17%;
-    --destructive: 3 85% 54%;             /* dils red kept for delete/danger */
+    --secondary: 215 15% 96%;               /* very light neutral */
+    --secondary-foreground: 215 33% 10%;
+    --muted: 215 15% 96%;
+    --muted-foreground: 215 10% 42%;
+    --accent: 215 15% 96%;
+    --accent-foreground: 215 33% 10%;
+    --destructive: 3 85% 54%;               /* dils red #EE2E24 */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;                /* #E5E7EB */
-    --input: 220 13% 91%;
-    --ring: 220 21% 17%;
-    --radius: 0.625rem;                   /* 10px */
-
-    /* Portal neutrals (raw hex — for CSS / rgba use) */
-    --bg-main: #F6F7F9;
-    --bg-surface: #FFFFFF;
-    --bg-surface-alt: #F9FAFB;
-    --text-primary: #1F2937;
-    --text-secondary: #6B7280;
-    --text-muted: #9CA3AF;
-    --disabled: #D1D5DB;
-    --disabled-light: #E5E7EB;
-
-    /* Business categories */
-    --office: #7FA9B5;
-    --retail: #B89B4C;
-    --logistics: #6FA08E;
-    --living: #C79AA5;
-    --capital-markets: #8C6B73;
-    --hospitality: #D1D5DB;
-    --corporate: #E5E7EB;
-
-    /* Support functions */
-    --technology: #000000;
-    --marketing: #0F7C82;
-    --research: #6D4C7D;
-
-    /* Soft alpha bgs (pills, tag chips, subtle blocks) */
-    --office-soft: rgba(127, 169, 181, 0.14);
-    --retail-soft: rgba(184, 155, 76, 0.14);
-    --logistics-soft: rgba(111, 160, 142, 0.14);
-    --living-soft: rgba(199, 154, 165, 0.14);
-    --capital-markets-soft: rgba(140, 107, 115, 0.14);
-    --technology-soft: rgba(0, 0, 0, 0.08);
-    --marketing-soft: rgba(15, 124, 130, 0.12);
-    --research-soft: rgba(109, 76, 125, 0.12);
-
-    /* Status (chips, activity dots, stage trackers) */
-    --status-success: #6FA08E;
-    --status-warning: #B89B4C;
-    --status-danger: #C86B6B;
-    --status-info: #7FA9B5;
-    --status-future: #94A3B8;
-
-    /* Banner / hero */
-    --banner-info-bg: #D9F1F1;
-    --banner-info-text: #245C63;
-    --hero-overlay: rgba(17, 24, 39, 0.28);
-
-    /* Shadow */
-    --shadow-soft: 0 2px 8px rgba(17, 24, 39, 0.05);
-    --shadow-hover: 0 6px 18px rgba(17, 24, 39, 0.08);
-
-    /* Type scale */
-    --fs-hero: 22px;
-    --fs-section: 18px;
-    --fs-card-title: 16px;
-    --fs-body: 14px;
-    --fs-meta: 12px;
+    --border: 215 14% 89%;
+    --input: 215 14% 89%;
+    --ring: 215 33% 10%;
+    --radius: 0.375rem;                     /* tighter radii, more editorial */
   }
 }
 
@@ -109,8 +49,7 @@
 }
 
 @layer components {
-  /* Accent bar — soft brass underline under section headings
-     (was dils-red #EE2E24 pre-next-portal-enterprise-soft) */
+  /* Editorial accent bar — narrow red underline under section headings */
   .dils-accent {
     position: relative;
   }
@@ -119,8 +58,7 @@
     display: block;
     width: 2rem;
     height: 2px;
-    background-color: var(--retail);
+    background-color: #EE2E24;
     margin-top: 0.5rem;
-    border-radius: 2px;
   }
 }

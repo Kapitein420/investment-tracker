@@ -61,8 +61,7 @@ const config: Config = {
           800: "#141A24",
           900: "#101820",
         },
-        // Dils secondary palette (business units) — legacy, kept for
-        // backward compat during Phase 3 component sweep
+        // Dils secondary palette (business units)
         unit: {
           office: "#9BCBEB",      // Pantone 283
           logistics: "#CEC492",   // Pantone 4171
@@ -70,50 +69,15 @@ const config: Config = {
           living: "#B1B3B3",      // Pantone Cool Gray 5
           retail: "#AB8B5F",      // Pantone 10127 (brass)
         },
-        // next-portal-enterprise-soft — business categories
-        office:            { DEFAULT: "var(--office)",           soft: "var(--office-soft)" },
-        retail:            { DEFAULT: "var(--retail)",           soft: "var(--retail-soft)" },
-        logistics:         { DEFAULT: "var(--logistics)",        soft: "var(--logistics-soft)" },
-        living:            { DEFAULT: "var(--living)",           soft: "var(--living-soft)" },
-        "capital-markets": { DEFAULT: "var(--capital-markets)",  soft: "var(--capital-markets-soft)" },
-        hospitality:       "var(--hospitality)",
-        corporate:         "var(--corporate)",
-        // Support functions
-        technology:        { DEFAULT: "var(--technology)",       soft: "var(--technology-soft)" },
-        marketing:         { DEFAULT: "var(--marketing)",        soft: "var(--marketing-soft)" },
-        research:          { DEFAULT: "var(--research)",         soft: "var(--research-soft)" },
-        // Status
-        status: {
-          success: "var(--status-success)",
-          warning: "var(--status-warning)",
-          danger:  "var(--status-danger)",
-          info:    "var(--status-info)",
-          future:  "var(--status-future)",
-        },
-        // Banner / hero
-        "banner-info": {
-          DEFAULT:    "var(--banner-info-bg)",
-          foreground: "var(--banner-info-text)",
-        },
       },
       fontFamily: {
         heading: ["var(--font-rufina)", "Georgia", "serif"],
         sans: ["var(--font-nunito)", "system-ui", "-apple-system", "Arial", "sans-serif"],
       },
-      fontSize: {
-        hero:         ["var(--fs-hero)",       { lineHeight: "1.25" }],
-        section:      ["var(--fs-section)",    { lineHeight: "1.35" }],
-        "card-title": ["var(--fs-card-title)", { lineHeight: "1.4"  }],
-        meta:         ["var(--fs-meta)",       { lineHeight: "1.4"  }],
-      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      boxShadow: {
-        soft:  "var(--shadow-soft)",
-        hover: "var(--shadow-hover)",
       },
     },
   },

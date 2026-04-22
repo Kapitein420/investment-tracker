@@ -90,16 +90,16 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border bg-white px-4 py-4 sm:px-6 sm:py-5">
+      <div className="border-b border-dils-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center gap-2 mb-2">
-          <Link href="/" className="text-muted-foreground hover:text-foreground">
+          <Link href="/" className="text-muted-foreground hover:text-dils-black">
             <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           </Link>
           <span className="text-xs uppercase tracking-wider text-muted-foreground">Assets</span>
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
               {asset.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">
@@ -108,7 +108,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 {asset.address}, {asset.city}
               </span>
               {asset.assetType && <Badge variant="secondary" className="text-xs">{asset.assetType}</Badge>}
-              {asset.transactionType && <Badge variant="outline" className="text-xs border-border text-foreground">{asset.transactionType}</Badge>}
+              {asset.transactionType && <Badge variant="outline" className="text-xs border-dils-300 text-dils-700">{asset.transactionType}</Badge>}
               {asset.brokerLabel && <span>Broker: {asset.brokerLabel}</span>}
             </div>
           </div>
@@ -159,17 +159,17 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
       {/* Stage summary strip */}
       <div className="border-b bg-white px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3 overflow-x-auto">
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-2 text-sm">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-gray-50 px-3 py-2 text-sm">
             <span className="font-semibold text-foreground">{asset.trackings.length}</span>
             <span className="text-muted-foreground">Total</span>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-logistics-soft px-3 py-2 text-sm">
-            <span className="font-semibold text-status-success">{activeCount}</span>
-            <span className="text-status-success">Active</span>
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-sm">
+            <span className="font-semibold text-emerald-700">{activeCount}</span>
+            <span className="text-emerald-600">Active</span>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-2 text-sm">
-            <span className="font-semibold text-destructive">{droppedCount}</span>
-            <span className="text-destructive">Dropped</span>
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-red-50 px-3 py-2 text-sm">
+            <span className="font-semibold text-red-700">{droppedCount}</span>
+            <span className="text-red-600">Dropped</span>
           </div>
 
           <div className="mx-2 h-6 w-px shrink-0 bg-border" />
@@ -183,7 +183,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 onClick={() => setStageFilter(isFiltered ? "all" : stage.key)}
                 className={cn(
                   "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  isFiltered ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted"
+                  isFiltered ? "bg-dils-black text-white" : "bg-dils-50 hover:bg-dils-100"
                 )}
               >
                 <span className="font-medium">{stage.label}</span>

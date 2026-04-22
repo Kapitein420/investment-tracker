@@ -125,16 +125,16 @@ export default async function TimelinePage({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-border bg-white px-6 py-5">
+      <div className="border-b border-dils-200 bg-white px-6 py-5">
         <div className="flex items-center gap-2 mb-2">
-          <Link href={`/assets/${params.id}`} className="text-muted-foreground hover:text-foreground">
+          <Link href={`/assets/${params.id}`} className="text-muted-foreground hover:text-dils-black">
             <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           </Link>
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             {tracking.asset.title} &rsaquo; {tracking.company.name}
           </span>
         </div>
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
           Timeline
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">

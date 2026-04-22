@@ -54,7 +54,7 @@ export function DynamicFieldInputs({
         <div key={key} className="space-y-2">
           <Label htmlFor={`field-${key}`} className="flex items-center gap-2">
             <span>{humanizeToken(key)}</span>
-            <code className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground tracking-wider">
+            <code className="rounded bg-dils-50 px-1.5 py-0.5 text-[9px] text-dils-600 tracking-wider">
               {`{{${key}}}`}
             </code>
           </Label>

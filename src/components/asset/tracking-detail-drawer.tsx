@@ -192,7 +192,7 @@ export function TrackingDetailDrawer({
                           </span>
                         )}
                         {ss.approvedAt && (
-                          <span className="block text-[9px] text-status-success">Approved</span>
+                          <span className="block text-[9px] text-emerald-600">Approved</span>
                         )}
                       </div>
                     ))}
@@ -203,17 +203,17 @@ export function TrackingDetailDrawer({
               {editable && detail.stageStatuses
                 .filter((ss: any) => ss.status === "COMPLETED" && !ss.approvedAt && ss.stage.key === "nda")
                 .map((ss: any) => (
-                  <div key={`approve-${ss.id}`} className="rounded-md border border-retail/30 bg-retail-soft p-3">
+                  <div key={`approve-${ss.id}`} className="rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-status-warning">NDA Signed — Awaiting Approval</p>
-                        <p className="text-xs text-status-warning mt-0.5">
+                        <p className="text-sm font-medium text-amber-800">NDA Signed — Awaiting Approval</p>
+                        <p className="text-xs text-amber-600 mt-0.5">
                           Approve to unlock IM access for this investor
                         </p>
                       </div>
                       <Button
                         size="sm"
-                        className="h-8 bg-status-success hover:bg-status-success/90 text-xs"
+                        className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs"
                         onClick={async () => {
                           try {
                             await approveStage(trackingId, "nda");
@@ -262,7 +262,7 @@ export function TrackingDetailDrawer({
               )}
 
               {/* Company info */}
-              <div className="rounded-md bg-muted p-3 text-xs space-y-1">
+              <div className="rounded-md bg-gray-50 p-3 text-xs space-y-1">
                 <p className="font-medium">{detail.company.name}</p>
                 {detail.company.contactName && <p>Contact: {detail.company.contactName}</p>}
                 {detail.company.contactEmail && <p>Email: {detail.company.contactEmail}</p>}
@@ -337,7 +337,7 @@ export function TrackingDetailDrawer({
                 ) : (
                   <div className="space-y-2">
                     {detail.stageHistory?.map((h: any) => (
-                      <div key={h.id} className="flex gap-2 text-xs border-l-2 border-border pl-3 py-1">
+                      <div key={h.id} className="flex gap-2 text-xs border-l-2 border-gray-200 pl-3 py-1">
                         <div className="flex-1">
                           <p>
                             <span className="font-medium">{h.fieldName}</span>

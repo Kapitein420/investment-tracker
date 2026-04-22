@@ -39,7 +39,7 @@ export default async function InvestorPortalPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
           Welcome, {company?.name ?? user.name}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">
@@ -48,7 +48,7 @@ export default async function InvestorPortalPage() {
       </div>
 
       {trackings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-border py-20">
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-dils-200 py-20">
           <Briefcase className="h-10 w-10 text-muted-foreground/40" strokeWidth={2} />
           <p className="mt-3 text-sm text-muted-foreground">No active deals at the moment</p>
           <p className="text-xs text-muted-foreground/60">

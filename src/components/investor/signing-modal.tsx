@@ -175,12 +175,12 @@ export function SigningModal({
         {completed && (
           <div className="p-8 text-center">
             <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
-              completed === "signed" ? "bg-logistics-soft" : "bg-destructive/10"
+              completed === "signed" ? "bg-emerald-100" : "bg-red-100"
             }`}>
               {completed === "signed" ? (
-                <Check className="h-8 w-8 text-status-success" />
+                <Check className="h-8 w-8 text-emerald-600" />
               ) : (
-                <X className="h-8 w-8 text-destructive" />
+                <X className="h-8 w-8 text-red-600" />
               )}
             </div>
             <h3 className="mt-4 text-lg font-semibold">
@@ -193,7 +193,7 @@ export function SigningModal({
             </p>
 
             {completed === "signed" && signatureData && (
-              <div className="mt-4 inline-block rounded-lg border bg-muted p-3">
+              <div className="mt-4 inline-block rounded-lg border bg-gray-50 p-3">
                 <p className="text-[10px] text-muted-foreground mb-1">Your signature</p>
                 <img src={signatureData} alt="Signature" className="h-12 opacity-80" />
               </div>
@@ -217,7 +217,7 @@ export function SigningModal({
         {!completed && (
           <div className="p-4 space-y-6 sm:p-6">
             {/* PDF viewer */}
-            <div className="rounded-lg border overflow-hidden bg-muted">
+            <div className="rounded-lg border overflow-hidden bg-gray-50">
               {loadingPdf ? (
                 <div className="flex h-[50vh] min-h-[300px] items-center justify-center md:h-[500px]">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -233,7 +233,7 @@ export function SigningModal({
                     <button
                       type="button"
                       onClick={() => window.open(pdfUrl, "_blank")}
-                      className="text-xs text-foreground underline hover:text-destructive"
+                      className="text-xs text-dils-black underline hover:text-dils-red"
                     >
                       Open PDF in a new tab
                     </button>
@@ -273,14 +273,14 @@ export function SigningModal({
                   </div>
                   <div className="space-y-2">
                     <Label>Signing date</Label>
-                    <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-muted" />
+                    <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-gray-50" />
                   </div>
                 </div>
 
                 {customFieldKeys.length > 0 && (
-                  <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4">
+                  <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4">
                     <div>
-                      <p className="font-heading text-sm font-semibold text-foreground">Document fields</p>
+                      <p className="font-heading text-sm font-semibold text-dils-black">Document fields</p>
                       <p className="text-xs text-muted-foreground">
                         These values replace the <code className="text-[10px]">{"{{...}}"}</code> placeholders in the document.
                       </p>
@@ -299,7 +299,7 @@ export function SigningModal({
                   <SignaturePad onChange={setSignatureData} />
                 </div>
 
-                <div className="rounded-md bg-muted border p-3 text-[11px] text-muted-foreground space-y-2">
+                <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
                   <p className="font-medium text-foreground">Data Privacy Notice</p>
                   <p>
                     By signing this document, you acknowledge that your name, email, signature image,
@@ -340,7 +340,7 @@ export function SigningModal({
 
             {/* Reject form */}
             {mode === "reject" && (
-              <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/10/50 p-4">
+              <div className="space-y-4 rounded-lg border border-red-200 bg-red-50/50 p-4">
                 <h3 className="font-semibold text-destructive">Decline to Sign</h3>
                 <p className="text-sm text-muted-foreground">
                   Please provide a reason for declining (optional).

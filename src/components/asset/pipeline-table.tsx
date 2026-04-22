@@ -87,7 +87,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
             {isStaleDate(row.original.updatedAt) && (
               <Tooltip>
                 <TooltipTrigger>
-                  <AlertCircle className="h-3 w-3 text-status-warning" />
+                  <AlertCircle className="h-3 w-3 text-amber-500" />
                 </TooltipTrigger>
                 <TooltipContent>Not updated in 14+ days</TooltipContent>
               </Tooltip>
@@ -281,19 +281,19 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card shadow-soft">
+    <div className="rounded-md border bg-white">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-secondary/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-border">
+              <tr key={headerGroup.id} className="border-b">
                 {headerGroup.headers.map((header) => {
                   const cellClass = (header.column.columnDef.meta as { cellClass?: string } | undefined)?.cellClass;
                   return (
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground",
+                        "px-3 py-2 text-left text-xs font-medium text-muted-foreground",
                         cellClass
                       )}
                       style={{ width: header.getSize() }}
@@ -310,7 +310,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b border-border transition-colors hover:bg-muted/60 cursor-pointer",
+                  "border-b transition-colors hover:bg-gray-50/50 cursor-pointer",
                   row.original.lifecycleStatus === "DROPPED" && "opacity-50"
                 )}
                 onClick={() => onRowClick(row.original.id)}

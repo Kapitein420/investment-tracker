@@ -13,10 +13,10 @@ interface PipelineOverviewProps {
 
 // Color palette for the funnel bands
 const BAND_COLORS = [
-  { bg: "bg-status-success", text: "text-status-success", light: "bg-logistics-soft" },
-  { bg: "bg-status-info", text: "text-banner-info-foreground", light: "bg-office-soft" },
+  { bg: "bg-emerald-500", text: "text-emerald-700", light: "bg-emerald-50" },
+  { bg: "bg-blue-500", text: "text-blue-700", light: "bg-blue-50" },
   { bg: "bg-violet-500", text: "text-violet-700", light: "bg-violet-50" },
-  { bg: "bg-status-warning", text: "text-status-warning", light: "bg-retail-soft" },
+  { bg: "bg-amber-500", text: "text-amber-700", light: "bg-amber-50" },
   { bg: "bg-rose-500", text: "text-rose-700", light: "bg-rose-50" },
 ];
 
@@ -85,7 +85,7 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
                     )}
                     style={{ width: `${widthPct}%` }}
                   >
-                    <span className="text-sm font-bold text-primary-foreground">
+                    <span className="text-sm font-bold text-white">
                       {bucket.count}
                     </span>
                   </div>
