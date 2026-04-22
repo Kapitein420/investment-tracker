@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile, getSignedUrl, downloadFile, uploadBytes } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl, downloadFile, uploadBytes, deleteFile } from "@/lib/supabase-storage";
 import { generateSignedPdf, generateSignedPdfFromPlaceholders, type FieldPlacement } from "@/lib/pdf-signing";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { revalidatePath } from "next/cache";
@@ -145,6 +145,101 @@ export async function uploadDocument(formData: FormData) {
     placementMode,
     placeholderCount: placeholderMap ? Object.keys(placeholderMap).length : 0,
   };
+}
+
+/**
+ * Delete a Document (and its SigningTokens). Best-effort removes the
+ * original + signed file from storage. Signed documents are protected —
+ * the admin must pass `force: true` explicitly to remove a legal record.
+ */
+export async function deleteDocument(
+  documentId: string,
+  opts: { force?: boolean } = {}
+): Promise<{ deleted: boolean }> {
+  const user = await requireRole("EDITOR");
+
+  const doc = await prisma.document.findUniqueOrThrow({
+    where: { id: documentId },
+    select: {
+      id: true,
+      status: true,
+      fileName: true,
+      fileUrl: true,
+      signedFileUrl: true,
+      trackingId: true,
+      stageId: true,
+    },
+  });
+
+  if (doc.status === "SIGNED" && !opts.force) {
+    throw new Error(
+      "Cannot delete a signed document without force=true — signed documents are legal records."
+    );
+  }
+
+  // Storage cleanup is best-effort; DB delete is authoritative
+  const filesToDelete = [doc.fileUrl, doc.signedFileUrl].filter(
+    (u): u is string => !!u && !u.startsWith("http")
+  );
+  for (const path of filesToDelete) {
+    try {
+      await deleteFile(path);
+    } catch (e) {
+      console.error(`[deleteDocument] storage cleanup failed for ${path}:`, e);
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // SigningTokens + StageHistory rows referencing this document will cascade
+    // via onDelete in the schema; if not, remove tokens explicitly first.
+    await tx.signingToken.deleteMany({ where: { documentId: doc.id } });
+    await tx.document.delete({ where: { id: doc.id } });
+    await tx.activityLog.create({
+      data: {
+        entityType: "Document",
+        entityId: doc.id,
+        action: "DOCUMENT_DELETED",
+        metadata: {
+          fileName: doc.fileName,
+          wasSigned: doc.status === "SIGNED",
+          force: !!opts.force,
+        },
+        userId: user.id,
+      },
+    });
+  });
+
+  revalidatePath("/assets");
+  return { deleted: true };
+}
+
+/**
+ * Bulk-delete every PENDING document on an asset. Useful for cleaning up
+ * test invites that were created before the master-NDA auto-clone flow
+ * was in place. Does NOT touch SIGNED documents.
+ */
+export async function deleteAssetPendingDocuments(
+  assetId: string
+): Promise<{ deleted: number }> {
+  await requireRole("EDITOR");
+
+  const pendings = await prisma.document.findMany({
+    where: { tracking: { assetId }, status: "PENDING" },
+    select: { id: true },
+  });
+
+  let deleted = 0;
+  for (const d of pendings) {
+    try {
+      await deleteDocument(d.id);
+      deleted += 1;
+    } catch (e) {
+      console.error(`[deleteAssetPendingDocuments] failed for ${d.id}:`, e);
+    }
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  return { deleted };
 }
 
 export async function getSignedDocumentUrl(documentId: string) {

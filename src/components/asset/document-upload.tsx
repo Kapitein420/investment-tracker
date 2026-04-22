@@ -6,19 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2, MousePointer } from "lucide-react";
+import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2, MousePointer, Trash2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { uploadDocument } from "@/actions/document-actions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { uploadDocument, deleteDocument } from "@/actions/document-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { PdfPlacementDialog } from "@/components/admin/pdf-placement-dialog";
 
 const DOC_STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-700",
-  SIGNED: "bg-emerald-100 text-emerald-700",
-  REJECTED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-gray-100 text-gray-500",
+  PENDING: "bg-retail-soft text-status-warning",
+  SIGNED: "bg-logistics-soft text-status-success",
+  REJECTED: "bg-destructive/10 text-destructive",
+  EXPIRED: "bg-muted text-muted-foreground",
 };
 
 interface DocumentUploadProps {
@@ -37,6 +38,22 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
   const [showFieldConfig, setShowFieldConfig] = useState(false);
   const [uploadMode, setUploadMode] = useState<"AUTO" | "MANUAL">("AUTO");
   const [placementDocId, setPlacementDocId] = useState<string | null>(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(doc: any, force = false) {
+    setDeletingId(doc.id);
+    try {
+      await deleteDocument(doc.id, { force });
+      toast.success("Document deleted");
+      setConfirmDeleteDoc(null);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  }
   const [fieldConfig, setFieldConfig] = useState([
     { type: "signature" as const, page: -1, position: "bottom-center" },
     { type: "name" as const, page: -1, position: "bottom-left" },
@@ -115,7 +132,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
       {/* Upload form */}
       {editable && (
         <div className="space-y-3 rounded-md border border-dashed p-3">
-          <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
+          <div className="rounded-md bg-office-soft border border-office/30 p-3 text-xs text-banner-info-foreground">
             <p className="font-medium mb-1">Tip: Use placeholders for precise signing</p>
             <p>
               In your Word document, type <code className="bg-white px-1 rounded">{"{{SIGNATURE}}"}</code>,
@@ -131,13 +148,13 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
           <Label className="text-xs font-medium">Upload document for signing</Label>
 
           {/* Placement mode toggle */}
-          <div className="flex items-center gap-2 rounded-md bg-gray-50 p-1 text-[10px]">
+          <div className="flex items-center gap-2 rounded-md bg-muted p-1 text-[10px]">
             <button
               type="button"
               className={cn(
                 "flex-1 rounded px-2 py-1 transition",
                 uploadMode === "AUTO"
-                  ? "bg-white font-medium text-dils-black shadow-sm"
+                  ? "bg-white font-medium text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setUploadMode("AUTO")}
@@ -149,7 +166,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
               className={cn(
                 "flex-1 rounded px-2 py-1 transition",
                 uploadMode === "MANUAL"
-                  ? "bg-white font-medium text-dils-black shadow-sm"
+                  ? "bg-white font-medium text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setUploadMode("MANUAL")}
@@ -202,7 +219,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
           </button>
 
           {showFieldConfig && (
-            <div className="space-y-2 rounded-md bg-gray-50 p-2.5">
+            <div className="space-y-2 rounded-md bg-muted p-2.5">
               {fieldConfig.map((field, idx) => (
                 <div key={field.type} className="flex items-center gap-2">
                   <span className="w-16 text-[10px] font-medium capitalize">{field.type}</span>
@@ -261,13 +278,13 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
                 </div>
 
                 {doc.status === "SIGNED" && (
-                  <div className="rounded bg-emerald-50 px-2 py-1.5 text-xs text-emerald-700">
+                  <div className="rounded bg-logistics-soft px-2 py-1.5 text-xs text-status-success">
                     Signed by {doc.signedByName} ({doc.signedByEmail}) on {formatDate(doc.signedAt)}
                   </div>
                 )}
 
                 {doc.status === "REJECTED" && doc.rejectionReason && (
-                  <div className="rounded bg-red-50 px-2 py-1.5 text-xs text-red-700">
+                  <div className="rounded bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
                     Declined: {doc.rejectionReason}
                   </div>
                 )}
@@ -304,6 +321,32 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
                     >
                       <ExternalLink className="h-3 w-3" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmDeleteDoc(doc)}
+                      disabled={deletingId === doc.id}
+                      title="Delete this document"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {doc.status === "SIGNED" && editable && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmDeleteDoc(doc)}
+                      disabled={deletingId === doc.id}
+                      title="Delete this signed document (legal record)"
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Delete
+                    </Button>
                   </div>
                 )}
               </div>
@@ -311,6 +354,54 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
           })}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <Dialog open={confirmDeleteDoc != null} onOpenChange={(o) => !o && setConfirmDeleteDoc(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" strokeWidth={2} />
+              </div>
+              <div>
+                <DialogTitle>Delete document</DialogTitle>
+                <DialogDescription>
+                  {confirmDeleteDoc?.status === "SIGNED"
+                    ? "This is a signed legal record. This cannot be undone."
+                    : "This cannot be undone."}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {confirmDeleteDoc && (
+            <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4 text-sm">
+              <p className="font-medium text-foreground">{confirmDeleteDoc.fileName}</p>
+              <p className="text-xs text-muted-foreground">
+                {confirmDeleteDoc.stage.label} · {confirmDeleteDoc.status}
+                {confirmDeleteDoc.signedByName && (
+                  <> · signed by {confirmDeleteDoc.signedByName}</>
+                )}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteDoc(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                confirmDeleteDoc &&
+                handleDelete(confirmDeleteDoc, confirmDeleteDoc.status === "SIGNED")
+              }
+              disabled={deletingId != null}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {deletingId ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Manual placement editor modal */}
       {placementDocId && (

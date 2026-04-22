@@ -14,6 +14,7 @@ import {
   FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
+import { deleteAssetPendingDocuments } from "@/actions/document-actions";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
@@ -266,8 +267,8 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
           <div className="rounded-lg border bg-white p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
-                  <FileText className="h-5 w-5 text-dils-black" strokeWidth={2} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted border border-border">
+                  <FileText className="h-5 w-5 text-foreground" strokeWidth={2} />
                 </div>
                 <div>
                   <p className="font-medium">{ndaContent.fileName || ndaContent.title}</p>
@@ -302,11 +303,11 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             <div className="mt-4 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-600">{ndaSignedCount}</p>
+                  <p className="text-2xl font-bold text-status-success">{ndaSignedCount}</p>
                   <p className="text-xs text-muted-foreground">Signed</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-amber-600">{activeTrackings.length - ndaSignedCount}</p>
+                  <p className="text-2xl font-bold text-status-warning">{activeTrackings.length - ndaSignedCount}</p>
                   <p className="text-xs text-muted-foreground">Pending</p>
                 </div>
                 <div className="text-center">
@@ -314,18 +315,44 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                   <p className="text-xs text-muted-foreground">Total</p>
                 </div>
                 <div className="flex-1">
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      className="h-full rounded-full bg-status-success transition-all"
                       style={{ width: `${activeTrackings.length > 0 ? (ndaSignedCount / activeTrackings.length) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
               </div>
+              {editable && activeTrackings.length - ndaSignedCount > 0 && (
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={async () => {
+                      if (!confirm("Delete every PENDING signing document for this asset? Signed documents stay.")) return;
+                      try {
+                        const r = await deleteAssetPendingDocuments(assetId);
+                        if (r.deleted === 0) {
+                          toast.info("No pending documents to delete");
+                        } else {
+                          toast.success(`Deleted ${r.deleted} pending document${r.deleted === 1 ? "" : "s"}`);
+                        }
+                        router.refresh();
+                      } catch (e: any) {
+                        toast.error(e.message || "Cleanup failed");
+                      }
+                    }}
+                    title="Delete every PENDING signing doc for this asset (signed docs stay)"
+                  >
+                    Clean up pending
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed bg-gray-50/50 p-8 text-center">
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-2 text-sm text-muted-foreground">No NDA uploaded yet</p>
             <p className="text-xs text-muted-foreground/60">Upload an NDA that all invited companies will need to sign</p>
@@ -368,7 +395,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                 {(teaserContent.imageUrls as string[]).map((path, i) => {
                   const src = path.startsWith("http") ? path : teaserImageSigned[path];
                   return (
-                    <div key={i} className="h-20 w-20 rounded-md border overflow-hidden bg-gray-50">
+                    <div key={i} className="h-20 w-20 rounded-md border overflow-hidden bg-muted">
                       {src ? (
                         <img src={src} alt={`Teaser ${i + 1}`} className="h-full w-full object-cover" />
                       ) : (
@@ -406,7 +433,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
               )}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed bg-gray-50/50 p-8 text-center">
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
             <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-2 text-sm text-muted-foreground">No teaser content yet</p>
             <p className="text-xs text-muted-foreground/60">Add a description, images, and key metrics to attract investors</p>
@@ -437,7 +464,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         </div>
 
         {imContents.length === 0 ? (
-          <div className="rounded-lg border border-dashed bg-gray-50/50 p-8 text-center">
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-2 text-sm text-muted-foreground">No IM materials yet</p>
             <p className="text-xs text-muted-foreground/60">Add PDFs or landing page content for approved investors</p>
@@ -547,7 +574,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                 {teaserImageUrls.map((path, i) => {
                   const src = path.startsWith("http") ? path : teaserImageSigned[path];
                   return (
-                    <div key={i} className="relative h-[100px] w-[100px] rounded-md border overflow-hidden bg-gray-50">
+                    <div key={i} className="relative h-[100px] w-[100px] rounded-md border overflow-hidden bg-muted">
                       {src ? (
                         <img src={src} alt={`Image ${i + 1}`} className="h-full w-full object-cover" />
                       ) : (
@@ -558,7 +585,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                       <button
                         type="button"
                         onClick={() => removeTeaserImage(i)}
-                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-primary-foreground flex items-center justify-center hover:bg-black/80"
                         aria-label="Remove image"
                       >
                         <X className="h-3 w-3" />
@@ -567,7 +594,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                   );
                 })}
                 {teaserImageUrls.length < 5 && (
-                  <label className="h-[100px] w-[100px] rounded-md border border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50">
+                  <label className="h-[100px] w-[100px] rounded-md border border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-muted">
                     <Upload className="h-4 w-4 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground mt-1">
                       {teaserImageUploading ? "Uploading..." : "Add image"}
@@ -692,7 +719,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                 ref={fileRef}
                 type="file"
                 accept=".pdf"
-                className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-dils-black file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-dils-800"
+                className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
               />
             </div>
           </div>
