@@ -199,7 +199,7 @@ export function InvitesAdmin({
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+          <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-foreground">
             Investors
           </h1>
           <p className="mt-2 text-sm text-muted-foreground max-w-prose">
@@ -212,16 +212,16 @@ export function InvitesAdmin({
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-dils-200 bg-white">
+      <div className="overflow-x-auto rounded-md border border-border bg-white">
         <table className="w-full min-w-[800px] text-sm">
-          <thead className="bg-dils-50">
-            <tr className="border-b border-dils-100">
-              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Investor</th>
-              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Assets</th>
-              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Status</th>
-              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Account</th>
-              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-dils-600">Last sent</th>
-              <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-semibold text-dils-600">Actions</th>
+          <thead className="bg-muted">
+            <tr className="border-b border-border">
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-muted-foreground">Investor</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-muted-foreground">Assets</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-muted-foreground">Status</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-muted-foreground">Account</th>
+              <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-muted-foreground">Last sent</th>
+              <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-semibold text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -235,9 +235,9 @@ export function InvitesAdmin({
               groups.map((group) => {
                 const latest = group.invites[0];
                 return (
-                  <tr key={group.key} className="border-b border-dils-100 align-top hover:bg-dils-50/40">
+                  <tr key={group.key} className="border-b border-border align-top hover:bg-muted/40">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-dils-black">{group.company.name}</p>
+                      <p className="font-medium text-foreground">{group.company.name}</p>
                       <p className="text-xs text-muted-foreground">{group.email}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -251,21 +251,21 @@ export function InvitesAdmin({
                           return (
                             <div
                               key={inv.id}
-                              className="group/asset flex items-center gap-1 rounded border border-dils-200 bg-white px-2 py-1"
+                              className="group/asset flex items-center gap-1 rounded border border-border bg-white px-2 py-1"
                             >
-                              <span className="text-xs text-dils-black">{inv.asset.title}</span>
+                              <span className="text-xs text-foreground">{inv.asset.title}</span>
                               {thisStatus === "accepted" && (
-                                <Check className="h-3 w-3 text-emerald-600" strokeWidth={2.5} />
+                                <Check className="h-3 w-3 text-status-success" strokeWidth={2.5} />
                               )}
                               {thisStatus === "expired" && (
-                                <X className="h-3 w-3 text-red-500" strokeWidth={2.5} />
+                                <X className="h-3 w-3 text-destructive" strokeWidth={2.5} />
                               )}
                               {thisStatus === "pending" && (
-                                <Clock className="h-3 w-3 text-amber-500" strokeWidth={2.5} />
+                                <Clock className="h-3 w-3 text-status-warning" strokeWidth={2.5} />
                               )}
                               <button
                                 type="button"
-                                className="ml-1 text-[10px] text-muted-foreground hover:text-dils-black"
+                                className="ml-1 text-[10px] text-muted-foreground hover:text-foreground"
                                 onClick={() => handleResendFor(group, inv.asset.id)}
                                 disabled={resendingKey === group.key + "|" + inv.asset.id}
                                 title="Resend invitation for this asset"
@@ -279,27 +279,27 @@ export function InvitesAdmin({
                     </td>
                     <td className="px-4 py-3">
                       {group.status === "accepted" ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                        <Badge className="bg-logistics-soft text-status-success border-0 text-xs">
                           <Check className="mr-1 h-3 w-3" />Accepted
                         </Badge>
                       ) : group.status === "pending" ? (
-                        <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
+                        <Badge className="bg-retail-soft text-status-warning border-0 text-xs">
                           <Clock className="mr-1 h-3 w-3" />Pending
                         </Badge>
                       ) : (
-                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+                        <Badge className="bg-destructive/10 text-destructive border-0 text-xs">
                           <X className="mr-1 h-3 w-3" />Expired
                         </Badge>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {group.account == null ? (
-                        <Badge className="bg-dils-100 text-dils-600 border-0 text-xs">
+                        <Badge className="bg-muted text-muted-foreground border-0 text-xs">
                           No account
                         </Badge>
                       ) : group.account.isActive ? (
                         <div className="space-y-0.5">
-                          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                          <Badge className="bg-logistics-soft text-status-success border-0 text-xs">
                             <Check className="mr-1 h-3 w-3" />Active
                           </Badge>
                           <p className="text-[10px] text-muted-foreground/70">
@@ -307,7 +307,7 @@ export function InvitesAdmin({
                           </p>
                         </div>
                       ) : (
-                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+                        <Badge className="bg-destructive/10 text-destructive border-0 text-xs">
                           <X className="mr-1 h-3 w-3" />Deactivated
                         </Badge>
                       )}
@@ -359,7 +359,7 @@ export function InvitesAdmin({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                          className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setConfirmRemove(group)}
                           disabled={removingKey === group.key}
                           title="Remove investor + all their invites"
@@ -436,8 +436,8 @@ export function InvitesAdmin({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-5 w-5 text-red-600" strokeWidth={2} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" strokeWidth={2} />
               </div>
               <div>
                 <DialogTitle>Remove investor</DialogTitle>
@@ -446,9 +446,9 @@ export function InvitesAdmin({
             </div>
           </DialogHeader>
           {confirmRemove && (
-            <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4 text-sm">
+            <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4 text-sm">
               <p>
-                <span className="font-medium text-dils-black">{confirmRemove.company.name}</span>
+                <span className="font-medium text-foreground">{confirmRemove.company.name}</span>
                 <span className="mx-1.5 text-muted-foreground">·</span>
                 <span>{confirmRemove.email}</span>
               </p>

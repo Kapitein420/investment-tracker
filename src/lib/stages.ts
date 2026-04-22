@@ -9,19 +9,19 @@ export const STAGE_STATUS_LABELS: Record<StageStatusValue, string> = {
 };
 
 export const STAGE_STATUS_COLORS: Record<StageStatusValue, string> = {
-  NOT_STARTED: "bg-gray-100 text-gray-500",
-  IN_PROGRESS: "bg-blue-100 text-blue-700",
-  COMPLETED: "bg-emerald-100 text-emerald-700",
-  BLOCKED: "bg-amber-100 text-amber-700",
-  DECLINED: "bg-red-100 text-red-700",
+  NOT_STARTED: "bg-muted text-muted-foreground",
+  IN_PROGRESS: "bg-office-soft text-office",
+  COMPLETED: "bg-logistics-soft text-logistics",
+  BLOCKED: "bg-retail-soft text-retail",
+  DECLINED: "bg-destructive/10 text-destructive",
 };
 
 export const STAGE_DOT_COLORS: Record<StageStatusValue, string> = {
-  NOT_STARTED: "bg-gray-300",
-  IN_PROGRESS: "bg-blue-500",
-  COMPLETED: "bg-emerald-500",
-  BLOCKED: "bg-amber-500",
-  DECLINED: "bg-red-500",
+  NOT_STARTED: "bg-border",
+  IN_PROGRESS: "bg-status-info",
+  COMPLETED: "bg-status-success",
+  BLOCKED: "bg-status-warning",
+  DECLINED: "bg-status-danger",
 };
 
 export const LIFECYCLE_LABELS = {
@@ -32,10 +32,10 @@ export const LIFECYCLE_LABELS = {
 } as const;
 
 export const LIFECYCLE_COLORS = {
-  ACTIVE: "bg-emerald-100 text-emerald-700",
-  COMPLETED: "bg-blue-100 text-blue-700",
-  DROPPED: "bg-red-100 text-red-700",
-  ON_HOLD: "bg-amber-100 text-amber-700",
+  ACTIVE: "bg-logistics-soft text-logistics",
+  COMPLETED: "bg-office-soft text-office",
+  DROPPED: "bg-destructive/10 text-destructive",
+  ON_HOLD: "bg-retail-soft text-retail",
 } as const;
 
 export const INTEREST_LABELS = {
@@ -46,14 +46,14 @@ export const INTEREST_LABELS = {
 } as const;
 
 export const INTEREST_COLORS = {
-  HOT: "bg-red-100 text-red-700",
-  WARM: "bg-orange-100 text-orange-700",
-  COLD: "bg-sky-100 text-sky-700",
-  NONE: "bg-gray-100 text-gray-500",
+  HOT: "bg-destructive/10 text-destructive",
+  WARM: "bg-retail-soft text-retail",
+  COLD: "bg-office-soft text-office",
+  NONE: "bg-muted text-muted-foreground",
 } as const;
 
-/** Map a free-form assetType string to a Dils business-unit color class.
- *  Unit palette from the Brand Identity Guidelines 2025-05-14. */
+/** Map a free-form assetType string to a business-category color class.
+ *  Uses next-portal-enterprise-soft tokens (office/retail/logistics/living). */
 export function assetTypeToUnit(assetType: string | null | undefined): {
   key: "office" | "logistics" | "hospitality" | "living" | "retail" | "default";
   bar: string;
@@ -61,14 +61,14 @@ export function assetTypeToUnit(assetType: string | null | undefined): {
   label: string;
 } {
   const t = (assetType ?? "").toLowerCase();
-  if (t.includes("office"))       return { key: "office",       bar: "bg-unit-office",       tint: "bg-unit-office/15",      label: "Office" };
-  if (t.includes("logistic"))     return { key: "logistics",    bar: "bg-unit-logistics",    tint: "bg-unit-logistics/20",   label: "Logistics" };
+  if (t.includes("office"))       return { key: "office",       bar: "bg-office",       tint: "bg-office-soft",       label: "Office" };
+  if (t.includes("logistic"))     return { key: "logistics",    bar: "bg-logistics",    tint: "bg-logistics-soft",    label: "Logistics" };
   if (t.includes("hospit") || t.includes("hotel"))
-                                  return { key: "hospitality",  bar: "bg-unit-hospitality",  tint: "bg-unit-hospitality/15", label: "Hospitality" };
+                                  return { key: "hospitality",  bar: "bg-hospitality",  tint: "bg-muted",             label: "Hospitality" };
   if (t.includes("living") || t.includes("residential") || t.includes("resi"))
-                                  return { key: "living",       bar: "bg-unit-living",       tint: "bg-unit-living/25",      label: "Living" };
-  if (t.includes("retail"))       return { key: "retail",       bar: "bg-unit-retail",       tint: "bg-unit-retail/15",      label: "Retail" };
-  return { key: "default", bar: "bg-dils-200", tint: "bg-dils-50", label: assetType ?? "Other" };
+                                  return { key: "living",       bar: "bg-living",       tint: "bg-living-soft",       label: "Living" };
+  if (t.includes("retail"))       return { key: "retail",       bar: "bg-retail",       tint: "bg-retail-soft",       label: "Retail" };
+  return { key: "default", bar: "bg-border", tint: "bg-muted", label: assetType ?? "Other" };
 }
 
 /** Derive the current stage from stage statuses (furthest completed or in-progress). */

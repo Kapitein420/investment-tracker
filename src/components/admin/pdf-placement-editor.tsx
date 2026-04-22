@@ -269,16 +269,16 @@ export function PdfPlacementEditor({
   }, [placements]);
 
   return (
-    <div className="flex h-full flex-col bg-dils-50">
+    <div className="flex h-full flex-col bg-muted">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-dils-200 bg-white px-4 py-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-dils-black">
-          <span className="rounded bg-dils-100 px-2 py-1">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-white px-4 py-3">
+        <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+          <span className="rounded bg-muted px-2 py-1">
             Page {activePage}
             {pages.length > 0 ? ` / ${pages.length}` : ""}
           </span>
         </div>
-        <div className="mx-2 h-5 w-px bg-dils-200" />
+        <div className="mx-2 h-5 w-px bg-border" />
         <Button
           size="sm"
           variant="outline"
@@ -310,7 +310,7 @@ export function PdfPlacementEditor({
           Add Date
         </Button>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[11px] text-dils-500">
+          <span className="text-[11px] text-muted-foreground">
             {placements.length} placement{placements.length === 1 ? "" : "s"}
           </span>
           {onClose && (
@@ -326,7 +326,7 @@ export function PdfPlacementEditor({
           )}
           <Button
             size="sm"
-            className="h-8 bg-dils-black text-xs text-white hover:bg-dils-800"
+            className="h-8 bg-primary text-xs text-primary-foreground hover:bg-primary/90"
             onClick={handleSave}
             disabled={saving || loading || !!error}
           >
@@ -343,11 +343,11 @@ export function PdfPlacementEditor({
       {/* Pages */}
       <div className="flex-1 overflow-auto px-4 py-6">
         {error ? (
-          <div className="mx-auto max-w-md rounded-md border border-dils-red bg-white p-6 text-center text-sm text-dils-red">
+          <div className="mx-auto max-w-md rounded-md border border-destructive bg-white p-6 text-center text-sm text-destructive">
             {error}
           </div>
         ) : loading ? (
-          <div className="flex h-full items-center justify-center gap-2 text-dils-500">
+          <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="text-sm">Rendering PDF…</span>
           </div>
@@ -412,7 +412,7 @@ function PdfPage(props: {
           />
         ))}
       </div>
-      <div className="pointer-events-none absolute -top-5 left-0 text-[10px] font-medium text-dils-500">
+      <div className="pointer-events-none absolute -top-5 left-0 text-[10px] font-medium text-muted-foreground">
         Page {meta.page}
       </div>
     </div>
@@ -529,8 +529,8 @@ function PlacementBox(props: {
   return (
     <div
       className={cn(
-        "group absolute cursor-move select-none border border-dils-black bg-dils-black/5",
-        "hover:bg-dils-black/10"
+        "group absolute cursor-move select-none border border-primary bg-primary/5",
+        "hover:bg-primary/10"
       )}
       style={{
         left: leftPx,
@@ -544,14 +544,14 @@ function PlacementBox(props: {
       onPointerCancel={handlePointerUp}
     >
       {/* Type badge top-left */}
-      <span className="pointer-events-none absolute left-0 top-0 -translate-y-full rounded-t-sm bg-dils-black px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-white">
+      <span className="pointer-events-none absolute left-0 top-0 -translate-y-full rounded-t-sm bg-primary px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-primary-foreground">
         {TYPE_LABELS[placement.type]}
       </span>
 
       {/* Delete button top-right */}
       <button
         type="button"
-        className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-dils-red text-white shadow hover:bg-dils-red/90"
+        className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-primary-foreground shadow hover:bg-destructive/90"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
@@ -564,7 +564,7 @@ function PlacementBox(props: {
 
       {/* Resize handle bottom-right */}
       <div
-        className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-sm bg-dils-black"
+        className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-sm bg-primary"
         onPointerDown={(e) => handlePointerDown(e, "resize")}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -572,7 +572,7 @@ function PlacementBox(props: {
       />
 
       {/* Preview hint below the placement */}
-      <span className="pointer-events-none absolute left-0 top-full mt-1 whitespace-nowrap rounded bg-white/90 px-1 text-[9px] text-dils-500 shadow-sm">
+      <span className="pointer-events-none absolute left-0 top-full mt-1 whitespace-nowrap rounded bg-white/90 px-1 text-[9px] text-muted-foreground shadow-sm">
         {previewHint(placement)}
       </span>
     </div>

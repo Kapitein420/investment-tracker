@@ -42,12 +42,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-dils-50 p-4">
-      <div className="w-full max-w-sm space-y-8 rounded-md border border-dils-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+      <div className="w-full max-w-sm space-y-8 rounded-md border border-border bg-white p-6 shadow-sm sm:p-8">
         <div className="space-y-3 text-center">
-          <h1 className="font-heading text-4xl font-bold tracking-tight text-dils-black sm:text-5xl">DILS</h1>
+          <h1 className="font-heading text-4xl font-bold tracking-tight text-foreground sm:text-5xl">DILS</h1>
           <div className="space-y-1">
-            <p className="dils-accent inline-block text-sm font-medium text-dils-black">
+            <p className="dils-accent inline-block text-sm font-medium text-foreground">
               Investment Tracker
             </p>
             <p className="text-xs text-muted-foreground">Sign in to your account</p>
@@ -87,7 +87,7 @@ export default function LoginPage() {
         </form>
 
         {process.env.NODE_ENV === "development" && (
-          <div className="space-y-2 pt-2 border-t border-dils-100">
+          <div className="space-y-2 pt-2 border-t border-border">
             <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground">Quick login</p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
@@ -103,7 +103,7 @@ export default function LoginPage() {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs border-dils-300 text-dils-black hover:bg-dils-50"
+              className="w-full text-xs border-border text-foreground hover:bg-muted"
               onClick={() => quickLogin("investor")}
             >
               Investor (Portal View)

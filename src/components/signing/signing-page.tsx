@@ -99,15 +99,15 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   // Completed state
   if (completed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-muted p-6">
         <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
           <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
-            completed === "signed" ? "bg-emerald-100" : "bg-red-100"
+            completed === "signed" ? "bg-logistics-soft" : "bg-destructive/10"
           }`}>
             {completed === "signed" ? (
-              <Check className="h-7 w-7 text-emerald-600" />
+              <Check className="h-7 w-7 text-status-success" />
             ) : (
-              <X className="h-7 w-7 text-red-600" />
+              <X className="h-7 w-7 text-destructive" />
             )}
           </div>
           <h2 className="mt-4 text-xl font-semibold">
@@ -119,13 +119,13 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               : "Your response has been recorded. The requesting party has been notified."}
           </p>
           {completed === "signed" && signatureData && (
-            <div className="mt-4 inline-block rounded-lg border bg-gray-50 p-3">
+            <div className="mt-4 inline-block rounded-lg border bg-muted p-3">
               <p className="text-[10px] text-muted-foreground mb-1">Your signature</p>
               <img src={signatureData} alt="Signature" className="h-10 opacity-80" />
             </div>
           )}
 
-          <div className="mt-4 rounded-md bg-gray-50 p-3 text-xs text-muted-foreground">
+          <div className="mt-4 rounded-md bg-muted p-3 text-xs text-muted-foreground">
             <p>{doc.tracking.asset.title}</p>
             <p>{doc.tracking.company.name} &middot; {doc.stage.label}</p>
             <p>{doc.fileName}</p>
@@ -156,16 +156,16 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-dils-50/60">
+    <div className="min-h-screen bg-muted/60">
       {/* Header */}
-      <div className="border-b border-dils-200 bg-white">
+      <div className="border-b border-border bg-white">
         <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex flex-col leading-none">
-              <span className="font-heading text-xl font-bold tracking-tight text-dils-black sm:text-2xl">DILS</span>
+              <span className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-2xl">DILS</span>
               <span className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Document Signing</span>
             </div>
-            <div className="h-10 w-px bg-dils-200" />
+            <div className="h-10 w-px bg-border" />
             <div className="min-w-0">
               <h1 className="font-heading text-base font-semibold sm:text-lg">Document Signing Request</h1>
               <p className="truncate text-xs text-muted-foreground sm:text-sm">
@@ -198,11 +198,11 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
             type="application/pdf"
             className="h-[50vh] min-h-[300px] w-full md:h-[500px]"
           />
-          <div className="border-t bg-gray-50 px-4 py-2 text-center">
+          <div className="border-t bg-muted px-4 py-2 text-center">
             <button
               type="button"
               onClick={() => window.open(doc.fileUrl, "_blank")}
-              className="text-xs text-dils-black underline hover:text-dils-red"
+              className="text-xs text-foreground underline hover:text-destructive"
             >
               Open PDF in a new tab
             </button>
@@ -234,14 +234,14 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
               <div className="space-y-2">
                 <Label>Signing date</Label>
-                <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-gray-50" />
+                <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-muted" />
               </div>
             </div>
 
             {customFieldKeys.length > 0 && (
-              <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4">
+              <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4">
                 <div>
-                  <p className="font-heading text-sm font-semibold text-dils-black">Document fields</p>
+                  <p className="font-heading text-sm font-semibold text-foreground">Document fields</p>
                   <p className="text-xs text-muted-foreground">
                     These values replace the <code className="text-[10px]">{"{{...}}"}</code> placeholders in the document.
                   </p>
@@ -260,7 +260,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               <SignaturePad onChange={setSignatureData} />
             </div>
 
-            <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
+            <div className="rounded-md bg-muted border p-3 text-[11px] text-muted-foreground space-y-2">
               <p className="font-medium text-foreground">Data Privacy Notice</p>
               <p>
                 By signing this document, you acknowledge that your name, email, signature image,
@@ -297,7 +297,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
 
         {/* Rejection form */}
         {mode === "reject" && (
-          <div className="rounded-lg border border-red-200 bg-white p-6 space-y-4">
+          <div className="rounded-lg border border-destructive/30 bg-white p-6 space-y-4">
             <h2 className="font-semibold text-destructive">Decline to Sign</h2>
             <p className="text-sm text-muted-foreground">
               Please provide a reason for declining (optional).

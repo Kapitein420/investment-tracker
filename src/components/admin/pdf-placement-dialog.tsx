@@ -76,16 +76,16 @@ export function PdfPlacementDialog({ documentId, open, onClose }: PdfPlacementDi
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/40">
       <div className="relative m-0 flex h-full w-full flex-col bg-white shadow-2xl sm:m-4 sm:rounded-lg">
-        <div className="flex items-center justify-between border-b border-dils-200 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-dils-black">Place signing fields</h2>
-            <p className="text-[11px] text-dils-500">
+            <h2 className="text-sm font-semibold text-foreground">Place signing fields</h2>
+            <p className="text-[11px] text-muted-foreground">
               {data?.fileName ?? "Loading…"} — drag fields onto each page, then save.
             </p>
           </div>
           <button
             type="button"
-            className="rounded-sm p-1 text-dils-500 hover:bg-dils-100 hover:text-dils-black"
+            className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={onClose}
             aria-label="Close"
           >
@@ -96,12 +96,12 @@ export function PdfPlacementDialog({ documentId, open, onClose }: PdfPlacementDi
         <div className="flex-1 overflow-hidden">
           {error ? (
             <div className="flex h-full items-center justify-center p-6">
-              <div className="max-w-sm rounded-md border border-dils-red/40 bg-white p-4 text-center text-sm text-dils-red">
+              <div className="max-w-sm rounded-md border border-destructive/40 bg-white p-4 text-center text-sm text-destructive">
                 {error}
               </div>
             </div>
           ) : loading || !data ? (
-            <div className="flex h-full items-center justify-center gap-2 text-dils-500">
+            <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Loading document…</span>
             </div>

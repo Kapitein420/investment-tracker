@@ -20,19 +20,19 @@ const STATUS_OPTIONS: StageStatusValue[] = [
 ];
 
 const STATUS_ICON: Record<StageStatusValue, React.ReactNode> = {
-  NOT_STARTED: <Minus className="h-3 w-3 text-gray-300" />,
-  IN_PROGRESS: <Clock className="h-3 w-3 text-blue-500" />,
-  COMPLETED: <Check className="h-3 w-3 text-emerald-600" />,
-  BLOCKED: <Ban className="h-3 w-3 text-amber-500" />,
-  DECLINED: <X className="h-3 w-3 text-red-500" />,
+  NOT_STARTED: <Minus className="h-3 w-3 text-muted-foreground" />,
+  IN_PROGRESS: <Clock className="h-3 w-3 text-status-info" />,
+  COMPLETED: <Check className="h-3 w-3 text-status-success" />,
+  BLOCKED: <Ban className="h-3 w-3 text-status-warning" />,
+  DECLINED: <X className="h-3 w-3 text-status-danger" />,
 };
 
 const STATUS_BG: Record<StageStatusValue, string> = {
-  NOT_STARTED: "bg-gray-50 hover:bg-gray-100",
-  IN_PROGRESS: "bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200",
-  COMPLETED: "bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200",
-  BLOCKED: "bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-200",
-  DECLINED: "bg-red-50 hover:bg-red-100 ring-1 ring-red-200",
+  NOT_STARTED: "bg-muted hover:bg-border",
+  IN_PROGRESS: "bg-office-soft hover:bg-office/20 ring-1 ring-office/30",
+  COMPLETED: "bg-logistics-soft hover:bg-logistics/20 ring-1 ring-logistics/30",
+  BLOCKED: "bg-retail-soft hover:bg-retail/20 ring-1 ring-retail/30",
+  DECLINED: "bg-destructive/10 hover:bg-destructive/15 ring-1 ring-destructive/20",
 };
 
 interface StageCellProps {

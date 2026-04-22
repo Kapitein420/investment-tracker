@@ -13,6 +13,7 @@ import { StageStatusValue } from "@prisma/client";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { recordInvestorStageEvent } from "@/actions/portal-actions";
+import { assetTypeToUnit } from "@/lib/stages";
 import { toast } from "sonner";
 
 interface DealJourneyProps {
@@ -47,11 +48,11 @@ function getStageState(ss: any, prevSs: any | null): StageState {
 }
 
 const STATE_CONFIG: Record<StageState, { icon: any; label: string; color: string; bg: string; hint: string }> = {
-  completed: { icon: Check, label: "Completed", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", hint: "This stage has been completed and approved." },
-  pending_review: { icon: Clock, label: "Under Review", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", hint: "Your submission is being reviewed by the deal team. You'll be notified once approved." },
-  action_needed: { icon: Pen, label: "Action Needed", color: "text-blue-600", bg: "bg-blue-50 border-blue-200", hint: "This stage requires your action. Please review and complete the items below." },
-  available: { icon: Eye, label: "Available", color: "text-gray-600", bg: "bg-white border-gray-200", hint: "This stage is available but no materials have been shared yet." },
-  locked: { icon: Lock, label: "Locked", color: "text-gray-400", bg: "bg-gray-50 border-gray-100", hint: "Complete the previous stage to unlock this one." },
+  completed: { icon: Check, label: "Completed", color: "text-status-success", bg: "bg-logistics-soft border-logistics/30", hint: "This stage has been completed and approved." },
+  pending_review: { icon: Clock, label: "Under Review", color: "text-status-warning", bg: "bg-retail-soft border-retail/30", hint: "Your submission is being reviewed by the deal team. You'll be notified once approved." },
+  action_needed: { icon: Pen, label: "Action Needed", color: "text-banner-info-foreground", bg: "bg-banner-info border-banner-info-foreground/20", hint: "This stage requires your action. Please review and complete the items below." },
+  available: { icon: Eye, label: "Available", color: "text-muted-foreground", bg: "bg-card border-border", hint: "This stage is available but no materials have been shared yet." },
+  locked: { icon: Lock, label: "Locked", color: "text-muted-foreground", bg: "bg-muted border-border", hint: "Complete the previous stage to unlock this one." },
 };
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
@@ -137,57 +138,67 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
     }
   }
 
+  const unit = assetTypeToUnit(tracking.asset.assetType);
+  const nextStepLabel = stages.find((s: any) => s.status === "IN_PROGRESS")?.stage.label;
+  const allComplete = stages.every((s: any) => s.status === "COMPLETED");
+
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <Link href="/portal" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to deals
-        </Link>
-        <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-dils-50 border border-dils-200 sm:h-14 sm:w-14">
-            <Building className="h-6 w-6 text-dils-black sm:h-7 sm:w-7" strokeWidth={2} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
-              {tracking.asset.title}
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {tracking.asset.address}, {tracking.asset.city}
-              </span>
-              {tracking.asset.assetType && (
-                <Badge variant="secondary">{tracking.asset.assetType}</Badge>
-              )}
-            </div>
-          </div>
+      {/* Breadcrumb */}
+      <Link href="/portal" className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to deals
+      </Link>
+
+      {/* Deal hero — category-colored gradient banner */}
+      <section
+        className={cn(
+          "relative mb-6 overflow-hidden rounded-xl px-6 py-8 text-primary-foreground shadow-soft sm:px-8",
+          unit.bar
+        )}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/50 via-foreground/20 to-transparent" aria-hidden />
+        <div className="relative">
+          {tracking.asset.assetType && (
+            <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-[11px] font-medium uppercase tracking-wider backdrop-blur">
+              {unit.label} · {tracking.asset.city}
+            </span>
+          )}
+          <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+            {tracking.asset.title}
+          </h1>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-primary-foreground/85">
+            <MapPin className="h-3.5 w-3.5" />
+            {tracking.asset.address}, {tracking.asset.city}
+          </p>
         </div>
-      </div>
+      </section>
 
       {/* Progress bar */}
-      <div className="mb-6 rounded-md border border-dils-200 bg-white p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-dils-600">Progress</span>
+      <div className="mb-6 rounded-lg border border-border bg-card p-4 shadow-soft">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Progress</span>
           <span className="text-sm text-muted-foreground">{completedCount} of {stages.length} stages</span>
         </div>
-        <div className="h-2 rounded-full bg-dils-100 overflow-hidden">
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-dils-black transition-all duration-500"
+            className="h-full rounded-full bg-status-success transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
 
-      {/* Next step guidance */}
-      <div className="mb-6 rounded-md border border-dils-200 bg-dils-50 p-4">
-        <p className="text-sm text-dils-black">
-          {stages.every((s: any) => s.status === "COMPLETED")
-            ? "All stages are complete. Thank you for your participation in this investment process."
-            : stages.find((s: any) => s.status === "IN_PROGRESS")
-              ? `Next step: ${stages.find((s: any) => s.status === "IN_PROGRESS").stage.label} — action required`
-              : "Review the stages below to continue through the investment process."
+      {/* Next step guidance — banner-info card */}
+      <div className="mb-6 rounded-lg bg-banner-info p-5 shadow-soft">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-banner-info-foreground/80">
+          {allComplete ? "All set" : "You are here"}
+        </p>
+        <p className="mt-1 text-base font-semibold text-banner-info-foreground">
+          {allComplete
+            ? "All stages are complete. Thank you for your participation."
+            : nextStepLabel
+              ? `Next step: ${nextStepLabel} — action required`
+              : "Review the stages below to continue."
           }
         </p>
       </div>
@@ -228,11 +239,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg mt-0.5",
-                      state === "completed" ? "bg-emerald-100" :
-                      state === "action_needed" ? "bg-blue-100" :
-                      state === "pending_review" ? "bg-amber-100" :
-                      "bg-gray-100"
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-md mt-0.5",
+                      state === "completed" ? "bg-logistics-soft" :
+                      state === "action_needed" ? "bg-office-soft" :
+                      state === "pending_review" ? "bg-retail-soft" :
+                      "bg-muted"
                     )}>
                       <Icon className={cn("h-4.5 w-4.5", config.color)} />
                     </div>
@@ -248,14 +259,14 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         <p className="text-xs text-muted-foreground mt-1">
                           Completed {formatDate(ss.completedAt)}
                           {ss.approvedAt && (
-                            <span className="text-emerald-600 ml-1">
+                            <span className="text-status-success ml-1">
                               &middot; Approved {formatDate(ss.approvedAt)}
                             </span>
                           )}
                         </p>
                       )}
                       {state === "pending_review" && (
-                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <p className="text-xs text-status-warning mt-1 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {ss.stage.key === "nda"
                             ? config.hint
@@ -286,7 +297,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                     const canSign = doc.status === "PENDING" && activeToken && !stageAlreadyDone;
 
                     return (
-                      <div key={doc.id} className="rounded-lg border bg-white p-4">
+                      <div key={doc.id} className="rounded-lg border border-border bg-card p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3 min-w-0">
                             <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -320,7 +331,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                             )}
                             {doc.status === "SIGNED" && (
                               <>
-                                <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                                <Badge className="bg-logistics-soft text-logistics border-0 text-xs">
                                   <Check className="mr-1 h-3 w-3" />Signed
                                 </Badge>
                                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleDownload(doc.id, ss.stage.key)}>
@@ -330,21 +341,21 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                               </>
                             )}
                             {doc.status === "REJECTED" && (
-                              <Badge className="bg-red-100 text-red-700 border-0 text-xs">Declined</Badge>
+                              <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Declined</Badge>
                             )}
                           </div>
                         </div>
 
                         {/* Signature preview for signed docs */}
                         {doc.status === "SIGNED" && doc.signatureData && (
-                          <div className="mt-3 pt-3 border-t">
+                          <div className="mt-3 pt-3 border-t border-border">
                             <p className="text-[10px] text-muted-foreground mb-1">Signature on file</p>
                             <img src={doc.signatureData} alt="Signature" className="h-10 opacity-70" />
                           </div>
                         )}
                         {doc.status === "REJECTED" && (
-                          <div className="mt-2 rounded bg-red-50 px-3 py-2">
-                            <p className="text-xs text-red-700">
+                          <div className="mt-2 rounded bg-destructive/10 px-3 py-2">
+                            <p className="text-xs text-destructive">
                               You declined this document. Contact the deal team if you'd like to reconsider.
                             </p>
                           </div>
@@ -355,7 +366,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
                   {/* Content (IM materials etc.) */}
                   {stageContent.map((content: any) => (
-                    <div key={content.id} className="rounded-lg border bg-white p-4">
+                    <div key={content.id} className="rounded-lg border border-border bg-card p-4">
                       <h4 className="font-medium text-sm">{content.title}</h4>
                       {content.description && (
                         <p className="text-xs text-muted-foreground mt-1">{content.description}</p>
@@ -413,10 +424,10 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                       : {};
                     const metricEntries = Object.entries(teaserMetrics).filter(([_, v]) => v);
                     return (
-                      <div className="rounded-lg border bg-white p-5 space-y-4">
+                      <div className="rounded-lg border border-border bg-card p-5 space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-16 w-16 rounded-md bg-dils-50 border border-dils-200 flex items-center justify-center">
-                            <Building className="h-8 w-8 text-dils-black" strokeWidth={2} />
+                          <div className={cn("h-16 w-16 rounded-md flex items-center justify-center", unit.tint)}>
+                            <Building className="h-8 w-8 text-foreground" strokeWidth={2} />
                           </div>
                           <div>
                             <h4 className="font-semibold">{tracking.asset.title}</h4>
@@ -448,7 +459,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           <p className="text-sm text-muted-foreground">{tracking.asset.description}</p>
                         )}
                         {metricEntries.length > 0 && (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-border">
                             {metricEntries.map(([key, value]) => (
                               <div key={key}>
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{key}</p>
@@ -463,9 +474,9 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                       </div>
                     );
                   })() : state === "action_needed" ? (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                      <p className="text-sm text-blue-800 font-medium">Waiting for documents</p>
-                      <p className="text-xs text-blue-600 mt-1">
+                    <div className="rounded-lg border border-banner-info-foreground/20 bg-banner-info p-4">
+                      <p className="text-sm font-medium text-banner-info-foreground">Waiting for documents</p>
+                      <p className="mt-1 text-xs text-banner-info-foreground/80">
                         The deal team is preparing the documents for this stage. You'll be able to proceed once they're ready.
                       </p>
                     </div>

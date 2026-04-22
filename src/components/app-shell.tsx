@@ -35,8 +35,8 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="flex h-14 flex-col justify-center gap-0 border-b border-dils-200 px-4">
-        <span className="font-heading font-bold text-base tracking-tight text-dils-black">DILS</span>
+      <div className="flex h-14 flex-col justify-center gap-0 border-b border-border px-4">
+        <span className="font-heading font-bold text-base tracking-tight text-foreground">DILS</span>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
           Investment Tracker
         </span>
@@ -51,8 +51,8 @@ function SidebarContent({
             className={cn(
               "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               pathname === item.href
-                ? "bg-dils-black text-white"
-                : "text-dils-600 hover:bg-dils-50 hover:text-dils-black"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             <item.icon className="h-4 w-4" strokeWidth={2} />
@@ -73,8 +73,8 @@ function SidebarContent({
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   pathname === item.href
-                    ? "bg-dils-black text-white"
-                    : "text-dils-600 hover:bg-dils-50 hover:text-dils-black"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" strokeWidth={2} />
@@ -85,18 +85,18 @@ function SidebarContent({
         )}
       </nav>
 
-      <div className="border-t border-dils-200 p-3">
+      <div className="border-t border-border p-3">
         <div className="flex items-center gap-2 px-3 py-2">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-dils-black">{userName}</p>
+            <p className="text-sm font-medium truncate text-foreground">{userName}</p>
             <div className="flex items-center gap-1">
               <Badge
                 variant="secondary"
                 className={cn(
                   "text-[10px] px-1.5 py-0 border-0",
                   role === "ADMIN"
-                    ? "bg-dils-black text-white"
-                    : "bg-dils-100 text-dils-800"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
                 )}
               >
                 {role}
@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen flex-col md:flex-row">
       {/* Mobile top bar — visible only on <md */}
-      <header className="flex h-14 items-center justify-between border-b border-dils-200 bg-white px-4 md:hidden">
+      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
         <Button
           variant="ghost"
           size="icon"
@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Menu className="h-5 w-5" strokeWidth={2} />
         </Button>
         <div className="flex flex-col items-center leading-none">
-          <span className="font-heading font-bold text-base tracking-tight text-dils-black">DILS</span>
+          <span className="font-heading font-bold text-base tracking-tight text-foreground">DILS</span>
           <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
             Investment Tracker
           </span>
@@ -150,8 +150,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className={cn(
                 "text-[10px] px-1.5 py-0 border-0",
                 role === "ADMIN"
-                  ? "bg-dils-black text-white"
-                  : "bg-dils-100 text-dils-800"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
               )}
             >
               {role}
@@ -163,10 +163,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile drawer */}
       <DialogPrimitive.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 md:hidden" />
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 md:hidden" />
           <DialogPrimitive.Content
             aria-label="Navigation"
-            className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-dils-200 bg-white shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left md:hidden"
+            className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card shadow-hover duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left md:hidden"
           >
             <DialogPrimitive.Title className="sr-only">Navigation</DialogPrimitive.Title>
             <SidebarContent
@@ -181,7 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </DialogPrimitive.Root>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-56 flex-col border-r border-dils-200 bg-white md:flex">
+      <aside className="hidden w-56 flex-col border-r border-border bg-card md:flex">
         <SidebarContent
           pathname={pathname}
           isAdmin={isAdmin}
@@ -191,7 +191,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto bg-dils-50/50">
+      <main className="flex-1 overflow-auto bg-background">
         {children}
       </main>
     </div>

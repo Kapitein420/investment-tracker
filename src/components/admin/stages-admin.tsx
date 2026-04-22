@@ -55,7 +55,7 @@ export function StagesAdmin({ stages }: { stages: PipelineStage[] }) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-foreground">
           Pipeline Stages
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">
@@ -65,7 +65,7 @@ export function StagesAdmin({ stages }: { stages: PipelineStage[] }) {
 
       <div className="max-w-lg space-y-2">
         {stages.map((stage, idx) => (
-          <div key={stage.id} className="flex items-center gap-3 rounded-md border border-dils-200 bg-white p-3">
+          <div key={stage.id} className="flex items-center gap-3 rounded-md border border-border bg-white p-3">
             <div className="flex flex-col gap-0.5">
               <Button
                 variant="ghost"

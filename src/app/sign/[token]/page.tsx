@@ -7,10 +7,10 @@ export default async function SignPage({ params }: { params: { token: string } }
 
   if (!result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-muted p-6">
         <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
-            <AlertTriangle className="h-7 w-7 text-amber-600" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-retail-soft">
+            <AlertTriangle className="h-7 w-7 text-status-warning" />
           </div>
           <h2 className="mt-4 text-xl font-semibold">Invalid or Expired Link</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -24,10 +24,10 @@ export default async function SignPage({ params }: { params: { token: string } }
 
   if (result.status === "SIGNED") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-muted p-6">
         <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-            <Building2 className="h-7 w-7 text-emerald-600" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-logistics-soft">
+            <Building2 className="h-7 w-7 text-status-success" />
           </div>
           <h2 className="mt-4 text-xl font-semibold">Already Signed</h2>
           <p className="mt-2 text-sm text-muted-foreground">
