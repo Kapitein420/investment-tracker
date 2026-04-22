@@ -90,30 +90,42 @@ export async function updateAssetFieldDefaults(
   return asset;
 }
 
-/** Return the merged set of tokens detected across this asset's PENDING
- *  PLACEHOLDER documents. Used by the admin UI to show which defaults can
- *  be set. */
+/** Return the merged set of placeholder tokens detected for this asset.
+ *  Looks at the master AssetContent PDFs (NDA / IM templates) plus any
+ *  per-investor Document already cloned out, so the Project fields panel
+ *  populates as soon as the master NDA is uploaded. */
 export async function getAssetPlaceholderTokens(
   assetId: string
 ): Promise<string[]> {
   await requireUser();
-  const docs = await prisma.document.findMany({
-    where: {
-      tracking: { assetId },
-      placementMode: "PLACEHOLDER",
-      status: { in: ["PENDING", "SIGNED"] },
-    },
-    select: { placeholderMap: true },
-    take: 50,
-  });
+
+  const [contents, docs] = await Promise.all([
+    prisma.assetContent.findMany({
+      where: { assetId, contentType: "PDF" },
+      select: { placeholderMap: true },
+      take: 50,
+    }),
+    prisma.document.findMany({
+      where: {
+        tracking: { assetId },
+        placementMode: "PLACEHOLDER",
+        status: { in: ["PENDING", "SIGNED"] },
+      },
+      select: { placeholderMap: true },
+      take: 50,
+    }),
+  ]);
+
   const set = new Set<string>();
-  for (const d of docs) {
-    if (d.placeholderMap && typeof d.placeholderMap === "object") {
-      for (const key of Object.keys(d.placeholderMap as Record<string, unknown>)) {
+  const collect = (raw: unknown) => {
+    if (raw && typeof raw === "object") {
+      for (const key of Object.keys(raw as Record<string, unknown>)) {
         set.add(key);
       }
     }
-  }
+  };
+  for (const c of contents) collect(c.placeholderMap);
+  for (const d of docs) collect(d.placeholderMap);
   return Array.from(set).sort();
 }
 

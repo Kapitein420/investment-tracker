@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { getAppUrl } from "@/lib/app-url";
+import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
+import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 
 function generatePassword(length = 12): string {
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -144,6 +146,108 @@ export async function sendInvestorInvite({
     });
   } catch (e) {
     console.error("[sendInvestorInvite] Failed to seed tracking (invite still created):", e);
+  }
+
+  // Auto-clone the master NDA (AssetContent with stageKey "nda") into a
+  // per-investor Document with its own SigningToken. Without this, the
+  // investor never sees a "Sign Now" button because the portal only shows
+  // per-tracking Documents, not the asset-level master PDF.
+  try {
+    const tracking = await prisma.assetCompanyTracking.findUnique({
+      where: { assetId_companyId: { assetId, companyId } },
+      select: { id: true },
+    });
+    if (!tracking) {
+      throw new Error("tracking lookup failed after seed");
+    }
+
+    const ndaStage = await prisma.pipelineStage.findFirst({
+      where: { key: { equals: "nda", mode: "insensitive" }, isActive: true },
+      select: { id: true },
+    });
+
+    const masterNda = await prisma.assetContent.findFirst({
+      where: {
+        assetId,
+        contentType: "PDF",
+        stageKey: { equals: "nda", mode: "insensitive" },
+        fileUrl: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Only clone if we have a master NDA AND we don't already have a PENDING
+    // Document for this tracking+stage (idempotent: resending invites won't
+    // pile up duplicate sign-me-now docs).
+    if (masterNda && masterNda.fileUrl && ndaStage) {
+      const existingDoc = await prisma.document.findFirst({
+        where: {
+          trackingId: tracking.id,
+          stageId: ndaStage.id,
+          status: "PENDING",
+        },
+        select: { id: true },
+      });
+
+      if (!existingDoc) {
+        const pdfBytes = await downloadFile(masterNda.fileUrl);
+        const placeholderMap = (masterNda.placeholderMap as Record<string, unknown> | null)
+          ?? (await scanPlaceholders(Buffer.from(pdfBytes)).catch(() => ({})));
+        const keysFound = Object.keys(placeholderMap ?? {}).length;
+
+        const safeName = (masterNda.fileName || "NDA.pdf").replace(/\s+/g, "_");
+        const perInvestorPath = `documents/${tracking.id}/${Date.now()}-${safeName}`;
+        const perInvestorUrl = await uploadBytes(
+          pdfBytes,
+          perInvestorPath,
+          "application/pdf"
+        );
+
+        const doc = await prisma.document.create({
+          data: {
+            trackingId: tracking.id,
+            stageId: ndaStage.id,
+            fileName: masterNda.fileName || masterNda.title || "NDA.pdf",
+            fileUrl: perInvestorUrl,
+            fileSize: pdfBytes.length,
+            mimeType: "application/pdf",
+            status: "PENDING",
+            placementMode: keysFound > 0 ? "PLACEHOLDER" : "GRID",
+            placeholderMap: keysFound > 0 ? (placeholderMap as any) : undefined,
+            uploadedByUserId: user.id,
+          },
+        });
+
+        await prisma.signingToken.create({
+          data: {
+            documentId: doc.id,
+            token: randomUUID() + "-" + randomUUID(),
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        await prisma.activityLog.create({
+          data: {
+            entityType: "Document",
+            entityId: doc.id,
+            action: "NDA_CLONED_FROM_MASTER",
+            metadata: {
+              assetId,
+              companyId,
+              trackingId: tracking.id,
+              masterAssetContentId: masterNda.id,
+              placeholderKeys: keysFound,
+            },
+            userId: user.id,
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.error(
+      "[sendInvestorInvite] Failed to clone master NDA (invite still created):",
+      e
+    );
   }
 
   const loginUrl = `${getAppUrl()}/login`;

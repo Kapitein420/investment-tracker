@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile, getSignedUrl, deleteFile } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl, deleteFile, downloadFile } from "@/lib/supabase-storage";
+import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 
 export async function createAssetContent(data: {
   assetId: string;
@@ -29,6 +30,19 @@ export async function createAssetContent(data: {
     throw new Error("Cannot publish PDF content without a file. Upload a file first.");
   }
 
+  // Scan PDFs for {{TOKEN}} / {TOKEN} placeholders so the admin sees them in
+  // the Project fields panel and per-investor signing forms can be auto-built.
+  let placeholderMap: Record<string, unknown> | null = null;
+  if (data.contentType === "PDF" && data.fileUrl) {
+    try {
+      const bytes = await downloadFile(data.fileUrl);
+      const map = await scanPlaceholders(Buffer.from(bytes));
+      if (Object.keys(map).length > 0) placeholderMap = map as any;
+    } catch (e) {
+      console.error("[createAssetContent] placeholder scan failed (continuing):", e);
+    }
+  }
+
   const content = await prisma.assetContent.create({
     data: {
       assetId: data.assetId,
@@ -42,6 +56,7 @@ export async function createAssetContent(data: {
       imageUrls: data.imageUrls ? JSON.parse(JSON.stringify(data.imageUrls)) : [],
       keyMetrics: data.keyMetrics ? JSON.parse(JSON.stringify(data.keyMetrics)) : undefined,
       isPublished: data.isPublished ?? false,
+      placeholderMap: placeholderMap as any,
     },
   });
 
@@ -77,6 +92,23 @@ export async function updateAssetContent(
   const updateData: any = { ...sanitized };
   if (data.keyMetrics) updateData.keyMetrics = JSON.parse(JSON.stringify(data.keyMetrics));
   if (data.imageUrls) updateData.imageUrls = JSON.parse(JSON.stringify(data.imageUrls));
+
+  // If the file is being replaced, re-scan placeholders so Project fields stays in sync
+  if (data.fileUrl) {
+    try {
+      const existing = await prisma.assetContent.findUnique({
+        where: { id },
+        select: { contentType: true },
+      });
+      if (existing?.contentType === "PDF") {
+        const bytes = await downloadFile(data.fileUrl);
+        const map = await scanPlaceholders(Buffer.from(bytes));
+        updateData.placeholderMap = Object.keys(map).length > 0 ? (map as any) : null;
+      }
+    } catch (e) {
+      console.error("[updateAssetContent] placeholder scan failed (continuing):", e);
+    }
+  }
 
   const content = await prisma.assetContent.update({
     where: { id },

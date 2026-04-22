@@ -256,23 +256,53 @@ export async function rescanDocumentPlaceholders(
   return { keysFound, placementMode };
 }
 
-/** Rescan every PLACEHOLDER / GRID document attached to an asset's trackings. */
+/**
+ * Rescan every PDF attached to an asset — both master AssetContent files
+ * (NDA, IM, etc.) and any per-investor Documents already cloned out.
+ * Returns counts so the admin UI can give meaningful feedback.
+ */
 export async function rescanAssetPlaceholders(
   assetId: string
-): Promise<{ scanned: number; totalKeys: number }> {
+): Promise<{ scanned: number; totalKeys: number; masterContentScanned: number }> {
   await requireRole("EDITOR");
 
-  const docs = await prisma.document.findMany({
-    where: {
-      tracking: { assetId },
-      status: { in: ["PENDING", "SIGNED"] },
-      placementMode: { in: ["GRID", "PLACEHOLDER"] },
-    },
-    select: { id: true, fileUrl: true },
-    take: 50,
-  });
+  const [contents, docs] = await Promise.all([
+    prisma.assetContent.findMany({
+      where: { assetId, contentType: "PDF", fileUrl: { not: null } },
+      select: { id: true, fileUrl: true },
+      take: 50,
+    }),
+    prisma.document.findMany({
+      where: {
+        tracking: { assetId },
+        status: { in: ["PENDING", "SIGNED"] },
+        placementMode: { in: ["GRID", "PLACEHOLDER"] },
+      },
+      select: { id: true, fileUrl: true },
+      take: 50,
+    }),
+  ]);
 
   let totalKeys = 0;
+  let masterContentScanned = 0;
+
+  for (const c of contents) {
+    if (!c.fileUrl) continue;
+    try {
+      const pdfBytes = await downloadFile(c.fileUrl);
+      const map = await scanPlaceholders(Buffer.from(pdfBytes));
+      const count = Object.keys(map).length;
+      totalKeys += count;
+      masterContentScanned += 1;
+      await prisma.assetContent.update({
+        where: { id: c.id },
+        data: { placeholderMap: count > 0 ? (map as any) : null },
+      });
+    } catch (e) {
+      console.error(`[rescanAssetPlaceholders] AssetContent ${c.id} failed:`, e);
+    }
+  }
+
   for (const d of docs) {
     try {
       const pdfBytes = await downloadFile(d.fileUrl);
@@ -287,12 +317,12 @@ export async function rescanAssetPlaceholders(
         },
       });
     } catch (e) {
-      console.error(`[rescanAssetPlaceholders] failed for doc ${d.id}:`, e);
+      console.error(`[rescanAssetPlaceholders] Document ${d.id} failed:`, e);
     }
   }
 
   revalidatePath(`/assets/${assetId}`);
-  return { scanned: docs.length, totalKeys };
+  return { scanned: docs.length + masterContentScanned, totalKeys, masterContentScanned };
 }
 
 export async function getDocumentForSigning(token: string) {

@@ -330,20 +330,23 @@ model InvestorInvite {
 
 // ─── 14. AssetContent ───────────────────────────────────────────────────────
 model AssetContent {
-  id          String      @id @default(cuid())
-  assetId     String
-  stageKey    String
-  contentType ContentType
-  title       String
-  fileUrl     String?
-  fileName    String?
-  htmlContent String?
-  description String?
-  imageUrls   Json?
-  keyMetrics  Json?
-  isPublished Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  assetId        String
+  stageKey       String
+  contentType    ContentType
+  title          String
+  fileUrl        String?
+  fileName       String?
+  htmlContent    String?
+  description    String?
+  imageUrls      Json?
+  keyMetrics     Json?
+  isPublished    Boolean     @default(false)
+  // Detected {{TOKEN}} / {TOKEN} placeholders for PDF content (master NDA, IM)
+  // Shape: Record<string, { page, x, y, width, height, fontSize }>
+  placeholderMap Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
