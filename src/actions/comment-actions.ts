@@ -9,12 +9,21 @@ import {
   type CreateCommentInput,
 } from "@/lib/validators";
 
+function stripHtmlPlainText(input: string): string {
+  let prev: string;
+  let out = input;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== prev);
+  return out.replace(/[<>]/g, "").trim();
+}
+
 export async function createComment(data: CreateCommentInput) {
   const user = await requireRole("EDITOR");
   const validated = createCommentSchema.parse(data);
 
-  // Simple HTML stripping (plain text only comments)
-  const sanitizedBody = validated.body.replace(/<[^>]*>/g, '').trim();
+  const sanitizedBody = stripHtmlPlainText(validated.body);
   if (!sanitizedBody) throw new Error("Comment cannot be empty");
 
   const result = await prisma.$transaction(async (tx) => {
@@ -75,8 +84,7 @@ export async function updateComment(id: string, body: string) {
     throw new Error("Forbidden: you can only edit your own comments");
   }
 
-  // Simple HTML stripping (plain text only comments)
-  const sanitizedBody = validated.body.replace(/<[^>]*>/g, '').trim();
+  const sanitizedBody = stripHtmlPlainText(validated.body);
   if (!sanitizedBody) throw new Error("Comment cannot be empty");
 
   const updated = await prisma.comment.update({
