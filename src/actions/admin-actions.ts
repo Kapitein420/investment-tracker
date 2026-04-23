@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
@@ -128,9 +129,9 @@ export async function resetUserPassword(userId: string) {
     where: { id: userId },
   });
 
-  // Generate random 12-char password
+  // Generate random 12-char password using crypto-grade RNG
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const newPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  const newPassword = Array.from({ length: 12 }, () => chars[randomInt(chars.length)]).join("");
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
 
