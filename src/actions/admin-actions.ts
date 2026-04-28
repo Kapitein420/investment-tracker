@@ -148,7 +148,7 @@ export async function resetUserPassword(userId: string) {
       html: renderEmail({
         heading: "Your password has been reset",
         bodyHtml: `
-          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+          <p style="color: #121212; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
             An administrator has reset your password. Use the new credentials below to log in.
           </p>
           ${renderCredentialsTable([

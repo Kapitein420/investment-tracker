@@ -99,10 +99,10 @@ export async function approveStage(trackingId: string, stageKey: string) {
         html: renderEmail({
           heading: "Your NDA has been approved",
           bodyHtml: `
-            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
+            <p style="color: #121212; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
               Your NDA for <strong>${tracking.asset.title}</strong> has been reviewed and approved.
             </p>
-            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+            <p style="color: #121212; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
               You now have access to the Information Memorandum. Log in to your investor portal to review the materials.
             </p>
             ${renderCta("View Information Memorandum", `${getAppUrl()}/portal/${tracking.assetId}`)}

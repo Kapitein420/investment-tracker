@@ -281,11 +281,11 @@ export async function sendInvestorInvite({
     : `
       <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
         <tr>
-          <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
-          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${email}</td>
+          <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #121212; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #121212; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${email}</td>
         </tr>
         <tr>
-          <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
+          <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #121212; background: #F5F6F7;">
             Your existing password still works — use it to log back in.
           </td>
         </tr>
@@ -299,7 +299,7 @@ export async function sendInvestorInvite({
       html: renderEmail({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
-          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+          <p style="color: #121212; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
             You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. Your credentials for the investor portal are below.
           </p>
           ${credentialsBlock}
