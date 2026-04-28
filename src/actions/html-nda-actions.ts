@@ -371,4 +371,3 @@ export async function getSignedHtmlNda(documentId: string) {
   };
 }
 
-export const HTML_NDA_FILEURL_PREFIX_EXPORT = HTML_NDA_FILEURL_PREFIX;
