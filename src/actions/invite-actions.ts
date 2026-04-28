@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
@@ -272,73 +273,43 @@ export async function sendInvestorInvite({
 
   const loginUrl = `${getAppUrl()}/login`;
 
+  const credentialsBlock = plainPassword
+    ? renderCredentialsTable([
+        { label: "Email", value: email, mono: true },
+        { label: "Password", value: plainPassword, mono: true },
+      ])
+    : `
+      <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
+        <tr>
+          <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${email}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
+            Your existing password still works — use it to log back in.
+          </td>
+        </tr>
+      </table>
+    `;
+
   try {
     await sendEmail({
       to: email,
       subject: `Your access to ${asset.title} — DILS Investment Portal`,
-      html: `
-        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #FFFFFF;">
-          <!-- Editorial header band -->
-          <div style="background: #101820; padding: 28px 32px; text-align: left;">
-            <div style="font-family: Georgia, 'Times New Roman', serif; color: #FFFFFF; font-size: 24px; letter-spacing: -0.5px; font-weight: 400; line-height: 1;">DILS</div>
-            <div style="color: #FFFFFF; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; font-weight: 400;">Investment Portal</div>
-          </div>
-          <!-- Editorial red rule -->
-          <div style="background: #EE2E24; height: 2px; line-height: 2px; font-size: 0;">&nbsp;</div>
-
-          <!-- Body -->
-          <div style="background: #FFFFFF; padding: 40px 32px 32px 32px;">
-            <h1 style="font-family: Georgia, 'Times New Roman', serif; color: #101820; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.2;">
-              Welcome, ${company.name}
-            </h1>
-            <!-- Brass accent rule -->
-            <div style="background: #AB8B5F; height: 2px; width: 40px; margin: 14px 0 24px 0; line-height: 2px; font-size: 0;">&nbsp;</div>
-
-            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-              You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. Your credentials for the investor portal are below.
-            </p>
-
-            <!-- Credentials block: editorial, no rounded corners -->
-            <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
-              <tr>
-                <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
-                <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${email}</td>
-              </tr>
-              ${plainPassword ? `
-              <tr>
-                <td style="padding: 14px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700;">Password</td>
-                <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; letter-spacing: 1px; background: #F5F6F7;">${plainPassword}</td>
-              </tr>
-              ` : `
-              <tr>
-                <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
-                  Your existing password still works — use it to log back in.
-                </td>
-              </tr>
-              `}
-            </table>
-
-            <!-- CTA -->
-            <div style="margin: 0 0 32px 0;">
-              <a href="${loginUrl}"
-                 style="background: #101820; color: #FFFFFF; padding: 14px 28px; text-decoration: none; border-radius: 4px; font-weight: 700; display: inline-block; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-family: Arial, Helvetica, sans-serif;">
-                Log in to portal
-              </a>
-            </div>
-
-            <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-              Keep these credentials secure. For assistance, reply to this email or contact the deal team directly.
-            </p>
-          </div>
-
-          <!-- Footer -->
-          <div style="background: #F5F6F7; padding: 14px 32px;">
-            <p style="color: #6B7280; font-size: 10px; letter-spacing: 1px; margin: 0; text-transform: uppercase;">
-              ${asset.title} &middot; ${asset.city}, ${asset.country}
-            </p>
-          </div>
-        </div>
-      `,
+      html: renderEmail({
+        heading: `Welcome, ${company.name}`,
+        bodyHtml: `
+          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+            You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. Your credentials for the investor portal are below.
+          </p>
+          ${credentialsBlock}
+          ${renderCta("Log in to portal", loginUrl)}
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+            Keep these credentials secure. For assistance, reply to this email or contact the deal team directly.
+          </p>
+        `,
+        meta: `${asset.title} · ${asset.city}, ${asset.country}`,
+      }),
     });
   } catch (e) {
     console.error("Email send failed (account still created):", e);
