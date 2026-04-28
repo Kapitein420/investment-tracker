@@ -383,10 +383,13 @@ export async function rescanAssetPlaceholders(
 
   for (const c of contents) {
     if (!c.fileUrl) continue;
+    console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: downloading "${c.fileUrl}"`);
     try {
       const pdfBytes = await downloadFile(c.fileUrl);
+      console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: downloaded ${pdfBytes.length} bytes, scanning...`);
       const map = await scanPlaceholders(Buffer.from(pdfBytes));
       const count = Object.keys(map).length;
+      console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: found ${count} placeholders: ${Object.keys(map).join(", ")}`);
       totalKeys += count;
       masterContentScanned += 1;
       await prisma.assetContent.update({
@@ -469,107 +472,41 @@ export async function signDocument(data: {
 }) {
   const validated = signDocumentSchema.parse(data);
 
-  // ── All validation + updates inside transaction to prevent race conditions ──
-  const { document, signingTokenId } = await prisma.$transaction(async (tx) => {
-    // Atomic check: find token AND verify unused in one query
-    const token = await tx.signingToken.findUnique({
-      where: { token: validated.token },
-      include: { document: true },
-    });
-
-    if (!token) throw new Error("Invalid signing token");
-    if (token.expiresAt <= new Date()) throw new Error("Token expired");
-    if (token.usedAt !== null) throw new Error("Token already used");
-
-    // Immediately mark token as used (prevents race condition)
-    await tx.signingToken.update({
-      where: { id: token.id, usedAt: null }, // atomic: only update if still unused
-      data: { usedAt: new Date() },
-    });
-
-    await tx.document.update({
-      where: { id: token.document.id },
-      data: {
-        status: "SIGNED",
-        signedAt: new Date(),
-        signedByName: validated.signedByName,
-        signedByEmail: validated.signedByEmail,
-        signatureData: validated.signatureData,
-      },
-    });
-
-    const doc = token.document;
-
-    const currentStageStatus = await tx.stageStatus.findUnique({
-      where: {
-        trackingId_stageId: {
-          trackingId: doc.trackingId,
-          stageId: doc.stageId,
+  // ── Step 1: Read-only token validation + fetch asset defaults ──
+  // No DB writes yet. If anything fails after this, no "ghost signed"
+  // records are left behind.
+  const token = await prisma.signingToken.findUnique({
+    where: { token: validated.token },
+    include: {
+      document: {
+        include: {
+          tracking: {
+            select: { asset: { select: { fieldDefaults: true } } },
+          },
         },
       },
-    });
-
-    const oldStatus = currentStageStatus?.status ?? "NOT_STARTED";
-
-    await tx.stageStatus.update({
-      where: {
-        trackingId_stageId: {
-          trackingId: doc.trackingId,
-          stageId: doc.stageId,
-        },
-      },
-      data: { status: "COMPLETED", completedAt: new Date() },
-    });
-
-    await tx.stageHistory.create({
-      data: {
-        trackingId: doc.trackingId,
-        stageId: doc.stageId,
-        fieldName: "status",
-        oldValue: oldStatus,
-        newValue: "COMPLETED",
-        changedByUserId: doc.uploadedByUserId,
-      },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        entityType: "Document",
-        entityId: doc.id,
-        action: "DOCUMENT_SIGNED",
-        metadata: {
-          trackingId: doc.trackingId,
-          signedByName: validated.signedByName,
-        },
-        userId: doc.uploadedByUserId,
-      },
-    });
-
-    return { document: doc, signingTokenId: token.id };
+    },
   });
 
-  // ── Generate signed PDF (non-blocking — runs after DB commit) ───
-  // The signature is already saved above; this just produces the
-  // pretty PDF with the embedded signature image. If it fails the
-  // signature record is still valid.
+  if (!token) throw new Error("Invalid signing token");
+  if (token.expiresAt <= new Date()) throw new Error("Token expired");
+  if (token.usedAt !== null) throw new Error("Token already used");
+
+  const document = token.document;
+
+  // ── Step 2: Generate + upload signed PDF BEFORE committing ──
+  // If PDF generation fails the investor sees a clear error and can
+  // retry — the document is NOT marked SIGNED with a missing file.
   const pdfStart = Date.now();
+  let signedFileUrl: string;
   try {
     const originalPdfBytes = await downloadFile(document.fileUrl);
 
     const docAny = document as any;
     let signedPdfBytes;
     if (docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap) {
-      // Pull project-level defaults off the asset so admin-set fields like
-      // BUILDING_NAME / VENDOR / CITY always win over anything the investor
-      // might submit.
-      const assetRecord = await prisma.document.findUnique({
-        where: { id: document.id },
-        select: {
-          tracking: { select: { asset: { select: { fieldDefaults: true } } } },
-        },
-      });
       const assetDefaults =
-        (assetRecord?.tracking?.asset?.fieldDefaults as Record<string, string> | null) ??
+        (document.tracking?.asset?.fieldDefaults as Record<string, string> | null) ??
         {};
 
       // Merge order (later overrides earlier):
@@ -590,7 +527,6 @@ export async function signDocument(data: {
         docAny.placeholderMap as any
       );
     } else if (docAny.placementMode === "MANUAL") {
-      // Use the manual drag-drop placements (already contain explicit x/y/w/h)
       const manualPlacements: FieldPlacement[] =
         (document.fieldConfig as FieldPlacement[] | null) ?? [];
 
@@ -615,22 +551,87 @@ export async function signDocument(data: {
     }
 
     const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
-    const signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
+    signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
 
-    // Patch the document with the generated PDF URL
-    await prisma.document.update({
-      where: { id: document.id },
-      data: { signedFileUrl },
-    });
-
-    console.log(`[signDocument] PDF generation completed in ${Date.now() - pdfStart}ms for doc ${document.id}`);
+    console.log(
+      `[signDocument] PDF generation completed in ${Date.now() - pdfStart}ms for doc ${document.id}`
+    );
   } catch (e) {
     console.error(
       `[signDocument] PDF generation failed after ${Date.now() - pdfStart}ms for doc ${document.id}:`,
       e
     );
-    // Non-fatal — the signature data is already persisted
+    throw new Error(
+      "We couldn't finalize your signed document. Please try again — if this keeps happening, contact support."
+    );
   }
+
+  // ── Step 3: Atomic commit — claim token + persist signed state ──
+  await prisma.$transaction(async (tx) => {
+    // Atomic re-claim with usedAt=null guard. Throws P2025 if another
+    // request claimed the token between Step 1 and now.
+    await tx.signingToken.update({
+      where: { id: token.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    await tx.document.update({
+      where: { id: document.id },
+      data: {
+        status: "SIGNED",
+        signedAt: new Date(),
+        signedByName: validated.signedByName,
+        signedByEmail: validated.signedByEmail,
+        signatureData: validated.signatureData,
+        signedFileUrl,
+      },
+    });
+
+    const currentStageStatus = await tx.stageStatus.findUnique({
+      where: {
+        trackingId_stageId: {
+          trackingId: document.trackingId,
+          stageId: document.stageId,
+        },
+      },
+    });
+
+    const oldStatus = currentStageStatus?.status ?? "NOT_STARTED";
+
+    await tx.stageStatus.update({
+      where: {
+        trackingId_stageId: {
+          trackingId: document.trackingId,
+          stageId: document.stageId,
+        },
+      },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+
+    await tx.stageHistory.create({
+      data: {
+        trackingId: document.trackingId,
+        stageId: document.stageId,
+        fieldName: "status",
+        oldValue: oldStatus,
+        newValue: "COMPLETED",
+        changedByUserId: document.uploadedByUserId,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "Document",
+        entityId: document.id,
+        action: "DOCUMENT_SIGNED",
+        metadata: {
+          trackingId: document.trackingId,
+          signedByName: validated.signedByName,
+        },
+        userId: document.uploadedByUserId,
+      },
+    });
+  });
 
   return { success: true };
 }
