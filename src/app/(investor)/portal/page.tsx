@@ -48,11 +48,11 @@ export default async function InvestorPortalPage() {
       </div>
 
       {trackings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-dils-200 py-20">
-          <Briefcase className="h-10 w-10 text-muted-foreground/40" strokeWidth={2} />
-          <p className="mt-3 text-sm text-muted-foreground">No active deals at the moment</p>
-          <p className="text-xs text-muted-foreground/60">
-            You&apos;ll see your investment opportunities here once invited
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-dils-200 px-6 py-20 text-center">
+          <Briefcase className="h-10 w-10 text-muted-foreground/60" strokeWidth={1.75} />
+          <p className="mt-3 text-sm font-medium text-foreground">No active deals yet</p>
+          <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+            Invitations from the deal team will show up here. If you&apos;re expecting one, check your inbox or reach out to your DILS contact.
           </p>
         </div>
       ) : (

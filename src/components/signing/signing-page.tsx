@@ -59,14 +59,11 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   );
 
   async function handleSign() {
-    if (!signerName || !signerEmail || !signatureData) {
-      toast.error("Please fill in all fields and provide your signature");
-      return;
-    }
-    if (!allCustomFieldsFilled) {
-      toast.error("Please fill in all document fields");
-      return;
-    }
+    if (!signerName) return toast.error("Please enter your full name.");
+    if (!signerEmail) return toast.error("Please enter your email address.");
+    if (!signatureData) return toast.error("Please draw your signature before submitting.");
+    if (!allCustomFieldsFilled) return toast.error("Please fill in every document field marked required.");
+
     setSubmitting(true);
     try {
       await signDocument({
@@ -78,7 +75,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
       });
       setCompleted("signed");
     } catch (e: any) {
-      toast.error(e.message || "Failed to sign document");
+      toast.error(e?.message || "Couldn't submit the signature. Please try again or contact the deal team.");
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +87,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
       await rejectDocument({ token, rejectionReason: rejectionReason || undefined });
       setCompleted("rejected");
     } catch (e: any) {
-      toast.error(e.message || "Failed to submit response");
+      toast.error(e?.message || "Couldn't submit your response. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +164,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
             </div>
             <div className="h-10 w-px bg-dils-200" />
             <div className="min-w-0">
-              <h1 className="font-heading text-base font-semibold sm:text-lg">Document Signing Request</h1>
+              <h1 className="font-heading text-base font-semibold sm:text-lg">Sign your NDA</h1>
               <p className="truncate text-xs text-muted-foreground sm:text-sm">
                 {doc.tracking.asset.title} &middot; {doc.tracking.company.name}
               </p>

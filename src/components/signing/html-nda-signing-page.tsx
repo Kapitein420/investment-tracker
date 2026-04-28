@@ -77,10 +77,16 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
   }
 
   async function handleSubmit() {
-    if (!canSubmit() || !signature) {
-      toast.error("Please fill all required fields and sign");
-      return;
-    }
+    // Tell the investor exactly what's missing instead of a generic
+    // "fill the fields" toast — they're already squinting at a long form.
+    if (!name.trim()) return toast.error("Please enter your full name.");
+    if (!email.trim()) return toast.error("Please enter your email address.");
+    const missingField = investorFields.find(
+      (f) => f.required !== false && !values[f.key]?.trim()
+    );
+    if (missingField) return toast.error(`"${missingField.label}" is required.`);
+    if (!signature) return toast.error("Please draw your signature before submitting.");
+
     setSubmitting(true);
     try {
       await signHtmlNda({
@@ -91,10 +97,12 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
         signedByEmail: email,
       });
       setCompleted(true);
-      toast.success("NDA signed");
+      toast.success("NDA signed — thanks!");
       setTimeout(() => router.push("/portal"), 1500);
     } catch (e: any) {
-      toast.error(e.message || "Failed to sign");
+      // Surface the server's friendly error message verbatim (token-already-
+      // used, etc.); only fall back to generic copy for unknown errors.
+      toast.error(e?.message || "Couldn't submit the NDA. Please try again or contact the deal team.");
     } finally {
       setSubmitting(false);
     }
@@ -183,21 +191,28 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
             <div>
               <h2 className="text-sm font-semibold">Document fields</h2>
               <div className="mt-3 space-y-3">
-                {investorFields.map((f) => (
-                  <div key={f.key}>
-                    <Label htmlFor={`f-${f.key}`}>
-                      {f.label}
-                      {f.required !== false && <span className="text-destructive"> *</span>}
-                    </Label>
-                    <Input
-                      id={`f-${f.key}`}
-                      type={f.type ?? "text"}
-                      value={values[f.key] ?? ""}
-                      onChange={(e) => setValue(f.key, e.target.value)}
-                      placeholder={f.prefill ?? ""}
-                    />
-                  </div>
-                ))}
+                {investorFields.map((f) => {
+                  const isRequired = f.required !== false;
+                  return (
+                    <div key={f.key}>
+                      <Label htmlFor={`f-${f.key}`}>
+                        {f.label}
+                        {isRequired && (
+                          <span className="text-destructive" aria-hidden="true"> *</span>
+                        )}
+                      </Label>
+                      <Input
+                        id={`f-${f.key}`}
+                        type={f.type ?? "text"}
+                        value={values[f.key] ?? ""}
+                        onChange={(e) => setValue(f.key, e.target.value)}
+                        placeholder={f.prefill ?? ""}
+                        required={isRequired}
+                        aria-required={isRequired}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

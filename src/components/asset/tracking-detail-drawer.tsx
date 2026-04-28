@@ -122,7 +122,7 @@ export function TrackingDetailDrawer({
       <div className="fixed inset-0 bg-black/20" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="relative ml-auto flex h-full w-[480px] flex-col border-l bg-white shadow-xl">
+      <div className="relative ml-auto flex h-full w-full max-w-[480px] flex-col border-l bg-white shadow-xl sm:w-[480px]">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="font-semibold">

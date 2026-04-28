@@ -110,14 +110,11 @@ export function SigningModal({
   }, [open, completed, router, defaultName, defaultEmail]);
 
   async function handleSign() {
-    if (!signerName || !signerEmail || !signatureData) {
-      toast.error("Please fill in all fields and provide your signature");
-      return;
-    }
-    if (!allCustomFieldsFilled) {
-      toast.error("Please fill in all document fields");
-      return;
-    }
+    if (!signerName) return toast.error("Please enter your full name.");
+    if (!signerEmail) return toast.error("Please enter your email address.");
+    if (!signatureData) return toast.error("Please draw your signature before submitting.");
+    if (!allCustomFieldsFilled) return toast.error("Please fill in every document field marked required.");
+
     setSubmitting(true);
     try {
       await signDocument({
@@ -129,7 +126,7 @@ export function SigningModal({
       });
       setCompleted("signed");
     } catch (e: any) {
-      toast.error(e.message || "Failed to sign document");
+      toast.error(e?.message || "Couldn't submit the signature. Please try again or contact the deal team.");
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +138,7 @@ export function SigningModal({
       await rejectDocument({ token, rejectionReason: rejectionReason || undefined });
       setCompleted("rejected");
     } catch (e: any) {
-      toast.error(e.message || "Failed to submit response");
+      toast.error(e?.message || "Couldn't submit your response. Please try again.");
     } finally {
       setSubmitting(false);
     }
