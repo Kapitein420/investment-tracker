@@ -1,8 +1,17 @@
 import { getDocumentForSigning } from "@/actions/document-actions";
+import { getHtmlNdaForSigning } from "@/actions/html-nda-actions";
 import { SigningPage } from "@/components/signing/signing-page";
+import { HtmlNdaSigningPage } from "@/components/signing/html-nda-signing-page";
 import { Building2, AlertTriangle } from "lucide-react";
 
 export default async function SignPage({ params }: { params: { token: string } }) {
+  // Try HTML NDA first — its tokens look identical, but the document
+  // mimeType is text/html instead of application/pdf.
+  const html = await getHtmlNdaForSigning(params.token);
+  if (html) {
+    return <HtmlNdaSigningPage data={html} token={params.token} />;
+  }
+
   const result = await getDocumentForSigning(params.token);
 
   if (!result) {

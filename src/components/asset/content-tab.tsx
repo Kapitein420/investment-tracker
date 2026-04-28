@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
+import { enableHtmlNdaForAsset, disableHtmlNdaForAsset } from "@/actions/html-nda-actions";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
@@ -37,6 +38,12 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
 
   // Separate NDA, Teaser, and IM content
   const ndaContent = contents.find((c) => c.stageKey === "nda" && c.contentType === "PDF");
+  const htmlNda = contents.find(
+    (c) =>
+      c.stageKey === "nda" &&
+      c.contentType === "LANDING_PAGE" &&
+      (c.keyMetrics as any)?.isHtmlNda === true
+  );
   const teaserContent = contents.find((c) => c.stageKey === "teaser" && c.contentType === "LANDING_PAGE");
   const imContents = contents.filter((c) => c.stageKey === "im");
 
@@ -373,6 +380,66 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             <p className="text-xs text-muted-foreground/60">Upload an NDA that all invited companies will need to sign</p>
           </div>
         )}
+
+        {/* HTML NDA flow — alternative to the PDF flow above. Skips pdfjs / scanner / placement entirely. */}
+        <div className="mt-6 rounded-lg border bg-white p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-emerald-600" strokeWidth={2.5} />
+                <h4 className="text-sm font-semibold">HTML NDA (recommended)</h4>
+                {htmlNda && (
+                  <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Active</Badge>
+                )}
+              </div>
+              <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+                Skip the PDF / scanner / placement flow. Investors fill the fields and sign in-browser; you get a signed HTML record.
+              </p>
+            </div>
+            {editable && (
+              htmlNda ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={async () => {
+                    if (!confirm("Disable the HTML NDA flow for this asset? Existing signed copies stay.")) return;
+                    try {
+                      await disableHtmlNdaForAsset(assetId);
+                      toast.success("HTML NDA disabled");
+                      router.refresh();
+                    } catch (e: any) {
+                      toast.error(e.message || "Failed to disable");
+                    }
+                  }}
+                >
+                  Disable
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={async () => {
+                    try {
+                      await enableHtmlNdaForAsset(assetId);
+                      toast.success("HTML NDA enabled — invitees will sign the HTML version");
+                      router.refresh();
+                    } catch (e: any) {
+                      toast.error(e.message || "Failed to enable");
+                    }
+                  }}
+                >
+                  Enable HTML NDA
+                </Button>
+              )
+            )}
+          </div>
+          {htmlNda && (
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Default DILS NDA template is in use. New invitees automatically receive an HTML NDA link instead of a PDF.
+            </p>
+          )}
+        </div>
 
         {/* Project-level placeholder defaults */}
         <div className="mt-4">
