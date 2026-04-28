@@ -310,8 +310,16 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 size="sm"
                                 className="w-full sm:w-auto"
                                 onClick={() => {
-                                  setSigningDoc(doc);
-                                  setSigningToken(activeToken);
+                                  // HTML NDAs render as a full-page form (live
+                                  // preview, dynamic fields). The PDF flow uses
+                                  // the inline modal. Either way the signing
+                                  // token is the same.
+                                  if (doc.mimeType === "text/html") {
+                                    window.location.href = `/sign/${activeToken}`;
+                                  } else {
+                                    setSigningDoc(doc);
+                                    setSigningToken(activeToken);
+                                  }
                                 }}
                               >
                                 <Pen className="mr-1.5 h-3.5 w-3.5" />
@@ -323,9 +331,20 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
                                   <Check className="mr-1 h-3 w-3" />Signed
                                 </Badge>
-                                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleDownload(doc.id, ss.stage.key)}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs"
+                                  onClick={() => {
+                                    if (doc.mimeType === "text/html") {
+                                      window.location.href = `/portal/signed-nda/${doc.id}`;
+                                    } else {
+                                      handleDownload(doc.id, ss.stage.key);
+                                    }
+                                  }}
+                                >
                                   <Download className="mr-1 h-3 w-3" />
-                                  Download
+                                  {doc.mimeType === "text/html" ? "View" : "Download"}
                                 </Button>
                               </>
                             )}

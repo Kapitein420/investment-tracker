@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email";
 import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
+import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 
 function generatePassword(length = 12): string {
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -166,15 +167,34 @@ export async function sendInvestorInvite({
       select: { id: true },
     });
 
-    const masterNda = await prisma.assetContent.findFirst({
+    // Prefer HTML NDA when the admin has enabled it on this asset — it
+    // bypasses the entire PDF/pdfjs/scanner stack and avoids per-PDF
+    // template handling.
+    const masterHtmlNda = await prisma.assetContent.findFirst({
       where: {
         assetId,
-        contentType: "PDF",
+        contentType: "LANDING_PAGE",
         stageKey: { equals: "nda", mode: "insensitive" },
-        fileUrl: { not: null },
+        keyMetrics: { path: ["isHtmlNda"], equals: true },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    if (masterHtmlNda && ndaStage) {
+      await cloneHtmlNdaForInvestor(tracking.id, masterHtmlNda.id, user.id);
+    }
+
+    const masterNda = masterHtmlNda
+      ? null
+      : await prisma.assetContent.findFirst({
+          where: {
+            assetId,
+            contentType: "PDF",
+            stageKey: { equals: "nda", mode: "insensitive" },
+            fileUrl: { not: null },
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
     // Only clone if we have a master NDA AND we don't already have a PENDING
     // Document for this tracking+stage (idempotent: resending invites won't
