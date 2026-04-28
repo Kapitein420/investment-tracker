@@ -661,9 +661,11 @@ export async function signDocument(data: {
   }
 
   // ── Step 3: Atomic commit — claim token + persist signed state ──
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     // Atomic re-claim with usedAt=null guard. Throws P2025 if another
-    // request claimed the token between Step 1 and now.
+    // request claimed the token between Step 1 and now — caught below
+    // and rethrown as a friendly message.
     await tx.signingToken.update({
       where: { id: token.id, usedAt: null },
       data: { usedAt: new Date() },
@@ -725,7 +727,13 @@ export async function signDocument(data: {
         userId: document.uploadedByUserId,
       },
     });
-  });
+    });
+  } catch (e: any) {
+    if (e?.code === "P2025") {
+      throw new Error("This signing link has already been used. Please contact your broker for a new link.");
+    }
+    throw e;
+  }
 
   return { success: true };
 }
