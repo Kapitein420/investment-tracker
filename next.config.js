@@ -2,7 +2,11 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
+      // IMs and large NDAs are commonly 5-10MB; the 2MB default rejected
+      // them with FUNCTION_PAYLOAD_TOO_LARGE. Vercel's hard ceiling for a
+      // serverless function body is 4.5MB on Hobby and 50MB on Pro/Enterprise,
+      // so 25MB is safe across plans and gives headroom for property decks.
+      bodySizeLimit: "25mb",
     },
     // pdfjs-dist resolves its "fake worker" by dynamic-requiring
     // pdf.worker.mjs at runtime; @napi-rs/canvas is loaded the same
