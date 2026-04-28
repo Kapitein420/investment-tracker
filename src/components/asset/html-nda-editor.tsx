@@ -59,6 +59,26 @@ export function HtmlNdaEditor({ htmlNda }: Props) {
   }
 
   async function handleSave() {
+    // Reject obviously broken templates BEFORE round-tripping to the server.
+    // The template is rendered with dangerouslySetInnerHTML on the signing
+    // page, so we strip <script> blocks + inline event handlers defensively
+    // even though the editor is admin-only — defense-in-depth against an
+    // admin pasting third-party markup that contains tracking scripts.
+    const trimmed = html.trim();
+    if (!trimmed) {
+      toast.error("Template HTML can't be empty.");
+      return;
+    }
+    if (trimmed.length < 50) {
+      toast.error("Template looks too short to be a valid NDA. Double-check before saving.");
+      return;
+    }
+    const sanitized = trimmed
+      .replace(/<script\b[\s\S]*?<\/script\s*>/gi, "")
+      .replace(/<iframe\b[\s\S]*?<\/iframe\s*>/gi, "")
+      .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+      .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
+
     setSaving(true);
     try {
       // Drop empty defaults so the investor can fill them instead.
@@ -73,11 +93,16 @@ export function HtmlNdaEditor({ htmlNda }: Props) {
       });
 
       await updateHtmlNdaTemplate(htmlNda.id, {
-        html,
+        html: sanitized,
         adminFieldDefaults: cleanDefaults,
         fields: syncedFields,
       });
-      toast.success("Template saved");
+      const stripped = trimmed.length - sanitized.length;
+      if (stripped > 0) {
+        toast.success(`Template saved (stripped ${stripped} chars of unsafe markup).`);
+      } else {
+        toast.success("Template saved");
+      }
       setOpen(false);
       router.refresh();
     } catch (e: any) {
