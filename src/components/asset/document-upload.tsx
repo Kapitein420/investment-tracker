@@ -279,7 +279,20 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
 
                 {doc.status === "SIGNED" && (
                   <div className="rounded bg-logistics-soft px-2 py-1.5 text-xs text-status-success">
-                    Signed by {doc.signedByName} ({doc.signedByEmail}) on {formatDate(doc.signedAt)}
+                    <div>
+                      Signed by {doc.signedByName} ({doc.signedByEmail}) on {formatDate(doc.signedAt)}
+                    </div>
+                    {doc.mimeType === "text/html" && (
+                      <a
+                        href={`/portal/signed-nda/${doc.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View signed NDA
+                      </a>
+                    )}
                   </div>
                 )}
 

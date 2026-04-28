@@ -16,6 +16,7 @@ import {
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
 import { enableHtmlNdaForAsset, disableHtmlNdaForAsset } from "@/actions/html-nda-actions";
+import { HtmlNdaEditor } from "@/components/asset/html-nda-editor";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
@@ -398,23 +399,26 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             </div>
             {editable && (
               htmlNda ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={async () => {
-                    if (!confirm("Disable the HTML NDA flow for this asset? Existing signed copies stay.")) return;
-                    try {
-                      await disableHtmlNdaForAsset(assetId);
-                      toast.success("HTML NDA disabled");
-                      router.refresh();
-                    } catch (e: any) {
-                      toast.error(e.message || "Failed to disable");
-                    }
-                  }}
-                >
-                  Disable
-                </Button>
+                <div className="flex items-center gap-2">
+                  <HtmlNdaEditor htmlNda={htmlNda} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={async () => {
+                      if (!confirm("Disable the HTML NDA flow for this asset? Existing signed copies stay.")) return;
+                      try {
+                        await disableHtmlNdaForAsset(assetId);
+                        toast.success("HTML NDA disabled");
+                        router.refresh();
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to disable");
+                      }
+                    }}
+                  >
+                    Disable
+                  </Button>
+                </div>
               ) : (
                 <Button
                   size="sm"
