@@ -38,7 +38,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(null);
-  const [view, setView] = useState<"table" | "overview" | "content">("table");
+  const [view, setView] = useState<"table" | "overview" | "content">("overview");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const editable = canEdit(currentUser.role);

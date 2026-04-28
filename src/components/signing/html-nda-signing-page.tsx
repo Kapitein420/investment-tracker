@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { signHtmlNda } from "@/actions/html-nda-actions";
-import { renderTemplate } from "@/lib/html-nda-template";
+import { renderTemplate, injectSignature } from "@/lib/html-nda-template";
 import type { TemplateField } from "@/lib/html-nda-template";
 import { toast } from "sonner";
 import { Building2, Check, FileText } from "lucide-react";
@@ -55,14 +55,13 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
       merged.NAME = parts[0] ?? "";
       merged.SURNAME = parts.slice(1).join(" ");
     }
-    let html = renderTemplate(data.html, merged);
-    html = html.replace(
-      /\{\{SIGNATURE_BLOCK\}\}/g,
+    const html = renderTemplate(data.html, merged);
+    return injectSignature(
+      html,
       signature
         ? `<img src="${signature}" alt="signature" style="max-width:240px;max-height:90px;" />`
         : `<span style="color:#999;font-style:italic;">[ signature pending ]</span>`
     );
-    return html;
   }, [data.html, data.adminFieldDefaults, values, name, signature]);
 
   function setValue(key: string, val: string) {

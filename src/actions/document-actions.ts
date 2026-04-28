@@ -194,6 +194,62 @@ export async function deleteDocument(
     // via onDelete in the schema; if not, remove tokens explicitly first.
     await tx.signingToken.deleteMany({ where: { documentId: doc.id } });
     await tx.document.delete({ where: { id: doc.id } });
+
+    // Deleting a SIGNED doc puts the investor back into the signing flow:
+    //   - stage status reverts to NOT_STARTED (green check → question mark)
+    //   - approval cleared (so IM re-locks)
+    //   - subsequent stages that were unlocked by this approval also revert
+    // Mostly used for re-testing, but also valid if the admin notices a
+    // mistake on the signed copy and wants the investor to redo it.
+    if (doc.status === "SIGNED") {
+      const ss = await tx.stageStatus.findUnique({
+        where: { trackingId_stageId: { trackingId: doc.trackingId, stageId: doc.stageId } },
+        include: { stage: { select: { key: true } } },
+      });
+      if (ss) {
+        await tx.stageStatus.update({
+          where: { id: ss.id },
+          data: {
+            status: "NOT_STARTED",
+            completedAt: null,
+            approvedAt: null,
+            approvedByUserId: null,
+            updatedByUserId: user.id,
+          },
+        });
+        await tx.stageHistory.create({
+          data: {
+            trackingId: doc.trackingId,
+            stageId: doc.stageId,
+            fieldName: "status",
+            oldValue: "COMPLETED",
+            newValue: "NOT_STARTED",
+            changedByUserId: user.id,
+          },
+        });
+
+        // If we deleted a signed NDA, lock IM back down by reverting it
+        // from IN_PROGRESS back to NOT_STARTED.
+        if (ss.stage.key === "nda") {
+          const imStage = await tx.pipelineStage.findFirst({
+            where: { key: "im", isActive: true },
+            select: { id: true },
+          });
+          if (imStage) {
+            const imSs = await tx.stageStatus.findUnique({
+              where: { trackingId_stageId: { trackingId: doc.trackingId, stageId: imStage.id } },
+            });
+            if (imSs && imSs.status === "IN_PROGRESS") {
+              await tx.stageStatus.update({
+                where: { id: imSs.id },
+                data: { status: "NOT_STARTED", updatedByUserId: user.id },
+              });
+            }
+          }
+        }
+      }
+    }
+
     await tx.activityLog.create({
       data: {
         entityType: "Document",
@@ -203,6 +259,7 @@ export async function deleteDocument(
           fileName: doc.fileName,
           wasSigned: doc.status === "SIGNED",
           force: !!opts.force,
+          stageReset: doc.status === "SIGNED",
         },
         userId: user.id,
       },
