@@ -43,7 +43,8 @@ export async function GET(request: Request) {
       NEXTAUTH_SECRET: Boolean(process.env.NEXTAUTH_SECRET),
       NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
       SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      RESEND_API_KEY: Boolean(process.env.RESEND_API_KEY),
+      MAILGUN_API_KEY: Boolean(process.env.MAILGUN_API_KEY),
+      MAILGUN_DOMAIN: Boolean(process.env.MAILGUN_DOMAIN),
       VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL ?? null,
     },
   };
