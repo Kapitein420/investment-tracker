@@ -279,13 +279,12 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
       }
     }
 
-    if (process.env.NODE_ENV !== "production" || process.env.PDF_SCAN_DEBUG) {
-      console.log(
-        `[scanPlaceholders] page ${pageNum}: ${items.length} items, ${lines.length} lines, ` +
-          `medianSize=${medianSize.toFixed(1)}, tolerance=${lineTolerance.toFixed(1)}, ` +
-          `matches=${Object.keys(result).length}`
-      );
-    }
+    const sample = sorted.slice(0, 8).map((it: any) => (it.str || "").trim()).filter(Boolean).join(" | ");
+    console.log(
+      `[scanPlaceholders] page ${pageNum}: ${items.length} items, ${lines.length} lines, ` +
+        `medianSize=${medianSize.toFixed(1)}, tolerance=${lineTolerance.toFixed(1)}, ` +
+        `matches so far=${Object.keys(result).length}. First items: "${sample.slice(0, 200)}"`
+    );
   }
 
   return result;

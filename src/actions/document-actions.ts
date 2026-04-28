@@ -383,10 +383,13 @@ export async function rescanAssetPlaceholders(
 
   for (const c of contents) {
     if (!c.fileUrl) continue;
+    console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: downloading "${c.fileUrl}"`);
     try {
       const pdfBytes = await downloadFile(c.fileUrl);
+      console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: downloaded ${pdfBytes.length} bytes, scanning...`);
       const map = await scanPlaceholders(Buffer.from(pdfBytes));
       const count = Object.keys(map).length;
+      console.log(`[rescanAssetPlaceholders] AssetContent ${c.id}: found ${count} placeholders: ${Object.keys(map).join(", ")}`);
       totalKeys += count;
       masterContentScanned += 1;
       await prisma.assetContent.update({
