@@ -172,17 +172,32 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       formData.append("file", file);
       const fileUrl = await uploadContentFile(formData);
 
-      await createAssetContent({
-        assetId,
-        stageKey,
-        contentType: "PDF",
-        title,
-        fileUrl,
-        fileName: file.name,
-        isPublished: true,
-      });
+      // Master NDA is one-per-asset — replace in place instead of creating
+      // a duplicate row that would be hidden behind the existing one.
+      const existingMaster =
+        stageKey === "nda" ? ndaContent : null;
 
-      toast.success(`${stageKey.toUpperCase()} document uploaded`);
+      if (existingMaster) {
+        await updateAssetContent(existingMaster.id, {
+          fileUrl,
+          fileName: file.name,
+          title,
+          isPublished: true,
+        });
+        toast.success(`${stageKey.toUpperCase()} document replaced`);
+      } else {
+        await createAssetContent({
+          assetId,
+          stageKey,
+          contentType: "PDF",
+          title,
+          fileUrl,
+          fileName: file.name,
+          isPublished: true,
+        });
+        toast.success(`${stageKey.toUpperCase()} document uploaded`);
+      }
+
       setAddDialogOpen(false);
       router.refresh();
     } catch (e: any) {
