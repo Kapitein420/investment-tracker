@@ -101,8 +101,8 @@ export function PrintableSignedNda({ data }: Props) {
             </div>
             <div>
               <p className="text-sm font-semibold text-emerald-900">NDA signed — what's next</p>
-              <p className="mt-1 text-xs text-emerald-800">
-                Your broker will be in touch shortly with the next step. The Information Memorandum unlocks once the NDA has been approved on our side. You can download a copy of your signed NDA above for your records.
+              <p className="mt-1 text-xs leading-relaxed text-emerald-800">
+                The deal team will be in touch shortly with the next step. The Information Memorandum unlocks once the NDA is approved on our side. You can download a copy above for your records.
               </p>
             </div>
           </div>
