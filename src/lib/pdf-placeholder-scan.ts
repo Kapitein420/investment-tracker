@@ -3,6 +3,14 @@
 // page (`ReferenceError: DOMMatrix is not defined`) the moment any code
 // path touches the scanner. We install a minimal polyfill, then dynamic-
 // import pdfjs so the polyfill is in place before the module evaluates.
+//
+// @napi-rs/canvas — referenced here only so Vercel's file tracer ships the
+// package into the serverless function bundle. pdfjs's own polyfill
+// dynamic-requires it at runtime; without a static reference Vercel skips
+// the package entirely and pdfjs crashes setting up its fake worker.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const _napiCanvasForTracer = (() => { try { return require.resolve("@napi-rs/canvas"); } catch { return null; } })();
+void _napiCanvasForTracer;
 
 export interface PlaceholderLocation {
   page: number;
