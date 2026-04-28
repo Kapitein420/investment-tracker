@@ -7,7 +7,9 @@ import { requireRole, requireUser } from "@/lib/permissions";
 import {
   DEFAULT_NDA_TEMPLATE,
   extractTokens,
+  injectSignature,
   renderTemplate,
+  RESERVED_TOKENS,
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
@@ -226,7 +228,14 @@ export async function getHtmlNdaForSigning(token: string) {
   if (!meta || !template.htmlContent) return null;
 
   const referencedTokens = extractTokens(template.htmlContent);
-  const fields = meta.fields.filter((f) => referencedTokens.includes(f.key));
+  // Build the field list directly from what the HTML actually references,
+  // so admins who paste text with tokens we have no field config for still
+  // get inputs for those tokens. RESERVED_TOKENS (SIGNATURE / DATE) are
+  // auto-filled and never shown.
+  const knownByKey = new Map(meta.fields.map((f) => [f.key, f]));
+  const fields: TemplateField[] = referencedTokens
+    .filter((t) => !RESERVED_TOKENS.has(t))
+    .map((key) => knownByKey.get(key) ?? { key, label: humanize(key) });
 
   return {
     documentId: doc.id,
@@ -236,6 +245,14 @@ export async function getHtmlNdaForSigning(token: string) {
     fields,
     adminFieldDefaults: meta.adminFieldDefaults ?? {},
   };
+}
+
+function humanize(key: string) {
+  return key
+    .toLowerCase()
+    .split("_")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
 }
 
 /**
@@ -286,8 +303,8 @@ export async function signHtmlNda(data: {
   if (data.values.NAME) merged.NAME = data.values.NAME;
   if (data.values.SURNAME) merged.SURNAME = data.values.SURNAME;
 
-  let signedHtml = renderTemplate(template.htmlContent, merged);
-  signedHtml = signedHtml.replace(/\{\{SIGNATURE_BLOCK\}\}/g, signatureImg);
+  const renderedHtml = renderTemplate(template.htmlContent, merged);
+  const signedHtml = injectSignature(renderedHtml, signatureImg);
 
   await prisma.$transaction(async (tx) => {
     await tx.signingToken.update({
