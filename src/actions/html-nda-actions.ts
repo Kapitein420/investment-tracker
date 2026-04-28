@@ -353,11 +353,17 @@ export async function signHtmlNda(data: {
   const renderedHtml = renderTemplate(template.htmlContent, merged);
   const signedHtml = injectSignature(renderedHtml, signatureImg);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.signingToken.update({
-      where: { id: signingToken.id, usedAt: null },
-      data: { usedAt: new Date() },
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Atomic claim — the where clause includes usedAt:null, so if a
+      // concurrent request claimed the token between our pre-check above
+      // and now, this update throws P2025 and the whole transaction rolls
+      // back. We catch P2025 below and surface a friendly message instead
+      // of leaking a Prisma error.
+      await tx.signingToken.update({
+        where: { id: signingToken.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
 
     await tx.document.update({
       where: { id: doc.id },
@@ -404,7 +410,16 @@ export async function signHtmlNda(data: {
         userId: doc.uploadedByUserId,
       },
     });
-  });
+    });
+  } catch (e: any) {
+    // P2025: "Record to update not found" — happens when the atomic
+    // usedAt:null guard found nothing. The token was claimed between
+    // our pre-check and the transaction.
+    if (e?.code === "P2025") {
+      throw new Error("This signing link has already been used. Please contact your broker for a new link.");
+    }
+    throw e;
+  }
 
   return { success: true };
 }
