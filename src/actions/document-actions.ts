@@ -20,6 +20,14 @@ const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "date", page: -1, position: "bottom-right" },
 ];
 
+// HTML NDA Documents store fileUrl="html:<assetContentId>" instead of a real
+// Supabase path. Every PDF-flavoured code path here has to skip those rows or
+// it crashes Supabase storage with "Object not found".
+const HTML_NDA_FILEURL_PREFIX = "html:";
+function isHtmlNdaSentinel(path: string | null | undefined): boolean {
+  return !!path && path.startsWith(HTML_NDA_FILEURL_PREFIX);
+}
+
 export async function uploadDocument(formData: FormData) {
   const user = await requireRole("EDITOR");
 
@@ -177,9 +185,10 @@ export async function deleteDocument(
     );
   }
 
-  // Storage cleanup is best-effort; DB delete is authoritative
+  // Storage cleanup is best-effort; DB delete is authoritative.
+  // Skip http URLs (already external) and the HTML NDA sentinel (no real file).
   const filesToDelete = [doc.fileUrl, doc.signedFileUrl].filter(
-    (u): u is string => !!u && !u.startsWith("http")
+    (u): u is string => !!u && !u.startsWith("http") && !isHtmlNdaSentinel(u)
   );
   for (const path of filesToDelete) {
     try {
@@ -311,6 +320,12 @@ export async function getSignedDocumentUrl(documentId: string) {
     throw new Error("Forbidden");
   }
 
+  // HTML NDAs are rendered server-side at /portal/signed-nda/[id]; they don't
+  // have a downloadable file. Refuse rather than 500ing inside Supabase.
+  if (doc.mimeType === "text/html" || isHtmlNdaSentinel(doc.fileUrl)) {
+    throw new Error("HTML NDA documents are viewed via the portal — no download URL.");
+  }
+
   // Prefer signed version if available
   const path = doc.signedFileUrl ?? doc.fileUrl;
   return getSignedUrl(path, 7200);
@@ -387,8 +402,12 @@ export async function rescanDocumentPlaceholders(
 
   const doc = await prisma.document.findUniqueOrThrow({
     where: { id: documentId },
-    select: { id: true, fileUrl: true },
+    select: { id: true, fileUrl: true, mimeType: true },
   });
+
+  if (doc.mimeType === "text/html" || isHtmlNdaSentinel(doc.fileUrl)) {
+    throw new Error("Cannot rescan an HTML NDA — placeholders are managed in the template editor.");
+  }
 
   const pdfBytes = await downloadFile(doc.fileUrl);
   const placeholderMap = await scanPlaceholders(Buffer.from(pdfBytes));
@@ -429,6 +448,9 @@ export async function rescanAssetPlaceholders(
         tracking: { assetId },
         status: { in: ["PENDING", "SIGNED"] },
         placementMode: { in: ["GRID", "PLACEHOLDER"] },
+        // HTML NDA Documents share the table but never need a placeholder
+        // re-scan — their templating lives in AssetContent.
+        mimeType: "application/pdf",
       },
       select: { id: true, fileUrl: true },
       take: 50,
@@ -502,6 +524,14 @@ export async function getDocumentForSigning(token: string) {
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
 
+  // HTML NDA tokens are routed via getHtmlNdaForSigning(); calling
+  // getSignedUrl on an "html:<id>" sentinel would 500 inside Supabase.
+  // Returning null lets /sign/[token] fall through to the HTML branch.
+  const docMime = signingToken.document.mimeType;
+  if (docMime === "text/html" || isHtmlNdaSentinel(signingToken.document.fileUrl)) {
+    return null;
+  }
+
   // Generate signed URL — if it fails (file missing, env vars), still return doc info
   let signedFileUrl: string;
   try {
@@ -550,6 +580,13 @@ export async function signDocument(data: {
   if (token.usedAt !== null) throw new Error("Token already used");
 
   const document = token.document;
+
+  // HTML NDAs are signed via signHtmlNda(). If a token for an HTML NDA ends
+  // up here it's almost certainly a routing bug, but bail with a clear
+  // message rather than crashing inside Supabase storage.
+  if (document.mimeType === "text/html" || isHtmlNdaSentinel(document.fileUrl)) {
+    throw new Error("This NDA uses the HTML signing flow — wrong signing endpoint.");
+  }
 
   // ── Step 2: Generate + upload signed PDF BEFORE committing ──
   // If PDF generation fails the investor sees a clear error and can
@@ -813,6 +850,10 @@ export async function getDocumentForPlacement(documentId: string) {
     },
   });
   if (!doc) throw new Error("Document not found");
+
+  if (isHtmlNdaSentinel(doc.fileUrl)) {
+    throw new Error("HTML NDA documents don't have a placement editor — edit the template instead.");
+  }
 
   let signedUrl = "";
   try {

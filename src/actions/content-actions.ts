@@ -129,6 +129,21 @@ export async function deleteAssetContent(id: string) {
     where: { id },
   });
 
+  // HTML NDA templates are referenced by per-investor Documents via the
+  // sentinel fileUrl "html:<thisId>". Deleting the template would orphan
+  // every signed copy — the signed-NDA viewer re-reads this row to verify
+  // the document. Refuse if any signed/pending NDA still points here.
+  const referencingDocs = await prisma.document.count({
+    where: { fileUrl: `html:${existing.id}` },
+  });
+  if (referencingDocs > 0) {
+    throw new Error(
+      `Can't delete — ${referencingDocs} investor NDA${
+        referencingDocs === 1 ? "" : "s"
+      } reference${referencingDocs === 1 ? "s" : ""} this template.`
+    );
+  }
+
   // Delete associated files from Supabase Storage
   const pathsToDelete: string[] = [];
   if (existing.fileUrl && !existing.fileUrl.startsWith("http")) {

@@ -112,11 +112,33 @@ export async function updateHtmlNdaTemplate(
   return updated;
 }
 
-/** Disable the HTML NDA on an asset (deletes the master template row). */
+/**
+ * Disable the HTML NDA on an asset (deletes the master template row).
+ *
+ * Refuses if any per-investor HTML NDA Document already references this
+ * template — those Documents store the rendered/signed HTML inside their
+ * fieldConfig, but their fileUrl sentinel points back here, and the
+ * /portal/signed-nda/[id] view re-fetches this row to verify metadata.
+ * Deleting the template would orphan the signed copies and break the
+ * signed-NDA viewer for every investor who already signed.
+ */
 export async function disableHtmlNdaForAsset(assetId: string) {
   await requireRole("EDITOR");
   const existing = await findHtmlNda(assetId);
   if (!existing) return;
+
+  const sentinel = `${HTML_NDA_FILEURL_PREFIX}${existing.id}`;
+  const referencingDocs = await prisma.document.count({
+    where: { fileUrl: sentinel },
+  });
+  if (referencingDocs > 0) {
+    throw new Error(
+      `Can't disable — ${referencingDocs} investor${
+        referencingDocs === 1 ? " has" : "s have"
+      } already received this NDA. Disable HTML NDA only on assets with no outstanding signing tokens.`
+    );
+  }
+
   await prisma.assetContent.delete({ where: { id: existing.id } });
   revalidatePath(`/assets/${assetId}`);
 }

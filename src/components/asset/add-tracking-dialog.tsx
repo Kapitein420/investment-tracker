@@ -60,7 +60,14 @@ export function AddTrackingDialog({
   });
 
   async function maybeSendInvite(companyId: string, email: string | null | undefined) {
-    if (!sendInvite || !email) return;
+    if (!sendInvite) return;
+    // Tell the admin clearly that no email goes out — silently skipping was
+    // confusing ("I checked the box, where's the email?"). They can edit the
+    // company afterwards to add an address and re-invite.
+    if (!email) {
+      toast.warning("No email on file for this company — invite skipped. Add an email and re-invite from the Invites page.");
+      return;
+    }
     try {
       await sendInvestorInvite({ companyId, assetId, email });
       toast.success("Invite email sent");
