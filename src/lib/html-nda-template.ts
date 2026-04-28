@@ -113,11 +113,17 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
 `.trim(),
 };
 
-const TOKEN_REGEX = /\{\{([A-Z_][A-Z0-9_]*)\}\}/g;
+// Accepts both {{TOKEN}} and {token}. Case-insensitive — keys are normalised
+// to UPPERCASE so the same field works regardless of how the lawyer typed it
+// in Word ({surname}, {SURNAME}, {{Surname}} all resolve to SURNAME).
+const TOKEN_REGEX = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}|\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
 
-/** Substitute every {{TOKEN}} in the template with the matching value. */
+/** Substitute every {{TOKEN}} or {TOKEN} in the template with the matching value. */
 export function renderTemplate(html: string, values: Record<string, string>): string {
-  return html.replace(TOKEN_REGEX, (full, key) => {
+  return html.replace(TOKEN_REGEX, (full, double, single) => {
+    const raw = (double ?? single) as string | undefined;
+    if (!raw) return full;
+    const key = raw.toUpperCase();
     const v = values[key];
     return v == null ? full : escapeHtml(v);
   });
@@ -132,13 +138,29 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Pull every {{TOKEN}} the template references — used to verify field coverage. */
+/** Pull every {{TOKEN}} / {TOKEN} the template references — used to drive field coverage. */
 export function extractTokens(html: string): string[] {
   const set = new Set<string>();
   let m;
   TOKEN_REGEX.lastIndex = 0;
   while ((m = TOKEN_REGEX.exec(html)) !== null) {
-    if (m[1]) set.add(m[1]);
+    const raw = m[1] ?? m[2];
+    if (raw) set.add(raw.toUpperCase());
   }
   return Array.from(set).sort();
+}
+
+/** Tokens that the system fills automatically — admin/investor never see them as inputs. */
+export const RESERVED_TOKENS = new Set(["SIGNATURE", "SIGNATURE_BLOCK", "DATE"]);
+
+/**
+ * After renderTemplate, swap any signature placeholder for the actual image.
+ * Accepts {SIGNATURE}, {{SIGNATURE}}, {SIGNATURE_BLOCK}, {{SIGNATURE_BLOCK}}
+ * (case-insensitive) so it works no matter how the lawyer typed it.
+ */
+export function injectSignature(html: string, signatureImgHtml: string): string {
+  return html.replace(
+    /\{\{(signature(?:_block)?)\}\}|\{(signature(?:_block)?)\}/gi,
+    signatureImgHtml
+  );
 }

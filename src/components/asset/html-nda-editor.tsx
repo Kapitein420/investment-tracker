@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { updateHtmlNdaTemplate } from "@/actions/html-nda-actions";
-import { extractTokens, type TemplateField } from "@/lib/html-nda-template";
+import { extractTokens, RESERVED_TOKENS, type TemplateField } from "@/lib/html-nda-template";
 import { Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +30,7 @@ export function HtmlNdaEditor({ htmlNda }: Props) {
 
   // Tokens that the current HTML actually references — keeps the form
   // honest if the admin renames something inside the template body.
-  const referencedTokens = extractTokens(html).filter((t) => t !== "SIGNATURE_BLOCK" && t !== "DATE");
+  const referencedTokens = extractTokens(html).filter((t) => !RESERVED_TOKENS.has(t));
   const fieldsByKey = new Map(fields.map((f) => [f.key, f]));
   const allKeys = Array.from(new Set([...referencedTokens, ...fields.map((f) => f.key)])).sort();
 
