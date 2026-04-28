@@ -237,13 +237,23 @@ export async function getHtmlNdaForSigning(token: string) {
     .filter((t) => !RESERVED_TOKENS.has(t))
     .map((key) => knownByKey.get(key) ?? { key, label: humanize(key) });
 
+  // Merge per-asset project defaults (BUILDING_NAME, CITY, …) under the
+  // template-level admin defaults — template wins if both define the same
+  // key. Both are hidden from the investor and auto-fill at render time.
+  const assetDefaults =
+    (doc.tracking.asset.fieldDefaults as Record<string, string> | null) ?? {};
+  const adminFieldDefaults: Record<string, string> = {
+    ...assetDefaults,
+    ...(meta.adminFieldDefaults ?? {}),
+  };
+
   return {
     documentId: doc.id,
     assetTitle: doc.tracking.asset.title,
     companyName: doc.tracking.company.name,
     html: template.htmlContent,
     fields,
-    adminFieldDefaults: meta.adminFieldDefaults ?? {},
+    adminFieldDefaults,
   };
 }
 
@@ -290,10 +300,25 @@ export async function signHtmlNda(data: {
   const meta = parseMeta(template.keyMetrics);
   if (!meta) throw new Error("Template metadata missing");
 
-  // Merge: investor values < admin defaults < system identity / date.
+  // Pull per-asset project defaults (BUILDING_NAME / CITY / VENDOR …) so
+  // they auto-fill in the rendered NDA without the admin having to repeat
+  // them in every template.
+  const tracking = await prisma.assetCompanyTracking.findUnique({
+    where: { id: doc.trackingId },
+    select: { asset: { select: { fieldDefaults: true } } },
+  });
+  const assetDefaults =
+    (tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {};
+
+  // Merge order (later overrides earlier):
+  //   1. investor inputs (lowest)
+  //   2. per-asset project defaults
+  //   3. template-specific admin defaults
+  //   4. system identity / date (highest)
   const signatureImg = `<img src="${data.signatureData}" alt="signature" style="max-width:240px;max-height:90px;" />`;
   const merged: Record<string, string> = {
     ...data.values,
+    ...assetDefaults,
     ...(meta.adminFieldDefaults ?? {}),
     NAME: data.signedByName.split(" ")[0] || data.signedByName,
     SURNAME: data.signedByName.split(" ").slice(1).join(" ") || data.values.SURNAME || "",

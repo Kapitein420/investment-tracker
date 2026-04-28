@@ -187,6 +187,8 @@ export async function getSignedContentUrl(storagePath: string) {
   if (!content && !doc) throw new Error("Forbidden: file not found");
 
   // INVESTOR check: must have access to the asset
+  let investorTrackingId: string | null = null;
+  let investorContentStageKey: string | null = null;
   if (user.role === "INVESTOR") {
     if (!user.companyId) throw new Error("Forbidden");
     const assetId = content?.assetId ?? doc?.tracking.assetId;
@@ -194,16 +196,94 @@ export async function getSignedContentUrl(storagePath: string) {
 
     const tracking = await prisma.assetCompanyTracking.findFirst({
       where: { assetId, companyId: user.companyId },
+      select: { id: true },
     });
     if (!tracking) throw new Error("Forbidden: no access to this asset");
+    investorTrackingId = tracking.id;
 
     // If it's a Document, also check the document belongs to their company
     if (doc && doc.tracking.companyId !== user.companyId) {
       throw new Error("Forbidden");
     }
+
+    // For AssetContent (IM, NDA template, etc.), capture the stage key so
+    // we can log a per-tracking access event below.
+    if (content) {
+      const fullContent = await prisma.assetContent.findUnique({
+        where: { id: content.id },
+        select: { stageKey: true },
+      });
+      investorContentStageKey = fullContent?.stageKey ?? null;
+    }
+  }
+
+  // Log the access — surfaces "first viewed at" timestamps in the admin
+  // overview ("Anna opened the IM at 14:02"). Best-effort: logging failure
+  // never blocks the URL from being returned.
+  if (
+    user.role === "INVESTOR" &&
+    investorTrackingId &&
+    content &&
+    investorContentStageKey
+  ) {
+    try {
+      await prisma.activityLog.create({
+        data: {
+          entityType: "AssetContent",
+          entityId: content.id,
+          action: "CONTENT_ACCESSED",
+          metadata: {
+            trackingId: investorTrackingId,
+            stageKey: investorContentStageKey,
+            storagePath,
+          },
+          userId: user.id,
+        },
+      });
+    } catch (e) {
+      console.error("[getSignedContentUrl] access log failed:", e);
+    }
   }
 
   return getSignedUrl(storagePath, 7200);
+}
+
+/**
+ * For each tracking on an asset, return the earliest CONTENT_ACCESSED
+ * event per stage. Drives the "first viewed" timestamp shown in the admin
+ * overview so brokers can see who has actually opened the IM.
+ */
+export async function getContentAccessByTracking(
+  assetId: string,
+  stageKey: string
+): Promise<Record<string, Date>> {
+  await requireUser();
+
+  const trackings = await prisma.assetCompanyTracking.findMany({
+    where: { assetId },
+    select: { id: true },
+  });
+  if (trackings.length === 0) return {};
+  const trackingIds = trackings.map((t) => t.id);
+
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      action: "CONTENT_ACCESSED",
+      entityType: "AssetContent",
+    },
+    select: { metadata: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const earliest: Record<string, Date> = {};
+  for (const log of logs) {
+    const m = log.metadata as any;
+    if (!m) continue;
+    if (m.stageKey !== stageKey) continue;
+    if (!trackingIds.includes(m.trackingId)) continue;
+    if (!earliest[m.trackingId]) earliest[m.trackingId] = log.createdAt;
+  }
+  return earliest;
 }
 
 export async function upsertTeaserContent(data: {

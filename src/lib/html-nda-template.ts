@@ -150,13 +150,13 @@ export function extractTokens(html: string): string[] {
   return Array.from(set).sort();
 }
 
-/** Tokens that the system fills automatically — admin/investor never see them as inputs. */
+/** Tokens the system fills automatically — never shown to admin or investor as inputs. */
 export const RESERVED_TOKENS = new Set(["SIGNATURE", "SIGNATURE_BLOCK", "DATE"]);
 
 /**
  * After renderTemplate, swap any signature placeholder for the actual image.
  * Accepts {SIGNATURE}, {{SIGNATURE}}, {SIGNATURE_BLOCK}, {{SIGNATURE_BLOCK}}
- * (case-insensitive) so it works no matter how the lawyer typed it.
+ * (case-insensitive) so it works whatever the lawyer typed.
  */
 export function injectSignature(html: string, signatureImgHtml: string): string {
   return html.replace(

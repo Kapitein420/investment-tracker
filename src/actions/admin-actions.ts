@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
 import {
   createUserSchema,
@@ -143,37 +144,23 @@ export async function resetUserPassword(userId: string) {
   try {
     await sendEmail({
       to: user.email,
-      subject: "Your password has been reset — Investment Portal",
-      html: `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #b8860b, #daa520); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 600;">Password Reset</h1>
-          </div>
-          <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <h2 style="color: #1a1a1a; margin-top: 0;">Your password has been reset</h2>
-            <p style="color: #4b5563; line-height: 1.6;">
-              An administrator has reset your password. Use the new credentials below to log in.
-            </p>
-            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 24px 0;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="color: #6b7280; padding: 6px 0; font-size: 14px; width: 80px;">Email</td>
-                  <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600;">${user.email}</td>
-                </tr>
-                <tr>
-                  <td style="color: #6b7280; padding: 6px 0; font-size: 14px;">Password</td>
-                  <td style="color: #1a1a1a; padding: 6px 0; font-size: 14px; font-weight: 600; font-family: monospace; letter-spacing: 1px;">${newPassword}</td>
-                </tr>
-              </table>
-            </div>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${getAppUrl()}/login" style="background: linear-gradient(135deg, #b8860b, #daa520); color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
-                Log in to Portal
-              </a>
-            </div>
-          </div>
-        </div>
-      `,
+      subject: "Your password has been reset — DILS Investment Portal",
+      html: renderEmail({
+        heading: "Your password has been reset",
+        bodyHtml: `
+          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+            An administrator has reset your password. Use the new credentials below to log in.
+          </p>
+          ${renderCredentialsTable([
+            { label: "Email", value: user.email, mono: true },
+            { label: "Password", value: newPassword, mono: true },
+          ])}
+          ${renderCta("Log in to portal", `${getAppUrl()}/login`)}
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+            For your security, change this password after logging in. If you didn't request this reset, contact the deal team immediately.
+          </p>
+        `,
+      }),
     });
   } catch (e) {
     console.error("Password reset email failed:", e);

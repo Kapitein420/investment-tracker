@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Company } from "@prisma/client";
 import { createTracking } from "@/actions/tracking-actions";
 import { createCompany } from "@/actions/asset-actions";
+import { sendInvestorInvite } from "@/actions/invite-actions";
 import { toast } from "sonner";
 
 const newCompanySchema = z.object({
@@ -40,9 +41,12 @@ export function AddTrackingDialog({
   const [tab, setTab] = useState("existing");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [relationshipType, setRelationshipType] = useState("Investor");
+  const [sendInvite, setSendInvite] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const availableCompanies = companies.filter((c) => !existingCompanyIds.includes(c.id));
+  const selectedCompany = availableCompanies.find((c) => c.id === selectedCompanyId);
+  const selectedCompanyEmail = selectedCompany?.contactEmail ?? "";
 
   const {
     register,
@@ -55,12 +59,23 @@ export function AddTrackingDialog({
     defaultValues: { name: "", type: "INVESTOR", contactName: "", contactEmail: "" },
   });
 
+  async function maybeSendInvite(companyId: string, email: string | null | undefined) {
+    if (!sendInvite || !email) return;
+    try {
+      await sendInvestorInvite({ companyId, assetId, email });
+      toast.success("Invite email sent");
+    } catch (e: any) {
+      toast.error(`Tracking added, but invite failed: ${e.message ?? "unknown error"}`);
+    }
+  }
+
   async function handleAddExisting() {
     if (!selectedCompanyId) return;
     setLoading(true);
     try {
       await createTracking({ assetId, companyId: selectedCompanyId, relationshipType });
       toast.success("Company added to pipeline");
+      await maybeSendInvite(selectedCompanyId, selectedCompanyEmail);
       onOpenChange(false);
       router.refresh();
     } catch {
@@ -81,6 +96,7 @@ export function AddTrackingDialog({
       });
       await createTracking({ assetId, companyId: company.id, relationshipType });
       toast.success("Company created and added");
+      await maybeSendInvite(company.id, data.contactEmail);
       reset();
       onOpenChange(false);
       router.refresh();
@@ -113,6 +129,19 @@ export function AddTrackingDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendInvite}
+              onChange={(e) => setSendInvite(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium">Also send invite email</span>{" "}
+              — creates a portal account for the contact and emails them a sign-in link. Skipped if no email is on file.
+            </span>
+          </label>
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full">
