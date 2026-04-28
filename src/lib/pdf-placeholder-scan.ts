@@ -166,10 +166,21 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
     const textContent = await page.getTextContent();
     const items = textContent.items as any[];
 
+    // Use the median font size to scale the line-grouping tolerance. Word PDFs
+    // sometimes give underlined or styled runs a slightly different baseline,
+    // and the previous fixed `> 2` threshold split those onto separate lines —
+    // so a token like "{NAME}" sat alone, separate from the colon before it,
+    // and never matched as part of a longer combined string.
+    const sizes = items
+      .map((it: any) => Math.abs(it.transform?.[0] || 11))
+      .sort((a, b) => a - b);
+    const medianSize = sizes[Math.floor(sizes.length / 2)] || 11;
+    const lineTolerance = Math.max(3, medianSize * 0.4);
+
     const sorted = [...items].sort((a, b) => {
       const ya = a.transform[5];
       const yb = b.transform[5];
-      if (Math.abs(ya - yb) > 2) return yb - ya;
+      if (Math.abs(ya - yb) > lineTolerance) return yb - ya;
       return a.transform[4] - b.transform[4];
     });
 
@@ -177,13 +188,15 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
     let current: { items: any[]; y: number } | null = null;
     for (const item of sorted) {
       const y = item.transform[5];
-      if (!current || Math.abs(current.y - y) > 2) {
+      if (!current || Math.abs(current.y - y) > lineTolerance) {
         current = { items: [item], y };
         lines.push(current);
       } else {
         current.items.push(item);
       }
     }
+
+    let pageMatchCount = 0;
 
     for (const line of lines) {
       let combined = "";
@@ -223,7 +236,55 @@ export async function scanPlaceholders(pdfBytes: Buffer): Promise<PlaceholderMap
           height,
           fontSize,
         };
+        pageMatchCount += 1;
       }
+    }
+
+    // Fallback: if no matches were found via per-line scanning, try the entire
+    // page as one big concatenated string. Loses precise word-by-word position
+    // (we use the first item's coordinates as an estimate) but at least the
+    // placeholder appears in the Project fields panel so the admin knows it was
+    // detected. They can refine positions in the manual editor if needed.
+    if (pageMatchCount === 0 && sorted.length > 0) {
+      let combined = "";
+      const itemByChar: any[] = [];
+      for (const item of sorted) {
+        const text: string = item.str || "";
+        for (let c = 0; c < text.length; c++) {
+          itemByChar.push(item);
+        }
+        combined += text;
+      }
+
+      PLACEHOLDER_REGEX.lastIndex = 0;
+      let match;
+      while ((match = PLACEHOLDER_REGEX.exec(combined)) !== null) {
+        const rawKey = match[1] ?? match[2];
+        if (!rawKey) continue;
+        const key = rawKey.toUpperCase();
+        if (result[key]) continue;
+
+        const startItem = itemByChar[match.index] ?? sorted[0];
+        const [, , , , startX, startY] = startItem.transform;
+        const fontSize = Math.abs(startItem.transform[0]) || 11;
+
+        result[key] = {
+          page: pageNum,
+          x: startX,
+          y: startY,
+          width: fontSize * match[0].length * 0.5,
+          height: fontSize * 1.2,
+          fontSize,
+        };
+      }
+    }
+
+    if (process.env.NODE_ENV !== "production" || process.env.PDF_SCAN_DEBUG) {
+      console.log(
+        `[scanPlaceholders] page ${pageNum}: ${items.length} items, ${lines.length} lines, ` +
+          `medianSize=${medianSize.toFixed(1)}, tolerance=${lineTolerance.toFixed(1)}, ` +
+          `matches=${Object.keys(result).length}`
+      );
     }
   }
 
