@@ -5,12 +5,25 @@ const nextConfig = {
       bodySizeLimit: "2mb",
     },
     // pdfjs-dist resolves its "fake worker" by dynamic-requiring
-    // pdf.worker.mjs at runtime. When webpack bundles it, that path
-    // disappears and the scanner crashes with
-    // "Cannot find module '...pdf.worker.mjs'". Externalising it
-    // means Node resolves the package from node_modules at runtime,
-    // so the worker file is right next to the main module.
+    // pdf.worker.mjs at runtime; @napi-rs/canvas is loaded the same
+    // dynamic way for the DOMMatrix polyfill. Webpack bundling rewrites
+    // both paths and Vercel's file tracer skips the dynamically-required
+    // files, so the scanner crashes with "Cannot find module ..." in
+    // production.
+    //
+    // serverComponentsExternalPackages: tell Next not to bundle the
+    //   packages — they load straight from node_modules at runtime.
+    // outputFileTracingIncludes: tell Vercel's tracer to ship the worker
+    //   file and napi-rs/canvas binaries even though nothing statically
+    //   imports them, so they're present in /var/task/node_modules.
     serverComponentsExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  },
+  outputFileTracingIncludes: {
+    "/**/*": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+      "./node_modules/@napi-rs/canvas/**/*",
+    ],
   },
   async headers() {
     return [
