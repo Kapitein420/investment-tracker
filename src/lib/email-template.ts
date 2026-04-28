@@ -1,12 +1,12 @@
 /**
  * Single source of truth for transactional email styling.
  *
- * To swap the text-based DILS wordmark for an actual logo image:
- *   1. Drop a PNG (recommended ~600px wide, transparent) at public/email/dils-logo.png
- *   2. Set EMAIL_LOGO_URL env var on Vercel + locally to its public URL,
- *      e.g. https://your-domain.vercel.app/email/dils-logo.png
- * The template will use it automatically and fall back to the wordmark otherwise.
+ * Logo is shipped at public/email/dils-logo.png and served from
+ * `${getAppUrl()}/email/dils-logo.png` by default. Set EMAIL_LOGO_URL to
+ * override (e.g. host on a CDN).
  */
+
+import { getAppUrl } from "@/lib/app-url";
 
 const PRIVACY_URL = "https://dils.nl/privacyverklaring/";
 
@@ -21,14 +21,12 @@ const COLORS = {
 };
 
 function renderHeader() {
-  const logoUrl = process.env.EMAIL_LOGO_URL;
-  const logoMarkup = logoUrl
-    ? `<img src="${logoUrl}" alt="DILS" style="height:28px;width:auto;display:block;border:0;" />`
-    : `<div style="font-family: Georgia, 'Times New Roman', serif; color: ${COLORS.paper}; font-size: 24px; letter-spacing: -0.5px; font-weight: 400; line-height: 1;">DILS</div>`;
+  const logoUrl =
+    process.env.EMAIL_LOGO_URL || `${getAppUrl()}/email/dils-logo.png`;
 
   return `
     <div style="background: ${COLORS.ink}; padding: 28px 32px; text-align: left;">
-      ${logoMarkup}
+      <img src="${logoUrl}" alt="DILS" style="height:32px;width:auto;display:block;border:0;" />
       <div style="color: ${COLORS.paper}; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; font-weight: 400;">Investment Portal</div>
     </div>
     <div style="background: ${COLORS.red}; height: 2px; line-height: 2px; font-size: 0;">&nbsp;</div>
