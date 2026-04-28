@@ -4,6 +4,13 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+    // pdfjs-dist resolves its "fake worker" by dynamic-requiring
+    // pdf.worker.mjs at runtime. When webpack bundles it, that path
+    // disappears and the scanner crashes with
+    // "Cannot find module '...pdf.worker.mjs'". Externalising it
+    // means Node resolves the package from node_modules at runtime,
+    // so the worker file is right next to the main module.
+    serverComponentsExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   },
   async headers() {
     return [
