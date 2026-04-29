@@ -83,11 +83,11 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
         size: 180,
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{row.original.company.name}</span>
+            <span className="font-heading text-base font-semibold tracking-tight text-foreground">{row.original.company.name}</span>
             {isStaleDate(row.original.updatedAt) && (
               <Tooltip>
                 <TooltipTrigger>
-                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                  <AlertCircle className="h-3 w-3 text-status-warning" />
                 </TooltipTrigger>
                 <TooltipContent>Not updated in 14+ days</TooltipContent>
               </Tooltip>
@@ -310,19 +310,19 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
   }
 
   return (
-    <div className="rounded-md border bg-white">
+    <div className="overflow-hidden rounded-lg border border-dils-200 bg-white shadow-soft-card">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-soft-bg-surface-alt backdrop-blur">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b">
+              <tr key={headerGroup.id} className="border-b border-dils-200">
                 {headerGroup.headers.map((header) => {
                   const cellClass = (header.column.columnDef.meta as { cellClass?: string } | undefined)?.cellClass;
                   return (
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-2 text-left text-xs font-medium text-muted-foreground",
+                        "px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground whitespace-nowrap",
                         cellClass
                       )}
                       style={{ width: header.getSize() }}
@@ -339,7 +339,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b transition-colors hover:bg-gray-50/50 cursor-pointer",
+                  "border-b border-dils-100 last:border-b-0 transition-colors hover:bg-soft-bg-surface-alt cursor-pointer",
                   row.original.lifecycleStatus === "DROPPED" && "opacity-50"
                 )}
                 onClick={() => onRowClick(row.original.id)}

@@ -3,22 +3,29 @@
 import { useMemo } from "react";
 import { type PipelineStage } from "@prisma/client";
 import { cn } from "@/lib/utils";
-import { LIFECYCLE_COLORS, LIFECYCLE_LABELS } from "@/lib/stages";
-import { Badge } from "@/components/ui/badge";
+import { LIFECYCLE_LABELS } from "@/lib/stages";
 
 interface PipelineOverviewProps {
   trackings: Array<any>;
   stages: PipelineStage[];
 }
 
-// Color palette for the funnel bands
-const BAND_COLORS = [
-  { bg: "bg-emerald-500", text: "text-emerald-700", light: "bg-emerald-50" },
-  { bg: "bg-blue-500", text: "text-blue-700", light: "bg-blue-50" },
-  { bg: "bg-violet-500", text: "text-violet-700", light: "bg-violet-50" },
-  { bg: "bg-amber-500", text: "text-amber-700", light: "bg-amber-50" },
-  { bg: "bg-rose-500", text: "text-rose-700", light: "bg-rose-50" },
+// Soft-enterprise funnel sequence — replaces the prior vivid green/blue/violet/amber/rose.
+// Order matches the mockup's `--funnel-1..5` tokens: success → office → research → warning → danger.
+const FUNNEL_BANDS = [
+  { bar: "bg-funnel-1", edge: "bg-funnel-1" },
+  { bar: "bg-funnel-2", edge: "bg-funnel-2" },
+  { bar: "bg-funnel-3", edge: "bg-funnel-3" },
+  { bar: "bg-funnel-4", edge: "bg-funnel-4" },
+  { bar: "bg-funnel-5", edge: "bg-funnel-5" },
 ];
+
+const LIFECYCLE_CHIP: Record<string, string> = {
+  ACTIVE: "bg-status-success-soft text-status-success",
+  COMPLETED: "bg-soft-office-soft text-soft-office",
+  DROPPED: "bg-status-danger-soft text-status-danger",
+  ON_HOLD: "bg-status-warning-soft text-status-warning",
+};
 
 export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
   const activeTrackings = trackings.filter((t) => t.lifecycleStatus !== "DROPPED");
@@ -34,7 +41,7 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
         stage,
         companies,
         count: companies.length,
-        color: BAND_COLORS[idx % BAND_COLORS.length],
+        band: FUNNEL_BANDS[idx % FUNNEL_BANDS.length],
       };
     });
   }, [activeTrackings, stages]);
@@ -47,7 +54,7 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
         stage,
         companies,
         count: companies.length,
-        color: BAND_COLORS[idx % BAND_COLORS.length],
+        band: FUNNEL_BANDS[idx % FUNNEL_BANDS.length],
       };
     });
   }, [activeTrackings, stages]);
@@ -66,91 +73,113 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
   return (
     <div className="space-y-8">
       {/* Funnel visualization */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Pipeline Funnel</h3>
-        <p className="text-xs text-muted-foreground mb-4">Companies that have reached or passed each stage</p>
-        <div className="space-y-2">
-          {buckets.map((bucket, idx) => {
-            const widthPct = Math.max((bucket.count / maxCount) * 100, 8);
-            return (
-              <div key={bucket.stage.id} className="flex items-center gap-3">
-                <span className="w-16 text-xs font-medium text-right text-muted-foreground">
-                  {bucket.stage.label}
-                </span>
-                <div className="flex-1 h-10 relative">
-                  <div
-                    className={cn(
-                      "h-full rounded-md flex items-center px-3 transition-all duration-500",
-                      bucket.color.bg
-                    )}
-                    style={{ width: `${widthPct}%` }}
-                  >
-                    <span className="text-sm font-bold text-white">
-                      {bucket.count}
-                    </span>
+      <section>
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Pipeline Funnel</h2>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">
+          Companies that have reached or passed each stage
+        </p>
+        <div className="rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
+          <div className="space-y-1.5">
+            {buckets.map((bucket) => {
+              const widthPct = Math.max((bucket.count / maxCount) * 100, 8);
+              const pct =
+                activeTrackings.length > 0
+                  ? `${Math.round((bucket.count / activeTrackings.length) * 100)}%`
+                  : "0%";
+              return (
+                <div
+                  key={bucket.stage.id}
+                  className="grid items-center gap-3"
+                  style={{ gridTemplateColumns: "80px 1fr 56px" }}
+                >
+                  <span className="text-right text-[13px] font-semibold text-muted-foreground">
+                    {bucket.stage.label}
+                  </span>
+                  <div className="h-8 overflow-hidden rounded-md bg-soft-bg-surface-alt">
+                    <div
+                      className={cn("h-full flex items-center px-3 rounded-md transition-all duration-500", bucket.band.bar)}
+                      style={{ width: `${widthPct}%` }}
+                    >
+                      <span className="text-[13px] font-semibold text-white">
+                        {bucket.count}
+                      </span>
+                    </div>
                   </div>
+                  <span className="text-right text-xs font-semibold text-muted-foreground">
+                    {pct}
+                  </span>
                 </div>
-                <span className="w-10 text-xs text-muted-foreground text-right">
-                  {activeTrackings.length > 0
-                    ? `${Math.round((bucket.count / activeTrackings.length) * 100)}%`
-                    : "0%"}
-                </span>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Current stage distribution */}
+      <section>
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Current Stage Distribution</h2>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">
+          Where each company currently sits in the pipeline
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {currentStageBuckets.map((bucket) => {
+            const isEmpty = bucket.count === 0;
+            return (
+              <div
+                key={bucket.stage.id}
+                className="relative overflow-hidden rounded-lg border border-dils-200 bg-white p-4 text-center shadow-soft-card"
+              >
+                <span aria-hidden className={cn("absolute inset-x-0 top-0 h-[3px]", bucket.band.edge)} />
+                <p className="font-heading text-3xl font-semibold leading-none text-foreground tabular-nums">
+                  {bucket.count}
+                </p>
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
+                  {bucket.stage.label}
+                </p>
+                <div className="mt-3 border-t border-dashed border-dils-200 pt-3 min-h-[22px]">
+                  {isEmpty ? (
+                    <p className="text-[12px] italic text-muted-foreground">—</p>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {bucket.companies.map((c: any) => (
+                        <p key={c.id} className="text-[12px] text-muted-foreground truncate">
+                          {c.company.name}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* Current stage distribution */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Current Stage Distribution</h3>
-        <p className="text-xs text-muted-foreground mb-4">Where each company currently sits in the pipeline</p>
-        <div className="grid grid-cols-5 gap-3">
-          {currentStageBuckets.map((bucket) => (
-            <div
-              key={bucket.stage.id}
-              className={cn("rounded-lg border p-4 text-center", bucket.color.light)}
-            >
-              <p className="text-2xl font-bold">{bucket.count}</p>
-              <p className="text-xs font-medium text-muted-foreground mt-1">{bucket.stage.label}</p>
-              {bucket.companies.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {bucket.companies.map((c: any) => (
-                    <p key={c.id} className="text-[11px] text-muted-foreground truncate">
-                      {c.company.name}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
 
       {/* Lifecycle summary */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Lifecycle Status</h3>
-        <div className="flex gap-3">
+      <section>
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Lifecycle Status</h2>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Object.entries(lifecycleCounts).map(([status, count]) => (
-            <div key={status} className="flex-1 rounded-lg border p-4 text-center">
-              <p className="text-2xl font-bold">{count}</p>
-              <Badge
-                className={cn(
-                  "mt-1 text-[10px] border-0",
-                  LIFECYCLE_COLORS[status as keyof typeof LIFECYCLE_COLORS]
-                )}
-              >
+            <div
+              key={status}
+              className="rounded-lg border border-dils-200 bg-white p-5 text-center shadow-soft-card"
+            >
+              <p className="font-heading text-3xl font-semibold leading-none text-foreground tabular-nums">{count}</p>
+              <span className={cn(
+                "mt-3 inline-block rounded-full px-3 py-1 text-[11px] font-semibold",
+                LIFECYCLE_CHIP[status] ?? "bg-soft-bg-surface-alt text-muted-foreground"
+              )}>
                 {LIFECYCLE_LABELS[status as keyof typeof LIFECYCLE_LABELS]}
-              </Badge>
+              </span>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Conversion rates */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Stage Conversion</h3>
-        <div className="flex items-center gap-2">
+      <section>
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Stage Conversion</h2>
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
           {buckets.map((bucket, idx) => {
             const nextBucket = buckets[idx + 1];
             const conversionRate = nextBucket && bucket.count > 0
@@ -159,24 +188,21 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
 
             return (
               <div key={bucket.stage.id} className="flex items-center gap-2">
-                <div className="text-center">
-                  <div className={cn("rounded-lg px-4 py-2", bucket.color.light)}>
-                    <p className="text-lg font-bold">{bucket.count}</p>
-                    <p className="text-[10px] font-medium text-muted-foreground">{bucket.stage.label}</p>
-                  </div>
+                <div className="flex min-w-[80px] flex-col items-center gap-1 rounded-md border border-dils-200 bg-soft-bg-surface-alt px-4 py-3">
+                  <p className="font-heading text-xl font-semibold leading-none text-foreground tabular-nums">{bucket.count}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">{bucket.stage.label}</p>
                 </div>
                 {conversionRate !== null && (
-                  <div className="flex flex-col items-center px-1">
-                    <span className="text-[10px] font-medium text-muted-foreground">{conversionRate}%</span>
-                    <div className="h-px w-6 bg-border" />
-                    <span className="text-[8px] text-muted-foreground">→</span>
+                  <div className="flex flex-col items-center gap-0.5 px-1 text-muted-foreground">
+                    <span className="text-[11px] font-semibold text-foreground/70">{conversionRate}%</span>
+                    <span className="text-base leading-none">→</span>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

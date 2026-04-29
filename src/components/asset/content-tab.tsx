@@ -265,13 +265,13 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-9">
       {/* NDA Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold">NDA Document</h3>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">NDA Document</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Master NDA for this asset — sent to all invited companies
             </p>
           </div>
@@ -287,20 +287,20 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         </div>
 
         {ndaContent ? (
-          <div className="rounded-lg border bg-white p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted border border-border">
-                  <FileText className="h-5 w-5 text-foreground" strokeWidth={2} />
+          <div className="rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-dils-100">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-soft-marketing-soft text-soft-marketing">
+                  <FileText className="h-5 w-5" strokeWidth={1.8} />
                 </div>
                 <div>
-                  <p className="font-medium">{ndaContent.fileName || ndaContent.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">{ndaContent.fileName || ndaContent.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Uploaded {formatDate(ndaContent.createdAt)}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleViewPdf(ndaContent.fileUrl)}>
                   <Eye className="mr-1 h-3 w-3" />
                   View
@@ -323,28 +323,26 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             </div>
 
             {/* Signing stats */}
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-status-success">{ndaSignedCount}</p>
-                  <p className="text-xs text-muted-foreground">Signed</p>
+            <div className="mt-4">
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="rounded-md bg-soft-bg-surface-alt p-3 text-center">
+                  <p className="font-heading text-2xl font-semibold leading-none text-status-success tabular-nums">{ndaSignedCount}</p>
+                  <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">Signed</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-status-warning">{activeTrackings.length - ndaSignedCount}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
+                <div className="rounded-md bg-soft-bg-surface-alt p-3 text-center">
+                  <p className="font-heading text-2xl font-semibold leading-none text-foreground tabular-nums">{activeTrackings.length - ndaSignedCount}</p>
+                  <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">Pending</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{activeTrackings.length}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                <div className="rounded-md bg-soft-bg-surface-alt p-3 text-center">
+                  <p className="font-heading text-2xl font-semibold leading-none text-foreground tabular-nums">{activeTrackings.length}</p>
+                  <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">Total</p>
                 </div>
-                <div className="flex-1">
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-status-success transition-all"
-                      style={{ width: `${activeTrackings.length > 0 ? (ndaSignedCount / activeTrackings.length) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
+              </div>
+              <div className="h-1.5 rounded-full bg-soft-bg-surface-alt overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-status-success transition-all"
+                  style={{ width: `${activeTrackings.length > 0 ? (ndaSignedCount / activeTrackings.length) * 100 : 0}%` }}
+                />
               </div>
               {editable && activeTrackings.length - ndaSignedCount > 0 && (
                 <div className="mt-3 flex justify-end">
@@ -383,17 +381,19 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         )}
 
         {/* HTML NDA flow — alternative to the PDF flow above. Skips pdfjs / scanner / placement entirely. */}
-        <div className="mt-6 rounded-lg border bg-white p-5">
+        <div className="mt-4 rounded-lg border border-banner-info-foreground/25 bg-gradient-to-b from-banner-info/35 to-white p-5 shadow-soft-card sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-emerald-600" strokeWidth={2.5} />
-                <h4 className="text-sm font-semibold">HTML NDA (recommended)</h4>
+              <div className="flex items-center gap-2.5">
+                <FileText className="h-4 w-4 text-banner-info-foreground" strokeWidth={2.4} />
+                <h3 className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  HTML NDA <span className="ml-1 font-sans text-sm italic font-normal text-muted-foreground">(recommended)</span>
+                </h3>
                 {htmlNda && (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Active</Badge>
+                  <Badge className="border-0 bg-status-success-soft text-status-success text-[11px] font-semibold">Active</Badge>
                 )}
               </div>
-              <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+              <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-muted-foreground">
                 Skip the PDF / scanner / placement flow. Investors fill the fields and sign in-browser; you get a signed HTML record.
               </p>
             </div>
@@ -439,9 +439,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             )}
           </div>
           {htmlNda && (
-            <p className="mt-3 text-[11px] text-muted-foreground">
+            <div className="mt-3 rounded-md border-l-[3px] border-l-banner-info-foreground bg-banner-info px-3.5 py-2.5 text-[13px] font-medium text-banner-info-foreground">
               Default DILS NDA template is in use. New invitees automatically receive an HTML NDA link instead of a PDF.
-            </p>
+            </div>
           )}
         </div>
 
@@ -461,8 +461,8 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold">Teaser Content</h3>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Teaser Content</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Property overview shown to investors before NDA — description, images, and key metrics
             </p>
           </div>
@@ -533,8 +533,8 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold">IM Materials</h3>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">IM Materials</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Information Memorandum — unlocks for investors after NDA approval
             </p>
           </div>
@@ -558,59 +558,61 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         ) : (
           <div className="space-y-3">
             {imContents.map((content: any) => (
-              <div key={content.id} className="rounded-lg border bg-white p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {content.contentType === "PDF" ? (
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <Globe className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{content.title}</p>
-                      {content.description && (
-                        <p className="text-xs text-muted-foreground">{content.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant={content.isPublished ? "secondary" : "outline"} className="text-[10px]">
-                          {content.isPublished ? "Published" : "Draft"}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">{formatDate(content.createdAt)}</span>
-                      </div>
-                    </div>
+              <div key={content.id} className="flex items-center gap-3.5 rounded-md border border-dils-200 bg-white p-3.5 shadow-soft-card">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-soft-research-soft text-soft-research">
+                  {content.contentType === "PDF" ? (
+                    <FileText className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                  ) : (
+                    <Globe className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-banner-info-foreground text-sm truncate">{content.title}</p>
+                  {content.description && (
+                    <p className="text-xs text-muted-foreground truncate">{content.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 text-[12px] text-muted-foreground">
+                    <span className={cn(
+                      "inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      content.isPublished ? "bg-status-success-soft text-status-success" : "bg-soft-bg-surface-alt text-muted-foreground"
+                    )}>
+                      {content.isPublished ? "Published" : "Draft"}
+                    </span>
+                    <span>·</span>
+                    <span>{formatDate(content.createdAt)}</span>
                   </div>
-                  <div className="flex gap-1.5">
-                    {content.contentType === "PDF" && content.fileUrl && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleViewPdf(content.fileUrl)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(content.fileUrl, content.fileName)}>
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                    {editable && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleTogglePublish(content.id, content.isPublished)}
-                        >
-                          {content.isPublished ? <X className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDelete(content.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {content.contentType === "PDF" && content.fileUrl && (
+                    <>
+                      <Button variant="outline" size="icon" className="h-8 w-8 border-dils-200" onClick={() => handleViewPdf(content.fileUrl)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8 border-dils-200" onClick={() => handleDownload(content.fileUrl, content.fileName)}>
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                  {editable && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 border-dils-200"
+                        onClick={() => handleTogglePublish(content.id, content.isPublished)}
+                      >
+                        {content.isPublished ? <X className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 border-dils-200 hover:border-status-danger/40 hover:text-status-danger"
+                        onClick={() => handleDelete(content.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
