@@ -3,18 +3,22 @@ import { getCurrentUser } from "@/lib/permissions";
 import { redirect, notFound } from "next/navigation";
 import { getSignedUrl } from "@/lib/supabase-storage";
 import { DealJourney } from "@/components/investor/deal-journey";
+import { getUserCompanyIds } from "@/lib/user-companies";
 
 export default async function InvestorDealPage({ params }: { params: { assetId: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.companyId) redirect("/portal");
 
-  const tracking = await prisma.assetCompanyTracking.findUnique({
+  // Sprint B PR-2: an investor can hold this asset under any of their
+  // companies. Find the first matching tracking across ALL their
+  // memberships rather than only the legacy User.companyId scalar.
+  const companyIds = await getUserCompanyIds(user.id);
+  if (companyIds.length === 0) redirect("/portal");
+
+  const tracking = await prisma.assetCompanyTracking.findFirst({
     where: {
-      assetId_companyId: {
-        assetId: params.assetId,
-        companyId: user.companyId,
-      },
+      assetId: params.assetId,
+      companyId: { in: companyIds },
     },
     include: {
       asset: true,
