@@ -51,6 +51,17 @@ export function BulkInviteDialog({ open, onOpenChange, assetId }: Props) {
       toast.error(`Fix ${parseErrors.length} parse error${parseErrors.length === 1 ? "" : "s"} first.`);
       return;
     }
+    // Final-check gate: spell out exactly how many emails are about to fire
+    // and to whom. The CSV preview is informational; this confirm is the
+    // explicit "send" approval. Lists up to 5 recipients so the admin sees
+    // the actual addresses before clicking OK.
+    const sample = rows.slice(0, 5).map((r) => `  • ${r.companyName} <${r.email}>`).join("\n");
+    const more = rows.length > 5 ? `\n  …and ${rows.length - 5} more` : "";
+    const ok = confirm(
+      `About to send ${rows.length} invitation email${rows.length === 1 ? "" : "s"}.\n\n${sample}${more}\n\nThis cannot be undone — accounts and password emails will be created/sent immediately. Continue?`
+    );
+    if (!ok) return;
+
     setSubmitting(true);
     try {
       const r = await bulkInviteInvestors({ assetId, rows });

@@ -41,7 +41,9 @@ export function AddTrackingDialog({
   const [tab, setTab] = useState("existing");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [relationshipType, setRelationshipType] = useState("Investor");
-  const [sendInvite, setSendInvite] = useState(true);
+  // Defaults to OFF: admin opts in explicitly before any email goes out.
+  // Avoids the "I clicked Add Company and accidentally sent an email" trap.
+  const [sendInvite, setSendInvite] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const availableCompanies = companies.filter((c) => !existingCompanyIds.includes(c.id));
