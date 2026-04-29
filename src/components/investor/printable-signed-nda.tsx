@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Download, ArrowLeft, Mail } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +21,9 @@ interface Props {
 export function PrintableSignedNda({ data }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const searchParams = useSearchParams();
+  const autoDownload = searchParams?.get("download") === "1";
+  const autoDownloadFiredRef = useRef(false);
 
   async function handleDownload() {
     if (!contentRef.current) return;
@@ -70,6 +74,21 @@ export function PrintableSignedNda({ data }: Props) {
       setDownloading(false);
     }
   }
+
+  // When opened with ?download=1 (from the deal-journey "Download" button),
+  // fire the PDF generation once the rendered HTML is in the DOM. We need
+  // a tick so the dangerouslySetInnerHTML content has actually painted —
+  // html2canvas otherwise captures a 0-height snapshot.
+  useEffect(() => {
+    if (!autoDownload) return;
+    if (autoDownloadFiredRef.current) return;
+    autoDownloadFiredRef.current = true;
+    const t = window.setTimeout(() => {
+      handleDownload();
+    }, 250);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDownload]);
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
+import { sendEmail } from "@/lib/email";
 import { StageStatusValue } from "@prisma/client";
 
 // Stage unlock rules:
@@ -227,6 +228,165 @@ export async function recordInvestorStageEvent(input: {
   });
 
   return { ok: true, transitioned: true };
+}
+
+/**
+ * Investor requests a property viewing. Transitions the viewing stage to
+ * IN_PROGRESS, logs StageHistory + ActivityLog with note "investor:VIEWING_REQUESTED",
+ * and notifies the tracking's owner (or all admins as fallback) by email so
+ * the broker can reach out to schedule a date.
+ *
+ * Idempotent — calling again on an already IN_PROGRESS / COMPLETED viewing
+ * stage returns { alreadyRequested: true } without re-emailing.
+ */
+export async function requestViewing(
+  trackingId: string
+): Promise<{ ok: boolean; alreadyRequested?: boolean; error?: string }> {
+  const user = await requireUser();
+
+  if (user.role !== "INVESTOR" && user.role !== "ADMIN") {
+    return { ok: false, error: "Forbidden" };
+  }
+  if (user.role === "INVESTOR" && !user.companyId) {
+    return { ok: false, error: "No company associated" };
+  }
+
+  const tracking = await prisma.assetCompanyTracking.findUnique({
+    where: { id: trackingId },
+    include: {
+      asset: { select: { id: true, title: true, address: true, city: true } },
+      company: { select: { id: true, name: true, contactEmail: true, contactName: true } },
+      ownerUser: { select: { id: true, name: true, email: true } },
+      stageStatuses: {
+        include: { stage: true },
+      },
+    },
+  });
+
+  if (!tracking) return { ok: false, error: "Deal not found" };
+
+  if (user.role === "INVESTOR" && tracking.companyId !== user.companyId) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  // Verify viewing stage is unlocked (IM must be COMPLETED)
+  const imStatus = tracking.stageStatuses.find((ss) => ss.stage.key === "im");
+  if (!imStatus || imStatus.status !== "COMPLETED") {
+    return { ok: false, error: "Review the IM before requesting a viewing." };
+  }
+
+  const viewingStatus = tracking.stageStatuses.find(
+    (ss) => ss.stage.key === "viewing"
+  );
+  if (!viewingStatus) {
+    return { ok: false, error: "Viewing stage not configured for this asset." };
+  }
+
+  // Idempotent: already requested or completed
+  if (
+    viewingStatus.status === "IN_PROGRESS" ||
+    viewingStatus.status === "COMPLETED"
+  ) {
+    return { ok: true, alreadyRequested: true };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.stageStatus.update({
+      where: { id: viewingStatus.id },
+      data: {
+        status: "IN_PROGRESS",
+        updatedByUserId: user.id,
+      },
+    });
+
+    await tx.stageHistory.create({
+      data: {
+        trackingId: tracking.id,
+        stageId: viewingStatus.stageId,
+        fieldName: "status",
+        oldValue: viewingStatus.status,
+        newValue: "IN_PROGRESS",
+        changedByUserId: user.id,
+        note: "investor:VIEWING_REQUESTED",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "StageStatus",
+        entityId: viewingStatus.id,
+        action: "VIEWING_REQUESTED",
+        metadata: {
+          trackingId: tracking.id,
+          assetId: tracking.assetId,
+          companyId: tracking.companyId,
+          companyName: tracking.company.name,
+        },
+        userId: user.id,
+      },
+    });
+  });
+
+  // Determine recipients: tracking owner, fallback to all admins
+  const recipients: string[] = [];
+  if (tracking.ownerUser?.email) {
+    recipients.push(tracking.ownerUser.email);
+  } else {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { email: true },
+    });
+    for (const a of admins) {
+      if (a.email) recipients.push(a.email);
+    }
+  }
+
+  if (recipients.length > 0) {
+    const investorContact = tracking.company.contactName ?? tracking.company.name;
+    const investorEmail = tracking.company.contactEmail ?? "(no contact email)";
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
+        <h2 style="font-size:18px; margin:0 0 12px;">Property viewing requested</h2>
+        <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+          <strong>${escapeHtml(tracking.company.name)}</strong> has requested a viewing for
+          <strong>${escapeHtml(tracking.asset.title)}</strong>${tracking.asset.address ? ` (${escapeHtml(tracking.asset.address)}, ${escapeHtml(tracking.asset.city ?? "")})` : ""}.
+        </p>
+        <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Investor contact</td><td>${escapeHtml(investorContact)}</td></tr>
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Email</td><td>${escapeHtml(investorEmail)}</td></tr>
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Asset</td><td>${escapeHtml(tracking.asset.title)}</td></tr>
+        </table>
+        <p style="font-size:13px; line-height:1.55; margin:0;">
+          Please reach out to schedule a date. The deal page in Investment Tracker now shows
+          this row with the Viewing stage marked <em>In progress</em>.
+        </p>
+      </div>
+    `.trim();
+
+    // Fire all emails in parallel; failures are non-fatal — the request is
+    // already persisted, the worst case is the broker has to spot it manually
+    // in the pipeline view.
+    await Promise.allSettled(
+      recipients.map((to) =>
+        sendEmail({
+          to,
+          subject: `Viewing requested · ${tracking.asset.title} · ${tracking.company.name}`,
+          html,
+        })
+      )
+    );
+  }
+
+  return { ok: true };
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export async function getAssetContentForInvestor(
