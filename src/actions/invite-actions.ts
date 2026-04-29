@@ -292,6 +292,12 @@ export async function sendInvestorInvite({
       </table>
     `;
 
+  // Send the email. If it fails, the invite + account still exist so the
+  // admin can copy the signing link manually or hit "Resend" — but we
+  // surface the failure in the return value so the caller can show a real
+  // warning instead of a misleading "sent" toast.
+  let emailSent = true;
+  let emailError: string | undefined;
   try {
     await sendEmail({
       to: email,
@@ -311,21 +317,24 @@ export async function sendInvestorInvite({
         meta: `${asset.title} · ${asset.city}, ${asset.country}`,
       }),
     });
-  } catch (e) {
-    console.error("Email send failed (account still created):", e);
+  } catch (e: any) {
+    emailSent = false;
+    emailError = e?.message ?? "Unknown email error";
+    console.error("[sendInvestorInvite] Email send failed:", e);
   }
 
   await prisma.activityLog.create({
     data: {
       entityType: "InvestorInvite",
       entityId: invite.id,
-      action: "INVITE_SENT",
+      action: emailSent ? "INVITE_SENT" : "INVITE_CREATED_EMAIL_FAILED",
       metadata: {
         email,
         assetId,
         companyId,
         assetTitle: asset.title,
         companyName: company.name,
+        emailError,
       },
       userId: user.id,
     },
@@ -334,7 +343,7 @@ export async function sendInvestorInvite({
   revalidatePath("/admin/invites");
   revalidatePath(`/assets/${assetId}`);
 
-  return invite;
+  return { invite, emailSent, emailError };
 }
 
 export async function getInvites(assetId?: string) {

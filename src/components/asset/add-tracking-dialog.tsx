@@ -69,8 +69,17 @@ export function AddTrackingDialog({
       return;
     }
     try {
-      await sendInvestorInvite({ companyId, assetId, email });
-      toast.success("Invite email sent");
+      const result = await sendInvestorInvite({ companyId, assetId, email });
+      if (result.emailSent) {
+        toast.success("Invite email sent");
+      } else {
+        // The account + signing link are still created — only the email
+        // failed. Tell the admin so they can copy the link manually.
+        toast.warning(
+          `Tracking added; invite email didn't send: ${result.emailError ?? "unknown error"}. Resend from the Invites page.`,
+          { duration: 12000 }
+        );
+      }
     } catch (e: any) {
       toast.error(`Tracking added, but invite failed: ${e.message ?? "unknown error"}`);
     }

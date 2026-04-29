@@ -16,6 +16,14 @@ export async function sendEmail({
   html: string;
 }) {
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
+    // Silent skip in dev; loud failure in production. Previously this branch
+    // returned silently in every environment, which let an admin think they'd
+    // sent an invite when no email actually went out.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Email service not configured (MAILGUN_API_KEY / MAILGUN_DOMAIN missing in env)."
+      );
+    }
     console.log(
       `[Email skipped - Mailgun not configured] To: ${to}, Subject: ${subject}`,
     );
