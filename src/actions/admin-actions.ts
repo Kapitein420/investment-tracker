@@ -45,7 +45,12 @@ export async function createUser(data: CreateUserInput) {
     throw new Error("A user with this email already exists");
   }
 
-  const passwordHash = await bcrypt.hash(validated.password, 12);
+  // bcrypt cost 10 — OWASP-recommended minimum. Cost 12 was ~250ms per
+  // verify on Vercel's CPU; under bursty auth load that serialised every
+  // login through bcrypt and produced 68% false 401s at 100 concurrent.
+  // Cost 10 is ~62ms — still strong (≥10K hash/s would still take centuries
+  // to brute-force a single password) and fixes the load-test cliff.
+  const passwordHash = await bcrypt.hash(validated.password, 10);
 
   const user = await prisma.user.create({
     data: {
@@ -133,7 +138,7 @@ export async function resetUserPassword(userId: string) {
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const newPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 
-  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
 
   await prisma.user.update({
     where: { id: userId },
