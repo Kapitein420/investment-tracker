@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Download, ArrowLeft, Mail } from "lucide-react";
+import { Download, ArrowLeft, Mail, Printer } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -18,6 +19,48 @@ interface Props {
   };
 }
 
+// A4 page in millimetres
+const PAGE_WIDTH_MM = 210;
+const PAGE_HEIGHT_MM = 297;
+const MARGIN_MM = 16;
+const HEADER_HEIGHT_MM = 14;
+const FOOTER_HEIGHT_MM = 14;
+
+const CONTENT_LEFT_MM = MARGIN_MM;
+const CONTENT_WIDTH_MM = PAGE_WIDTH_MM - MARGIN_MM * 2;
+const CONTENT_TOP_MM = HEADER_HEIGHT_MM + 6; // 6mm gap below header rule
+const CONTENT_BOTTOM_MM = PAGE_HEIGHT_MM - FOOTER_HEIGHT_MM - 4;
+const CONTENT_HEIGHT_MM = CONTENT_BOTTOM_MM - CONTENT_TOP_MM;
+
+function formatLongDate(d: Date | string | null): string {
+  if (!d) return "";
+  try {
+    return new Date(d).toLocaleDateString("nl-NL", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+async function loadLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch("/dils-logo.png", { cache: "force-cache" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function PrintableSignedNda({ data }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -25,41 +68,174 @@ export function PrintableSignedNda({ data }: Props) {
   const autoDownload = searchParams?.get("download") === "1";
   const autoDownloadFiredRef = useRef(false);
 
+  function handlePrint() {
+    // Native browser print → "Save as PDF" produces a text-selectable PDF
+    // with whatever the browser's print rendering looks like. Cheaper for
+    // large NDAs than the html2canvas+jspdf flow, and fully accessible.
+    window.print();
+  }
+
   async function handleDownload() {
     if (!contentRef.current) return;
     setDownloading(true);
     try {
       // Lazy-load the PDF stack — keeps initial bundle slim and avoids
       // pulling html2canvas / jspdf into routes that don't need them.
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      const [{ default: html2canvas }, { jsPDF }, logoDataUrl] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
+        loadLogoDataUrl(),
       ]);
 
+      // Higher scale → crisper text in the rasterised slice. 3 is the
+      // sweet-spot vs file size; 4 doubled the file with marginal gain.
       const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         backgroundColor: "#ffffff",
       });
 
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
 
-      // Slice the canvas across multiple A4 pages instead of letting jsPDF
-      // squash a tall NDA onto one page.
-      let heightLeft = imgHeight;
-      let position = 0;
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      pdf.setProperties({
+        title: `NDA - ${data.assetTitle}${data.signedByName ? ` - ${data.signedByName}` : ""}`,
+        subject: "Non-Disclosure Agreement",
+        author: "DILS Group B.V.",
+        keywords: "NDA, DILS, signed",
+        creator: "DILS Investment Tracker",
+      });
+
+      // Pixels-per-mm of the captured canvas, derived from the content
+      // width we want each page to use. Slicing along this scale keeps
+      // text size consistent across all pages.
+      const canvasWidthPx = canvas.width;
+      const canvasHeightPx = canvas.height;
+      const pxPerMm = canvasWidthPx / CONTENT_WIDTH_MM;
+      const contentHeightPx = CONTENT_HEIGHT_MM * pxPerMm;
+      const pageCount = Math.max(1, Math.ceil(canvasHeightPx / contentHeightPx));
+
+      const drawHeader = () => {
+        // Logo (PNG) — left-aligned. Aspect ratio of the brand kit asset
+        // is roughly 4:1, so 24mm wide → 6mm tall sits comfortably inside
+        // the 14mm header band.
+        if (logoDataUrl) {
+          try {
+            pdf.addImage(logoDataUrl, "PNG", MARGIN_MM, MARGIN_MM - 6, 24, 8);
+          } catch {
+            // Fall through to text fallback below.
+          }
+        } else {
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(12);
+          pdf.setTextColor(36, 92, 99);
+          pdf.text("DILS", MARGIN_MM, MARGIN_MM);
+        }
+
+        // Right side — document type + asset
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(31, 41, 55);
+        const headerRight = `Non-Disclosure Agreement · ${data.assetTitle}`;
+        // Truncate if it's silly-long so it never collides with the logo
+        const maxRightWidth = PAGE_WIDTH_MM - MARGIN_MM - 30 - MARGIN_MM;
+        let displayed = headerRight;
+        let displayedWidth = pdf.getTextWidth(displayed);
+        while (displayedWidth > maxRightWidth && displayed.length > 8) {
+          displayed = displayed.slice(0, -1);
+          displayedWidth = pdf.getTextWidth(displayed + "…");
+        }
+        if (displayed !== headerRight) displayed = displayed + "…";
+        const rightX = PAGE_WIDTH_MM - MARGIN_MM - pdf.getTextWidth(displayed);
+        pdf.text(displayed, rightX, MARGIN_MM);
+
+        // Underline
+        pdf.setDrawColor(229, 231, 235);
+        pdf.setLineWidth(0.2);
+        pdf.line(MARGIN_MM, MARGIN_MM + 4, PAGE_WIDTH_MM - MARGIN_MM, MARGIN_MM + 4);
+      };
+
+      const drawFooter = (pageNum: number, total: number) => {
+        const footerY = PAGE_HEIGHT_MM - FOOTER_HEIGHT_MM;
+        pdf.setDrawColor(229, 231, 235);
+        pdf.setLineWidth(0.2);
+        pdf.line(MARGIN_MM, footerY, PAGE_WIDTH_MM - MARGIN_MM, footerY);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(107, 114, 128);
+
+        const signedDate = formatLongDate(data.signedAt);
+        const signedByLine = data.signedByName
+          ? `Signed by ${data.signedByName}${signedDate ? ` · ${signedDate}` : ""}`
+          : "Unsigned record";
+        pdf.text(signedByLine, MARGIN_MM, footerY + 5);
+
+        const pageText = `Page ${pageNum} of ${total}`;
+        const pageTextWidth = pdf.getTextWidth(pageText);
+        pdf.text(pageText, PAGE_WIDTH_MM - MARGIN_MM - pageTextWidth, footerY + 5);
+
+        // Document ID — subtle, second line
+        pdf.setFontSize(6);
+        pdf.setTextColor(170, 174, 181);
+        pdf.text(`Doc ID: ${data.documentId}`, MARGIN_MM, footerY + 9);
+
+        const corp = "DILS Group B.V. · dils.nl";
+        const corpWidth = pdf.getTextWidth(corp);
+        pdf.text(corp, PAGE_WIDTH_MM - MARGIN_MM - corpWidth, footerY + 9);
+      };
+
+      // Slice the captured canvas into per-page chunks. We composite each
+      // slice onto its own canvas so the PNG we embed is exactly the page
+      // body height — keeps header/footer space pristine, no overlap.
+      for (let p = 0; p < pageCount; p++) {
+        if (p > 0) pdf.addPage();
+
+        const sliceTopPx = Math.floor(p * contentHeightPx);
+        const sliceHeightPx = Math.min(
+          Math.ceil(contentHeightPx),
+          canvasHeightPx - sliceTopPx
+        );
+
+        if (sliceHeightPx <= 0) {
+          drawHeader();
+          drawFooter(p + 1, pageCount);
+          continue;
+        }
+
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvasWidthPx;
+        sliceCanvas.height = sliceHeightPx;
+        const sliceCtx = sliceCanvas.getContext("2d");
+        if (sliceCtx) {
+          sliceCtx.fillStyle = "#FFFFFF";
+          sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          sliceCtx.drawImage(
+            canvas,
+            0, sliceTopPx, canvasWidthPx, sliceHeightPx,
+            0, 0, canvasWidthPx, sliceHeightPx,
+          );
+        }
+
+        const sliceImgData = sliceCanvas.toDataURL("image/png");
+        const sliceHeightMm = sliceHeightPx / pxPerMm;
+        pdf.addImage(
+          sliceImgData,
+          "PNG",
+          CONTENT_LEFT_MM,
+          CONTENT_TOP_MM,
+          CONTENT_WIDTH_MM,
+          sliceHeightMm,
+          undefined,
+          "FAST"
+        );
+
+        drawHeader();
+        drawFooter(p + 1, pageCount);
       }
 
       const safeName = (data.signedByName || "investor")
@@ -69,7 +245,7 @@ export function PrintableSignedNda({ data }: Props) {
       pdf.save(fileName);
     } catch (e: any) {
       console.error("[PrintableSignedNda] download failed:", e);
-      toast.error("Could not generate PDF. Try again or use browser print.");
+      toast.error("Could not generate PDF. Try the Print button or contact the deal team.");
     } finally {
       setDownloading(false);
     }
@@ -91,7 +267,7 @@ export function PrintableSignedNda({ data }: Props) {
   }, [autoDownload]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 print:bg-white">
       <header className="sticky top-0 z-10 border-b bg-white px-4 py-2.5 print:hidden sm:px-6 sm:py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 sm:gap-3">
           <Link
@@ -107,6 +283,10 @@ export function PrintableSignedNda({ data }: Props) {
               <p className="text-xs text-muted-foreground">Signed by</p>
               <p className="text-sm font-medium">{data.signedByName}</p>
             </div>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="hidden sm:inline-flex">
+              <Printer className="mr-1.5 h-3.5 w-3.5" />
+              Print
+            </Button>
             <Button size="sm" onClick={handleDownload} disabled={downloading}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
               <span className="hidden sm:inline">{downloading ? "Generating…" : "Download PDF"}</span>
@@ -132,16 +312,83 @@ export function PrintableSignedNda({ data }: Props) {
           </div>
         </div>
 
+        {/* Captured content. The `nda-print-surface` class keeps print-CSS rules
+            scoped to this block so the browser's native Print also produces a
+            clean, header-less, full-bleed page. */}
         <div
           ref={contentRef}
-          className="rounded-xl border bg-white p-5 shadow-sm sm:p-8 lg:p-12 print:border-0 print:shadow-none print:p-0"
+          className="nda-print-surface rounded-xl border bg-white p-5 shadow-sm sm:p-8 lg:p-12 print:border-0 print:shadow-none print:p-0"
         >
+          {/* Cover-style metadata block. Only shows on screen + native print —
+              the html2canvas capture includes it as the first page. */}
+          <div className="mb-6 border-b pb-5 print:mb-8 print:pb-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Non-Disclosure Agreement
+                </p>
+                <h2 className="mt-1 font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                  {data.assetTitle}
+                </h2>
+              </div>
+              <Image
+                src="/dils-logo.png"
+                alt="DILS"
+                width={88}
+                height={28}
+                className="h-7 w-auto object-contain shrink-0 sm:h-8"
+              />
+            </div>
+            {(data.signedByName || data.signedAt) && (
+              <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                {data.signedByName && (
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.10em] text-muted-foreground">Signed by</dt>
+                    <dd className="mt-0.5 font-medium text-foreground">{data.signedByName}</dd>
+                  </div>
+                )}
+                {data.signedAt && (
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.10em] text-muted-foreground">Signed on</dt>
+                    <dd className="mt-0.5 font-medium text-foreground">{formatLongDate(data.signedAt)}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+          </div>
+
           <div
-            className="prose prose-sm max-w-none text-[13px] leading-relaxed"
+            className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h1]:font-heading [&_h2]:font-heading [&_h3]:font-heading [&_p]:break-inside-avoid [&_li]:break-inside-avoid"
             dangerouslySetInnerHTML={{ __html: data.signedHtml }}
           />
         </div>
       </main>
+
+      {/* Print-only stylesheet — produces a clean A4 layout when the user
+          hits Cmd/Ctrl+P or our Print button (browsers' "Save as PDF"
+          option from this dialog gives text-selectable output). */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 16mm;
+          }
+          body {
+            background: white !important;
+          }
+          .nda-print-surface {
+            page-break-inside: auto;
+          }
+          .nda-print-surface p,
+          .nda-print-surface li,
+          .nda-print-surface h1,
+          .nda-print-surface h2,
+          .nda-print-surface h3 {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+        }
+      `}</style>
     </div>
   );
 }

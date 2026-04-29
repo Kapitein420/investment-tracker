@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-dils-50 p-4">
       <div className="w-full max-w-sm space-y-8 rounded-md border border-dils-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="space-y-3 text-center">
-          <h1 className="font-heading text-4xl font-bold tracking-tight text-dils-black sm:text-5xl">DILS</h1>
+          <Image
+            src="/dils-logo.png"
+            alt="DILS"
+            width={140}
+            height={44}
+            priority
+            className="mx-auto h-10 w-auto object-contain sm:h-11"
+          />
           <div className="space-y-1">
             <p className="dils-accent inline-block text-sm font-medium text-dils-black">
               Investment Tracker
