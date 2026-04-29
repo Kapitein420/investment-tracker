@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MapPin, Calendar } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { Plus, Search, MapPin, Calendar, Building2 } from "lucide-react";
+import { formatDate, cn } from "@/lib/utils";
 import { canEdit } from "@/lib/permissions";
 import { Role } from "@prisma/client";
 import { CreateAssetDialog } from "@/components/dashboard/create-asset-dialog";
@@ -24,6 +24,7 @@ type AssetItem = {
   updatedAt: Date;
   createdBy: { name: string };
   _count: { trackings: number };
+  coverImageUrl?: string | null;
 };
 
 export function DashboardContent({
@@ -155,13 +156,34 @@ export function DashboardContent({
                 {/* Business-unit colored edge */}
                 <div className={`w-1.5 shrink-0 ${unit.bar}`} aria-hidden />
 
-                <div className="flex flex-1 flex-col gap-4 p-4 pl-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <div className="flex flex-1 flex-col gap-4 p-3 pl-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${unit.tint} font-heading text-lg font-bold text-dils-black`}>
-                      {asset.title.slice(0, 2).toUpperCase()}
-                    </div>
+                    {asset.coverImageUrl ? (
+                      <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-md border border-dils-100 bg-soft-bg-surface-alt sm:h-[68px] sm:w-[88px]">
+                        {/* Plain <img>: lets us serve a Supabase signed URL with no
+                            extra remote-pattern config. Loading=lazy so the
+                            list paints fast and below-the-fold rows defer. */}
+                        <img
+                          src={asset.coverImageUrl}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className={cn(
+                          "flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-dils-100 sm:h-[68px] sm:w-[88px]",
+                          unit.tint
+                        )}
+                        aria-hidden
+                      >
+                        <Building2 className="h-7 w-7 text-dils-black/40" strokeWidth={1.6} />
+                      </div>
+                    )}
                     <div className="min-w-0">
-                      <h3 className="font-heading font-semibold text-dils-black truncate">
+                      <h3 className="font-heading text-lg font-semibold tracking-tight text-dils-black truncate">
                         {asset.title}
                       </h3>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
