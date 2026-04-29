@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { type PipelineStage } from "@prisma/client";
+import { type PipelineStage, type Role } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Send, ChevronRight, Clock, User, MessageSquare, History, FileText, ShieldCheck } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
 import { approveStage } from "@/actions/approval-actions";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
+import { canSeeContactDetails } from "@/lib/permissions";
 import {
   STAGE_STATUS_LABELS,
   STAGE_DOT_COLORS,
@@ -24,7 +33,7 @@ import {
   INTEREST_LABELS,
   INTEREST_COLORS,
 } from "@/lib/stages";
-import { getTrackingDetail, updateTracking, advanceToNextStage } from "@/actions/tracking-actions";
+import { getTrackingDetail, updateTracking, advanceToNextStage, finalizeTracking } from "@/actions/tracking-actions";
 import { createComment } from "@/actions/comment-actions";
 import { toast } from "sonner";
 
@@ -34,6 +43,7 @@ interface TrackingDetailDrawerProps {
   users: Array<{ id: string; name: string }>;
   editable: boolean;
   currentUserId: string;
+  userRole: Role;
   onClose: () => void;
 }
 
@@ -43,8 +53,12 @@ export function TrackingDetailDrawer({
   users,
   editable,
   currentUserId,
+  userRole,
   onClose,
 }: TrackingDetailDrawerProps) {
+  const showPII = canSeeContactDetails(userRole);
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const router = useRouter();
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +119,28 @@ export function TrackingDetailDrawer({
     }
   }
 
+  // Whether the tracking is currently sitting on its final stage IN_PROGRESS
+  // (or the final stage is already completed but the lifecycle hasn't been
+  // marked COMPLETED). In either case, the next admin action is to finalize
+  // the deal — there are no more stages to advance to.
+  function isOnFinalStage(): boolean {
+    if (!detail?.stageStatuses?.length) return false;
+    const sorted = [...detail.stageStatuses].sort(
+      (a: any, b: any) => a.stage.sequence - b.stage.sequence
+    );
+    const lastIdx = sorted.length - 1;
+    const last = sorted[lastIdx];
+    if (last.status === "IN_PROGRESS") return true;
+    if (last.status === "COMPLETED" && detail.lifecycleStatus !== "COMPLETED") return true;
+    return false;
+  }
+
   async function handleAdvance() {
+    if (isOnFinalStage()) {
+      // Open the finalize-deal confirmation modal instead of throwing.
+      setFinalizeOpen(true);
+      return;
+    }
     try {
       await advanceToNextStage(trackingId);
       toast.success("Advanced to next stage");
@@ -113,6 +148,21 @@ export function TrackingDetailDrawer({
       router.refresh();
     } catch (e: any) {
       toast.error(e.message || "Cannot advance");
+    }
+  }
+
+  async function handleFinalize() {
+    setFinalizing(true);
+    try {
+      await finalizeTracking(trackingId);
+      toast.success("Deal finalized — marked Completed");
+      setFinalizeOpen(false);
+      loadDetail();
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to finalize");
+    } finally {
+      setFinalizing(false);
     }
   }
 
@@ -167,10 +217,21 @@ export function TrackingDetailDrawer({
                       </Button>
                     </Link>
                     {editable && (
-                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdvance}>
-                        <ChevronRight className="mr-1 h-3 w-3" />
-                        Advance
-                      </Button>
+                      detail && isOnFinalStage() ? (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-status-success text-white hover:bg-status-success/90"
+                          onClick={handleAdvance}
+                        >
+                          <CheckCircle2 className="mr-1 h-3 w-3" strokeWidth={2.4} />
+                          Finalize deal
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdvance}>
+                          <ChevronRight className="mr-1 h-3 w-3" />
+                          Advance
+                        </Button>
+                      )
                     )}
                   </div>
                 </div>
@@ -280,9 +341,15 @@ export function TrackingDetailDrawer({
               {/* Company info */}
               <div className="rounded-md bg-gray-50 p-3 text-xs space-y-1">
                 <p className="font-medium">{detail.company.name}</p>
-                {detail.company.contactName && <p>Contact: {detail.company.contactName}</p>}
-                {detail.company.contactEmail && <p>Email: {detail.company.contactEmail}</p>}
+                {showPII && detail.company.contactName && <p>Contact: {detail.company.contactName}</p>}
+                {showPII && detail.company.contactEmail && <p>Email: {detail.company.contactEmail}</p>}
                 {detail.company.website && <p>Web: {detail.company.website}</p>}
+                {!showPII && (
+                  <p className="inline-flex items-center gap-1 pt-1 text-[11px] text-muted-foreground italic">
+                    <Lock className="h-3 w-3" strokeWidth={2.2} />
+                    Contact details visible to DILS team only
+                  </p>
+                )}
               </div>
             </div>
 
@@ -337,7 +404,9 @@ export function TrackingDetailDrawer({
                     {detail.comments?.map((c: any) => (
                       <div key={c.id} className="rounded-md border p-3 text-sm">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">{c.author.name}</span>
+                          <span className="text-xs font-medium">
+                            {showPII ? c.author.name : "Team member"}
+                          </span>
                           <span className="text-[10px] text-muted-foreground">{formatDateTime(c.createdAt)}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">{c.body}</p>
@@ -364,7 +433,7 @@ export function TrackingDetailDrawer({
                             <span className="font-medium">{h.newValue}</span>
                           </p>
                           <p className="text-muted-foreground">
-                            by {h.changedBy.name} &middot; {formatDateTime(h.createdAt)}
+                            by {showPII ? h.changedBy.name : "Team member"} &middot; {formatDateTime(h.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -385,6 +454,41 @@ export function TrackingDetailDrawer({
           </div>
         ) : null}
       </div>
+
+      {/* Finalize-deal confirmation dialog. Triggered when admin clicks
+          "Finalize deal" on the final pipeline stage. Replaces the prior
+          "Already at the final stage" error. */}
+      <Dialog open={finalizeOpen} onOpenChange={(open) => { if (!finalizing) setFinalizeOpen(open); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="inline-flex items-center gap-2 font-heading">
+              <CheckCircle2 className="h-5 w-5 text-status-success" strokeWidth={2.4} />
+              Finalize this deal?
+            </DialogTitle>
+            <DialogDescription>
+              This marks the final pipeline stage as completed and moves the deal lifecycle
+              to <strong>Completed</strong>. You can still view the timeline, comments, and
+              documents — but the row will no longer appear under Active.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border-l-[3px] border-l-status-success bg-status-success-soft px-3.5 py-3 text-sm text-status-success">
+            <strong className="font-semibold">{detail?.company?.name}</strong> · {detail?.asset?.title ?? "this asset"}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizeOpen(false)} disabled={finalizing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFinalize}
+              disabled={finalizing}
+              className="bg-status-success text-white hover:bg-status-success/90"
+            >
+              <CheckCircle2 className="mr-1.5 h-4 w-4" strokeWidth={2.4} />
+              {finalizing ? "Finalizing…" : "Yes, finalize"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

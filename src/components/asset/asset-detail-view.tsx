@@ -45,6 +45,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
 
   const editable = canEdit(currentUser.role);
+  const isViewerRole = currentUser.role === "VIEWER";
 
   const stageSummary = useMemo(() => computeStageSummaryCounts(asset.trackings), [asset.trackings]);
 
@@ -138,6 +139,11 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 </span>
               )}
               {asset.brokerLabel && <span>Broker: <strong className="font-medium text-dils-black">{asset.brokerLabel}</strong></span>}
+              {isViewerRole && (
+                <span className="inline-flex items-center gap-1 rounded border border-banner-info-foreground/30 bg-banner-info px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-banner-info-foreground">
+                  Read-only view
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -377,6 +383,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               users={users}
               editable={editable}
               currentUserId={currentUser.id}
+              userRole={currentUser.role}
               onRowClick={(id) => setSelectedTrackingId(id)}
             />
           </div>
@@ -421,6 +428,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
           users={users}
           editable={editable}
           currentUserId={currentUser.id}
+          userRole={currentUser.role}
           onClose={() => setSelectedTrackingId(null)}
         />
       )}

@@ -11,7 +11,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { useState } from "react";
-import { type PipelineStage } from "@prisma/client";
+import { type PipelineStage, type Role } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,12 +48,14 @@ interface PipelineTableProps {
   users: Array<{ id: string; name: string }>;
   editable: boolean;
   currentUserId: string;
+  userRole?: Role;
   onRowClick: (id: string) => void;
 }
 
-export function PipelineTable({ trackings, stages, users, editable, currentUserId, onRowClick }: PipelineTableProps) {
+export function PipelineTable({ trackings, stages, users, editable, currentUserId, userRole, onRowClick }: PipelineTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const showPII = userRole !== "VIEWER";
 
   const columns = useMemo<ColumnDef<TrackingRow>[]>(() => {
     const cols: ColumnDef<TrackingRow>[] = [
@@ -190,7 +192,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
         meta: { cellClass: "hidden lg:table-cell" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.ownerUser?.name ?? "-"}
+            {row.original.ownerUser ? (showPII ? row.original.ownerUser.name : "DILS team") : "-"}
           </span>
         ),
       },
