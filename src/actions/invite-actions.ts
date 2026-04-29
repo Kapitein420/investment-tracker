@@ -11,6 +11,7 @@ import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
+import { ensureUserCompanyMembership } from "@/lib/user-companies";
 
 function generatePassword(length = 12): string {
   const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -33,15 +34,22 @@ export async function sendInvestorInvite({
     prisma.company.findUniqueOrThrow({ where: { id: companyId } }),
   ]);
 
-  // Check if an INVESTOR user already exists for this company+email
-  let investorUser = await prisma.user.findFirst({
-    where: { email, companyId, role: "INVESTOR" },
+  // Sprint B PR-3: look up by EMAIL only (User.email is globally @unique).
+  // Previously this was scoped to (email, companyId) which meant inviting
+  // the same person under a different Company would throw a unique
+  // constraint violation on create — or, worse, look like a fresh investor
+  // and lose continuity. Now we find any existing User and add a membership
+  // row for the new company without touching their existing identity.
+  let investorUser = await prisma.user.findUnique({
+    where: { email },
   });
 
   let plainPassword: string | null = null;
 
   if (!investorUser) {
-    // Auto-create investor account
+    // Auto-create investor account. Also seed User.companyId with this
+    // company as the "primary" so existing single-company code paths keep
+    // working until PR-5 drops the column.
     plainPassword = generatePassword();
     const passwordHash = await bcrypt.hash(plainPassword, 10);
 
@@ -54,6 +62,12 @@ export async function sendInvestorInvite({
         companyId,
       },
     });
+  } else if (investorUser.role !== "INVESTOR") {
+    // Email belongs to an admin / editor / viewer account — refuse rather
+    // than silently elevate them across role boundaries.
+    throw new Error(
+      `An account with email ${email} already exists with role ${investorUser.role}. Use a different email or change the existing user's role first.`
+    );
   } else {
     // Has the investor EVER logged in to the platform? Across any company,
     // any asset. Previously this was scoped to (email, companyId) which
@@ -80,6 +94,14 @@ export async function sendInvestorInvite({
       plainPassword = null; // Will skip password display in email
     }
   }
+
+  // Sprint B PR-3: dual-write the (user, company) membership. Idempotent —
+  // re-inviting an existing investor to the same asset is a no-op on this
+  // table; inviting them to a NEW company creates a fresh row. After
+  // backfill (PR-4) every existing investor will also have membership rows
+  // for their primary company. Until then, the portal helpers fall back
+  // to User.companyId, so this write is purely additive.
+  await ensureUserCompanyMembership(investorUser.id, companyId);
 
   // Create invite record for tracking
   const token = randomUUID() + "-" + randomUUID();
