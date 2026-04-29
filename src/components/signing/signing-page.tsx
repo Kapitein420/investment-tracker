@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -158,9 +159,16 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
       <div className="border-b border-dils-200 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex flex-col leading-none">
-              <span className="font-heading text-xl font-bold tracking-tight text-dils-black sm:text-2xl">DILS</span>
-              <span className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Document Signing</span>
+            <div className="flex flex-col leading-none gap-1.5">
+              <Image
+                src="/dils-logo.png"
+                alt="DILS"
+                width={88}
+                height={28}
+                priority
+                className="h-7 w-auto object-contain sm:h-8"
+              />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Document Signing</span>
             </div>
             <div className="h-10 w-px bg-dils-200" />
             <div className="min-w-0">

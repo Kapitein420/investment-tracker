@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -35,8 +36,15 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="flex h-14 flex-col justify-center gap-0 border-b border-dils-200 px-4">
-        <span className="font-heading font-bold text-base tracking-tight text-dils-black">DILS</span>
+      <div className="flex h-14 flex-col justify-center gap-1 border-b border-dils-200 px-4">
+        <Image
+          src="/dils-logo.png"
+          alt="DILS"
+          width={72}
+          height={22}
+          priority
+          className="h-[22px] w-auto object-contain"
+        />
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
           Investment Tracker
         </span>
@@ -137,8 +145,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <Menu className="h-5 w-5" strokeWidth={2} />
         </Button>
-        <div className="flex flex-col items-center leading-none">
-          <span className="font-heading font-bold text-base tracking-tight text-dils-black">DILS</span>
+        <div className="flex flex-col items-center leading-none gap-1">
+          <Image
+            src="/dils-logo.png"
+            alt="DILS"
+            width={64}
+            height={20}
+            priority
+            className="h-[20px] w-auto object-contain"
+          />
           <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
             Investment Tracker
           </span>
