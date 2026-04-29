@@ -139,8 +139,17 @@ export function InvitesAdmin({
     }
     setLoading(true);
     try {
-      await sendInvestorInvite({ companyId, assetId, email });
-      toast.success("Invitation sent");
+      const result = await sendInvestorInvite({ companyId, assetId, email });
+      if (result.emailSent) {
+        toast.success("Invitation sent");
+      } else {
+        // Account + invite are created either way; only the email failed.
+        // Long warning toast so the admin actually sees it.
+        toast.warning(
+          `Account created but the email didn't send: ${result.emailError ?? "unknown error"}. Use "Copy invite link" to share the credentials manually.`,
+          { duration: 12000 }
+        );
+      }
       setDialogOpen(false);
       setCompanyId("");
       setAssetId("");
@@ -156,12 +165,19 @@ export function InvitesAdmin({
   async function handleResendFor(group: InvestorGroup, inviteAssetId: string) {
     setResendingKey(group.key + "|" + inviteAssetId);
     try {
-      await sendInvestorInvite({
+      const result = await sendInvestorInvite({
         companyId: group.company.id,
         assetId: inviteAssetId,
         email: group.email,
       });
-      toast.success("Invitation resent");
+      if (result.emailSent) {
+        toast.success("Invitation resent");
+      } else {
+        toast.warning(
+          `Email didn't send: ${result.emailError ?? "unknown error"}. The login link still works — copy it from the invite list.`,
+          { duration: 12000 }
+        );
+      }
       router.refresh();
     } catch (e: any) {
       toast.error(e.message || "Failed to resend");
