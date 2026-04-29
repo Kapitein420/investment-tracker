@@ -72,6 +72,15 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
     )
   );
 
+  // Investors who have requested a property viewing — viewing stage is
+  // IN_PROGRESS and the broker still needs to schedule a date with them.
+  // Triggered by the "Request viewing" CTA on the investor portal.
+  const pendingViewingRequests = asset.trackings.filter((t: any) =>
+    t.stageStatuses?.some(
+      (ss: any) => ss.stage?.key === "viewing" && ss.status === "IN_PROGRESS"
+    )
+  );
+
   const relationshipTypes = Array.from(new Set(asset.trackings.map((t: any) => t.relationshipType)));
 
   function handleExportCSV() {
@@ -220,6 +229,36 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               onClick={() => setSelectedTrackingId(pendingApprovals[0].id)}
             >
               Review →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Viewing requests banner. Shows when one or more investors have
+          clicked "Request viewing" on their investor portal — the broker
+          needs to follow up to schedule a date. The investor was emailed,
+          but this surfaces it in the admin UI so it can't be missed. */}
+      {editable && pendingViewingRequests.length > 0 && (
+        <div className="border-b border-l-[3px] border-l-status-current bg-status-current/8 px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-status-current">
+              <span className="inline-flex h-2 w-2 rounded-full bg-status-current" />
+              <span>
+                <strong>{pendingViewingRequests.length}</strong>{" "}
+                {pendingViewingRequests.length === 1 ? "investor has" : "investors have"} requested a viewing —{" "}
+                {pendingViewingRequests
+                  .slice(0, 3)
+                  .map((t: any) => t.company.name)
+                  .join(", ")}
+                {pendingViewingRequests.length > 3 ? ` +${pendingViewingRequests.length - 3} more` : ""}
+                . Schedule a date and contact them.
+              </span>
+            </div>
+            <button
+              className="shrink-0 text-xs font-semibold text-status-current underline-offset-2 hover:underline"
+              onClick={() => setSelectedTrackingId(pendingViewingRequests[0].id)}
+            >
+              Open →
             </button>
           </div>
         </div>

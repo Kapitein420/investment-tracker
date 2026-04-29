@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,13 +9,21 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-dils-50/50">
+    <div className="min-h-screen flex flex-col bg-soft-bg-main">
       {/* Top nav */}
       <header className="border-b border-dils-200 bg-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex flex-col gap-0 leading-none">
-            <span className="font-heading font-bold text-base tracking-tight text-dils-black">DILS</span>
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex items-center gap-3 leading-none">
+            <Image
+              src="/dils-logo.png"
+              alt="DILS"
+              width={88}
+              height={28}
+              priority
+              className="h-7 w-auto object-contain"
+            />
+            <span className="hidden sm:inline-block h-5 w-px bg-dils-200" />
+            <span className="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Investor Portal
             </span>
           </div>
@@ -36,14 +45,35 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {children}
-        <footer className="mt-16 pt-8 border-t border-dils-200 text-center">
-          <p className="text-[10px] text-muted-foreground">
-            © 2026 DILS Group B.V. — <a href="mailto:privacy@dils.com" className="underline hover:text-dils-black">Privacy</a>
-          </p>
-        </footer>
       </main>
+
+      <footer className="mt-auto border-t border-dils-200 bg-white">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-4 text-[12px] text-muted-foreground sm:flex-row sm:px-6">
+          <p>
+            © {new Date().getFullYear()} DILS Group B.V. · P.IVA 07575790154
+          </p>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <a
+              href="https://dils.nl/privacyverklaring/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-dils-black hover:underline underline-offset-2"
+            >
+              Privacy
+            </a>
+            <a
+              href="https://dils.nl/algemene-voorwaarden/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-dils-black hover:underline underline-offset-2"
+            >
+              Algemene voorwaarden
+            </a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

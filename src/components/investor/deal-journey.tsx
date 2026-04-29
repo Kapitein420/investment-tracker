@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, Building, MapPin, Check, Clock, Lock, Pen, FileText,
-  Download, Eye, ChevronRight,
+  ArrowLeft, Building, MapPin, Calendar, Check, Clock, Lock, Pen, FileText,
+  Download, Eye, ChevronRight, Mail,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { assetTypeToUnit } from "@/lib/stages";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
-import { recordInvestorStageEvent } from "@/actions/portal-actions";
+import { recordInvestorStageEvent, requestViewing } from "@/actions/portal-actions";
 import { toast } from "sonner";
 
 interface DealJourneyProps {
@@ -116,12 +117,34 @@ const NEXT_STEP_TITLES: Record<string, string> = {
 };
 
 export function DealJourney({ tracking, contents }: DealJourneyProps) {
+  const router = useRouter();
   const stages = tracking.stageStatuses.sort(
     (a: any, b: any) => a.stage.sequence - b.stage.sequence
   );
 
   const [signingDoc, setSigningDoc] = useState<any>(null);
   const [signingToken, setSigningToken] = useState<string>("");
+  const [requestingViewing, startRequestViewing] = useTransition();
+
+  function handleRequestViewing() {
+    startRequestViewing(async () => {
+      try {
+        const result = await requestViewing(tracking.id);
+        if (!result.ok) {
+          toast.error(result.error ?? "Couldn't send the request");
+          return;
+        }
+        if (result.alreadyRequested) {
+          toast.info("Viewing already requested — broker will be in touch");
+        } else {
+          toast.success("Viewing requested. The broker will contact you to schedule a date.");
+        }
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Couldn't send the request");
+      }
+    });
+  }
 
   // Progress calculation
   const completedCount = stages.filter((s: any) => s.status === "COMPLETED").length;
@@ -455,21 +478,32 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                               <Badge className="border-0 bg-status-success-soft text-status-success text-xs font-semibold">
                                 <Check className="mr-1 h-3 w-3" strokeWidth={2.6} />Signed
                               </Badge>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs"
-                                onClick={() => {
-                                  if (doc.mimeType === "text/html") {
-                                    window.location.href = `/portal/signed-nda/${doc.id}`;
-                                  } else {
-                                    handleDownload(doc.id, ss.stage.key);
-                                  }
-                                }}
-                              >
-                                <Download className="mr-1 h-3 w-3" />
-                                {doc.mimeType === "text/html" ? "View" : "Download"}
-                              </Button>
+                              {doc.mimeType === "text/html" ? (
+                                <>
+                                  <Link href={`/portal/signed-nda/${doc.id}`}>
+                                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                                      <Eye className="mr-1 h-3 w-3" />
+                                      View
+                                    </Button>
+                                  </Link>
+                                  <Link href={`/portal/signed-nda/${doc.id}?download=1`} target="_blank">
+                                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                                      <Download className="mr-1 h-3 w-3" />
+                                      Download
+                                    </Button>
+                                  </Link>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs"
+                                  onClick={() => handleDownload(doc.id, ss.stage.key)}
+                                >
+                                  <Download className="mr-1 h-3 w-3" />
+                                  Download
+                                </Button>
+                              )}
                             </>
                           )}
                           {doc.status === "REJECTED" && (
@@ -504,23 +538,41 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           {content.title}
                         </h4>
                         {content.contentType === "PDF" && content.fileUrl && (
-                          <a
-                            href={content.fileUrl}
-                            target="_blank"
-                            rel="noopener"
-                            onClick={() => {
-                              recordInvestorStageEvent({
-                                trackingId: tracking.id,
-                                stageKey: ss.stage.key,
-                                event: "DOWNLOADED",
-                              }).catch(() => {});
-                            }}
-                          >
-                            <Button size="sm" className="h-8 bg-banner-info-foreground text-white hover:bg-banner-info-foreground/90 text-xs">
-                              <Download className="mr-1.5 h-3 w-3" />
-                              Open in new tab
-                            </Button>
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={content.fileUrl}
+                              target="_blank"
+                              rel="noopener"
+                              onClick={() => {
+                                recordInvestorStageEvent({
+                                  trackingId: tracking.id,
+                                  stageKey: ss.stage.key,
+                                  event: "DOWNLOADED",
+                                }).catch(() => {});
+                              }}
+                            >
+                              <Button variant="outline" size="sm" className="h-8 text-xs">
+                                <Eye className="mr-1.5 h-3 w-3" />
+                                Open
+                              </Button>
+                            </a>
+                            <a
+                              href={content.fileUrl}
+                              download={content.fileName ?? `${content.title}.pdf`}
+                              onClick={() => {
+                                recordInvestorStageEvent({
+                                  trackingId: tracking.id,
+                                  stageKey: ss.stage.key,
+                                  event: "DOWNLOADED",
+                                }).catch(() => {});
+                              }}
+                            >
+                              <Button size="sm" className="h-8 bg-banner-info-foreground text-white hover:bg-banner-info-foreground/90 text-xs">
+                                <Download className="mr-1.5 h-3 w-3" />
+                                Download
+                              </Button>
+                            </a>
+                          </div>
                         )}
                       </div>
                       {content.description && (
@@ -629,7 +681,49 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         </div>
                       </div>
                     );
-                  })() : state === "action_needed" ? (
+                  })() : ss.stage.key === "viewing" ? (
+                    /* Viewing stage: request flow.
+                       - available (unlocked but not requested) → show request CTA
+                       - action_needed (IN_PROGRESS, request sent) → show "awaiting" card
+                       - completed → handled by stageDocs/stageContent path above */
+                    state === "action_needed" ? (
+                      <div className="rounded-md border-l-[3px] border-l-status-current bg-status-current/5 p-4">
+                        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-status-current">
+                          <Clock className="h-3.5 w-3.5" strokeWidth={2.4} />
+                          Awaiting viewing date
+                        </p>
+                        <p className="mt-1 text-xs text-status-current/80">
+                          The broker has been notified and will contact you to schedule a date.
+                        </p>
+                      </div>
+                    ) : state === "available" ? (
+                      <div className="rounded-lg border border-dils-200 bg-white p-5">
+                        <h4 className="font-heading text-base font-semibold tracking-tight text-foreground">
+                          Ready to view the property?
+                        </h4>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Send the broker a request and they will reach out to schedule a viewing or
+                          presentation at a time that suits you.
+                        </p>
+                        <Button
+                          className="mt-4 bg-banner-info-foreground text-white hover:bg-banner-info-foreground/90"
+                          disabled={requestingViewing}
+                          onClick={handleRequestViewing}
+                        >
+                          <Calendar className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
+                          {requestingViewing ? "Sending request…" : "Request viewing"}
+                        </Button>
+                        <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Mail className="h-3 w-3" strokeWidth={2} />
+                          Sends an email to the deal team
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs italic text-muted-foreground">
+                        Complete the IM stage to request a viewing.
+                      </p>
+                    )
+                  ) : state === "action_needed" ? (
                     <div className="rounded-md border-l-[3px] border-l-status-current bg-status-current/5 p-4">
                       <p className="text-sm font-semibold text-status-current">Waiting for documents</p>
                       <p className="mt-1 text-xs text-status-current/80">
