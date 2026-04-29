@@ -97,16 +97,29 @@ function groupByInvestor(
   );
 }
 
+export type InviteEvents = {
+  sent: boolean;
+  sentAt: Date | null;
+  delivered: boolean;
+  opened: boolean;
+  bounced: boolean;
+  latestError: string | null;
+  latestEvent: string | null;
+  latestEventAt: Date | null;
+};
+
 export function InvitesAdmin({
   invites,
   investorUsers,
   companies,
   assets,
+  inviteEvents = {},
 }: {
   invites: InviteRow[];
   investorUsers: InvestorUser[];
   companies: Array<{ id: string; name: string; contactEmail: string | null }>;
   assets: Array<{ id: string; title: string }>;
+  inviteEvents?: Record<string, InviteEvents>;
 }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -264,6 +277,20 @@ export function InvitesAdmin({
                             : inv.expiresAt < new Date()
                             ? "expired"
                             : "pending";
+                          const ev = inviteEvents[inv.id];
+                          // Email-delivery story for this specific invite. Order
+                          // matters — bounced beats delivered if both fired.
+                          const emailBadge = ev?.bounced
+                            ? { label: "Bounced", color: "text-red-600", title: ev.latestError ?? "Recipient bounced" }
+                            : ev?.opened
+                            ? { label: "Opened", color: "text-emerald-700", title: "Investor opened the email" }
+                            : ev?.delivered
+                            ? { label: "Delivered", color: "text-emerald-600", title: "Mailgun delivered to recipient mailbox" }
+                            : ev?.sent
+                            ? { label: "Sent", color: "text-dils-700", title: "Mailgun accepted the message — awaiting delivery confirmation" }
+                            : ev && ev.latestError
+                            ? { label: "Email failed", color: "text-red-600", title: ev.latestError }
+                            : null;
                           return (
                             <div
                               key={inv.id}
@@ -278,6 +305,14 @@ export function InvitesAdmin({
                               )}
                               {thisStatus === "pending" && (
                                 <Clock className="h-3 w-3 text-amber-500" strokeWidth={2.5} />
+                              )}
+                              {emailBadge && (
+                                <span
+                                  className={`ml-1 text-[10px] font-medium ${emailBadge.color}`}
+                                  title={emailBadge.title}
+                                >
+                                  · {emailBadge.label}
+                                </span>
                               )}
                               <button
                                 type="button"
