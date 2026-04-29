@@ -9,19 +9,19 @@ export const STAGE_STATUS_LABELS: Record<StageStatusValue, string> = {
 };
 
 export const STAGE_STATUS_COLORS: Record<StageStatusValue, string> = {
-  NOT_STARTED: "bg-gray-100 text-gray-500",
-  IN_PROGRESS: "bg-blue-100 text-blue-700",
-  COMPLETED: "bg-emerald-100 text-emerald-700",
-  BLOCKED: "bg-amber-100 text-amber-700",
-  DECLINED: "bg-red-100 text-red-700",
+  NOT_STARTED: "bg-soft-bg-surface-alt text-muted-foreground",
+  IN_PROGRESS: "bg-status-current/10 text-status-current",
+  COMPLETED: "bg-status-success-soft text-status-success",
+  BLOCKED: "bg-status-warning-soft text-status-warning",
+  DECLINED: "bg-status-danger-soft text-status-danger",
 };
 
 export const STAGE_DOT_COLORS: Record<StageStatusValue, string> = {
-  NOT_STARTED: "bg-gray-300",
-  IN_PROGRESS: "bg-blue-500",
-  COMPLETED: "bg-emerald-500",
-  BLOCKED: "bg-amber-500",
-  DECLINED: "bg-red-500",
+  NOT_STARTED: "bg-dils-200",
+  IN_PROGRESS: "bg-status-current",
+  COMPLETED: "bg-status-success",
+  BLOCKED: "bg-status-warning",
+  DECLINED: "bg-status-danger",
 };
 
 export const LIFECYCLE_LABELS = {
@@ -32,10 +32,10 @@ export const LIFECYCLE_LABELS = {
 } as const;
 
 export const LIFECYCLE_COLORS = {
-  ACTIVE: "bg-emerald-100 text-emerald-700",
-  COMPLETED: "bg-blue-100 text-blue-700",
-  DROPPED: "bg-red-100 text-red-700",
-  ON_HOLD: "bg-amber-100 text-amber-700",
+  ACTIVE: "bg-status-success-soft text-status-success",
+  COMPLETED: "bg-soft-office-soft text-soft-office",
+  DROPPED: "bg-status-danger-soft text-status-danger",
+  ON_HOLD: "bg-status-warning-soft text-status-warning",
 } as const;
 
 export const INTEREST_LABELS = {

@@ -102,11 +102,11 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-dils-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-center gap-2 mb-2">
-          <Link href="/" className="text-muted-foreground hover:text-dils-black">
-            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+        <div className="flex items-center gap-1.5 mb-2">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground hover:text-dils-black">
+            <ArrowLeft className="h-3 w-3" strokeWidth={2.4} />
+            Assets
           </Link>
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">Assets</span>
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -118,30 +118,53 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 <MapPin className="h-3.5 w-3.5" strokeWidth={2} />
                 {asset.address}, {asset.city}
               </span>
-              {asset.assetType && <Badge variant="secondary" className="text-xs">{asset.assetType}</Badge>}
-              {asset.transactionType && <Badge variant="outline" className="text-xs border-dils-300 text-dils-700">{asset.transactionType}</Badge>}
-              {asset.brokerLabel && <span>Broker: {asset.brokerLabel}</span>}
+              {asset.assetType && (
+                <span className="inline-flex items-center rounded border border-soft-office/30 bg-soft-office-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-soft-office">
+                  {asset.assetType}
+                </span>
+              )}
+              {asset.transactionType && (
+                <span className="inline-flex items-center rounded border border-soft-retail/30 bg-soft-retail-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-soft-retail">
+                  {asset.transactionType}
+                </span>
+              )}
+              {asset.brokerLabel && <span>Broker: <strong className="font-medium text-dils-black">{asset.brokerLabel}</strong></span>}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <div className="flex rounded-md border bg-muted p-0.5">
+            <div className="flex overflow-hidden rounded-md border border-dils-200 bg-white">
               <button
                 onClick={() => setView("table")}
-                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "table" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 border-r border-dils-200 px-3.5 py-2 text-[13px] font-medium transition-colors",
+                  view === "table"
+                    ? "bg-soft-bg-surface-alt text-foreground font-semibold shadow-[inset_0_-2px_0_0_theme(colors.banner-info.foreground)]"
+                    : "text-muted-foreground hover:bg-soft-bg-surface-alt hover:text-foreground"
+                )}
               >
                 <Table2 className="h-3.5 w-3.5" />
                 Table
               </button>
               <button
                 onClick={() => setView("overview")}
-                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "overview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 border-r border-dils-200 px-3.5 py-2 text-[13px] font-medium transition-colors",
+                  view === "overview"
+                    ? "bg-soft-bg-surface-alt text-foreground font-semibold shadow-[inset_0_-2px_0_0_theme(colors.banner-info.foreground)]"
+                    : "text-muted-foreground hover:bg-soft-bg-surface-alt hover:text-foreground"
+                )}
               >
                 <BarChart3 className="h-3.5 w-3.5" />
                 Overview
               </button>
               <button
                 onClick={() => setView("content")}
-                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors", view === "content" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium transition-colors",
+                  view === "content"
+                    ? "bg-soft-bg-surface-alt text-foreground font-semibold shadow-[inset_0_-2px_0_0_theme(colors.banner-info.foreground)]"
+                    : "text-muted-foreground hover:bg-soft-bg-surface-alt hover:text-foreground"
+                )}
               >
                 <FileStack className="h-3.5 w-3.5" />
                 Content
@@ -177,10 +200,10 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
           investor has signed but not been approved — that investor's IM
           stays locked silently until an admin acts. */}
       {editable && pendingApprovals.length > 0 && (
-        <div className="border-b bg-amber-50 px-4 py-2.5 sm:px-6">
+        <div className="border-b border-l-[3px] border-l-status-warning bg-status-warning-soft px-4 py-2.5 sm:px-6">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm text-amber-900">
-              <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
+            <div className="flex items-center gap-2 text-sm text-status-warning">
+              <span className="inline-flex h-2 w-2 rounded-full bg-status-warning" />
               <span>
                 <strong>{pendingApprovals.length}</strong>{" "}
                 {pendingApprovals.length === 1 ? "investor has" : "investors have"} signed the NDA and {pendingApprovals.length === 1 ? "is" : "are"} awaiting approval —{" "}
@@ -193,7 +216,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               </span>
             </div>
             <button
-              className="shrink-0 text-xs font-medium text-amber-900 underline-offset-2 hover:underline"
+              className="shrink-0 text-xs font-semibold text-status-warning underline-offset-2 hover:underline"
               onClick={() => setSelectedTrackingId(pendingApprovals[0].id)}
             >
               Review →
@@ -204,19 +227,19 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
 
       {/* Stage summary strip */}
       <div className="border-b bg-white px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3 overflow-x-auto">
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-gray-50 px-3 py-2 text-sm">
-            <span className="font-semibold text-foreground">{asset.trackings.length}</span>
-            <span className="text-muted-foreground">Total</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-50 px-3 py-2 text-sm">
-            <span className="font-semibold text-emerald-700">{activeCount}</span>
-            <span className="text-emerald-600">Active</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-red-50 px-3 py-2 text-sm">
-            <span className="font-semibold text-red-700">{droppedCount}</span>
-            <span className="text-red-600">Dropped</span>
-          </div>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dils-200 bg-white px-3.5 py-1.5 text-[13px] text-muted-foreground">
+            <span className="font-bold text-foreground">{asset.trackings.length}</span>
+            Total
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-status-success/35 bg-status-success-soft px-3.5 py-1.5 text-[13px] font-medium text-status-success">
+            <span className="font-bold">{activeCount}</span>
+            Active
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-status-danger/30 bg-status-danger-soft px-3.5 py-1.5 text-[13px] font-medium text-status-danger">
+            <span className="font-bold">{droppedCount}</span>
+            Dropped
+          </span>
 
           <div className="mx-2 h-6 w-px shrink-0 bg-border" />
 
@@ -228,21 +251,21 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 key={stage.key}
                 onClick={() => setStageFilter(isFiltered ? "all" : stage.key)}
                 className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  isFiltered ? "bg-dils-black text-white" : "bg-dils-50 hover:bg-dils-100"
+                  "inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+                  isFiltered
+                    ? "border-status-current/40 bg-status-current/10 text-status-current"
+                    : "border-dils-200 bg-white text-muted-foreground hover:bg-soft-bg-surface-alt"
                 )}
               >
-                <span className="font-medium">{stage.label}</span>
-                <span className="flex items-center gap-1">
-                  <span className={cn("inline-block h-2 w-2 rounded-full", STAGE_DOT_COLORS.COMPLETED)} />
-                  <span className="text-xs text-muted-foreground">{counts.completed}</span>
+                <span className="font-semibold text-foreground">{stage.label}</span>
+                <span className="inline-flex items-center gap-1">
+                  {counts.completed > 0 && <span className="inline-block h-2 w-2 rounded-full bg-status-success" />}
+                  {counts.inProgress > 0 && <span className="inline-block h-2 w-2 rounded-full bg-status-current" />}
+                  {counts.completed === 0 && counts.inProgress === 0 && <span className="inline-block h-2 w-2 rounded-full bg-dils-200" />}
                 </span>
-                {counts.inProgress > 0 && (
-                  <span className="flex items-center gap-1">
-                    <span className={cn("inline-block h-2 w-2 rounded-full", STAGE_DOT_COLORS.IN_PROGRESS)} />
-                    <span className="text-xs text-muted-foreground">{counts.inProgress}</span>
-                  </span>
-                )}
+                <span className="text-[12px] font-medium text-muted-foreground">
+                  {counts.inProgress > 0 ? `${counts.completed}·${counts.inProgress}` : counts.completed}
+                </span>
               </button>
             );
           })}
