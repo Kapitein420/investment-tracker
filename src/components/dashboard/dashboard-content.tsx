@@ -65,7 +65,7 @@ export function DashboardContent({
       {/* Editorial hero */}
       <div className="mb-10 flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-dils-brass">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-banner-info-foreground">
             Investment Sales · Pipeline
           </p>
           <h1 className="dils-accent mt-3 inline-block font-heading text-3xl font-bold tracking-tight text-dils-black sm:text-4xl">
@@ -85,21 +85,21 @@ export function DashboardContent({
       </div>
 
       {/* KPI strip — editorial big-number tiles */}
-      <div className="mb-10 grid grid-cols-1 gap-px overflow-hidden rounded-md border border-dils-200 bg-dils-200 sm:grid-cols-3">
+      <div className="mb-10 grid grid-cols-1 gap-px overflow-hidden rounded-md border border-dils-200 bg-dils-200 shadow-soft-card sm:grid-cols-3">
         <KpiTile
           label="Assets"
           value={stats.totalAssets}
-          accent="bg-dils-black"
+          accent="bg-banner-info-foreground"
         />
         <KpiTile
           label="Companies in pipeline"
           value={stats.totalPipeline}
-          accent="bg-dils-red"
+          accent="bg-soft-accent"
         />
         <KpiTile
           label="Active deals"
           value={stats.activeAssets}
-          accent="bg-dils-brass"
+          accent="bg-status-warning"
         />
       </div>
 
@@ -150,7 +150,7 @@ export function DashboardContent({
               <Link
                 key={asset.id}
                 href={`/assets/${asset.id}`}
-                className="group flex items-stretch overflow-hidden rounded-md border border-dils-200 bg-white transition-colors hover:border-dils-black hover:bg-dils-50/40"
+                className="group flex items-stretch overflow-hidden rounded-md border border-dils-200 bg-white shadow-soft-card transition-all duration-150 hover:-translate-y-px hover:border-soft-office/40 hover:shadow-soft-card-hover"
               >
                 {/* Business-unit colored edge */}
                 <div className={`w-1.5 shrink-0 ${unit.bar}`} aria-hidden />

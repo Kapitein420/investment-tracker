@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Building, MapPin, ChevronRight, FileText, Lock, Check, Clock, Pen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { assetTypeToUnit } from "@/lib/stages";
 import { StageStatusValue } from "@prisma/client";
 
 interface DealCardProps {
@@ -62,15 +63,20 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
 export function DealCard({ tracking }: DealCardProps) {
   const nextAction = getNextAction(tracking.stageStatuses, tracking.documents);
   const pendingDocs = tracking.documents?.filter((d: any) => d.status === "PENDING").length ?? 0;
+  const unit = assetTypeToUnit(tracking.asset.assetType);
+
+  const sortedStages = [...tracking.stageStatuses].sort(
+    (a: any, b: any) => a.stage.sequence - b.stage.sequence
+  );
 
   return (
     <Link
       href={`/portal/${tracking.assetId}`}
-      className="flex flex-col gap-4 rounded-md border border-dils-200 bg-white p-4 transition-all hover:border-dils-black hover:shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
+      className="group flex flex-col gap-4 rounded-md border border-dils-200 bg-white p-4 shadow-soft-card transition-all duration-150 hover:-translate-y-px hover:border-soft-office/40 hover:shadow-soft-card-hover sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
     >
       <div className="flex items-start gap-4 min-w-0 sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-dils-50 border border-dils-200">
-          <Building className="h-6 w-6 text-dils-black" strokeWidth={2} />
+        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-dils-100", unit.tint)}>
+          <Building className="h-6 w-6 text-dils-black" strokeWidth={1.8} />
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-heading font-semibold text-dils-black">{tracking.asset.title}</h3>
@@ -83,38 +89,61 @@ export function DealCard({ tracking }: DealCardProps) {
               <Badge variant="secondary" className="text-xs">{tracking.asset.assetType}</Badge>
             )}
           </div>
-          <p className="mt-2 text-sm text-dils-black font-medium">{nextAction}</p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-banner-info-foreground">
+            <ChevronRight className="h-3.5 w-3.5 -ml-0.5" strokeWidth={2.4} />
+            {nextAction}
+          </p>
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-4 sm:justify-end">
-        {/* Stage progress mini-dots with labels (labels hidden on xs) */}
-        <div className="flex items-center gap-2">
-          {tracking.stageStatuses
-            .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence)
-            .map((ss: any) => (
-              <div key={ss.id} className="flex flex-col items-center gap-1">
-                <div
+        {/* Stage progress: dots with connecting line, soft-enterprise palette */}
+        <div className="hidden sm:flex items-start">
+          {sortedStages.map((ss: any, idx: number) => {
+            const isCompleted = ss.status === "COMPLETED";
+            const isCurrent = ss.status === "IN_PROGRESS";
+            const isLast = idx === sortedStages.length - 1;
+            // Connecting line: green if THIS stage is completed, gray otherwise
+            const lineColor = isCompleted ? "bg-status-success" : "bg-dils-100";
+            return (
+              <div key={ss.id} className="relative flex flex-col items-center gap-1.5" style={{ minWidth: "52px" }}>
+                {!isLast && (
+                  <span
+                    aria-hidden
+                    className={cn("absolute top-[7px] left-1/2 h-0.5 w-full", lineColor)}
+                  />
+                )}
+                <span
                   className={cn(
-                    "h-2.5 w-2.5 rounded-full",
-                    ss.status === "COMPLETED" ? "bg-emerald-500" :
-                    ss.status === "IN_PROGRESS" ? "bg-blue-500" :
-                    "bg-gray-200"
+                    "relative z-[1] h-3.5 w-3.5 rounded-full border-2",
+                    isCompleted && "border-status-success bg-status-success",
+                    isCurrent && "border-status-current bg-status-current ring-4 ring-status-current/15",
+                    !isCompleted && !isCurrent && "border-dils-200 bg-white"
                   )}
                 />
-                <span className="hidden text-[9px] text-muted-foreground leading-none sm:inline">{ss.stage.label}</span>
+                <span
+                  className={cn(
+                    "text-[9px] leading-none tracking-wide",
+                    isCompleted && "font-medium text-status-success",
+                    isCurrent && "font-semibold text-status-current",
+                    !isCompleted && !isCurrent && "text-muted-foreground"
+                  )}
+                >
+                  {ss.stage.label}
+                </span>
               </div>
-            ))}
+            );
+          })}
         </div>
 
         {pendingDocs > 0 && (
-          <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
+          <Badge className="border-0 bg-status-warning-soft text-status-warning text-xs font-semibold">
             <FileText className="mr-1 h-3 w-3" />
             {pendingDocs} to sign
           </Badge>
         )}
 
-        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-banner-info-foreground" />
       </div>
     </Link>
   );
