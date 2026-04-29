@@ -64,11 +64,16 @@ model User {
   passwordHash String
   role         Role     @default(VIEWER)
   isActive     Boolean  @default(true)
+  // companyId stays as the "primary" company for backwards-compat (login
+  // session, existing portal queries). Sprint B introduces UserCompanyMembership
+  // for the many-to-many shape; this scalar will be deprecated once the
+  // portal fully reads from memberships.
   companyId    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   company            Company?              @relation(fields: [companyId], references: [id])
+  memberships        UserCompanyMembership[]
   createdAssets      Asset[]               @relation("AssetCreator")
   ownedRows          AssetCompanyTracking[] @relation("TrackingOwner")
   comments           Comment[]
@@ -79,6 +84,31 @@ model User {
   savedViews         SavedView[]
   uploadedDocuments  Document[]            @relation("DocumentUploader")
   createdInvites     InvestorInvite[]      @relation("InviteCreator")
+}
+
+// ─── 1b. UserCompanyMembership ──────────────────────────────────────────────
+// Many-to-many join between investor accounts and companies. The same
+// person (User) can belong to multiple investment entities — appearing on
+// Deal A under Company X, then on Deal B under Company Y a month later
+// without the system creating a duplicate User row.
+//
+// Sprint B PR-1 introduces the table additively. Reads still resolve via
+// User.companyId until PR-2 wires the portal shim. Backfill happens in
+// PR-3 / PR-4. The single-tenant world keeps working unchanged.
+model UserCompanyMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  // Optional: when this membership was granted, who granted it. Useful
+  // for audit and for "primary" inference (oldest = primary).
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
 }
 
 // ─── 2. Asset ───────────────────────────────────────────────────────────────
@@ -124,9 +154,10 @@ model Company {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  trackings AssetCompanyTracking[]
-  users     User[]
-  invites   InvestorInvite[]
+  trackings   AssetCompanyTracking[]
+  users       User[]
+  memberships UserCompanyMembership[]
+  invites     InvestorInvite[]
 }
 
 // ─── 4. PipelineStage ───────────────────────────────────────────────────────
