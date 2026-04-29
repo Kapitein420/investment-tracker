@@ -382,7 +382,25 @@ export async function getTrackingDetail(id: string) {
     throw new Error("Forbidden");
   }
 
-  return tracking;
+  // First-access timestamps per content stage. Logged via ActivityLog
+  // CONTENT_ACCESSED in getSignedContentUrl. Only the earliest entry per
+  // (tracking, stageKey) matters — that's "first viewed".
+  const accessLogs = await prisma.activityLog.findMany({
+    where: {
+      action: "CONTENT_ACCESSED",
+      entityType: "AssetContent",
+    },
+    select: { metadata: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const firstAccessByStage: Record<string, Date> = {};
+  for (const log of accessLogs) {
+    const m = log.metadata as { trackingId?: string; stageKey?: string } | null;
+    if (!m || m.trackingId !== tracking.id || !m.stageKey) continue;
+    if (!firstAccessByStage[m.stageKey]) firstAccessByStage[m.stageKey] = log.createdAt;
+  }
+
+  return { ...tracking, firstAccessByStage };
 }
 
 export async function bulkImportTrackings(

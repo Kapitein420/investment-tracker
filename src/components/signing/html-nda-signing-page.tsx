@@ -126,23 +126,30 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="border-b bg-white px-6 py-4">
+      <header className="border-b bg-white px-4 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-dils-100">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-dils-100">
             <Building2 className="h-5 w-5 text-dils-700" />
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          <div className="min-w-0">
+            <p className="truncate text-[11px] uppercase tracking-wider text-muted-foreground sm:text-xs">
               Non-Disclosure Agreement
             </p>
-            <h1 className="text-base font-semibold">{data.assetTitle}</h1>
+            <h1 className="truncate text-sm font-semibold sm:text-base">{data.assetTitle}</h1>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[1fr_380px]">
+      {/*
+        Mobile-first ordering:
+          - Form gets `order-first` so an investor on a phone sees the inputs
+            without scrolling past a 4-page NDA. On md+ the preview takes
+            its natural left column.
+          - md: instead of lg: lets tablets get the side-by-side too.
+      */}
+      <main className="mx-auto grid max-w-7xl gap-4 p-4 sm:gap-6 sm:p-6 md:grid-cols-[1fr_360px] lg:grid-cols-[1fr_380px]">
         {/* Live preview */}
-        <section className="rounded-xl border bg-white p-8 shadow-sm">
+        <section className="order-2 rounded-xl border bg-white p-5 shadow-sm sm:p-8 md:order-1">
           <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
             <FileText className="h-3.5 w-3.5" />
             <span>Live preview — fields fill in as you type</span>
@@ -156,7 +163,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
         </section>
 
         {/* Form */}
-        <aside className="space-y-6 rounded-xl border bg-white p-6 shadow-sm lg:sticky lg:top-6 lg:self-start">
+        <aside className="order-1 space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:space-y-6 sm:p-6 md:order-2 md:sticky md:top-6 md:self-start">
           <div>
             <h2 className="text-sm font-semibold">Your details</h2>
             <p className="mt-1 text-xs text-muted-foreground">

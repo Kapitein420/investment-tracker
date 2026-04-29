@@ -177,26 +177,42 @@ export function TrackingDetailDrawer({
                 <div className="flex gap-1">
                   {detail.stageStatuses
                     .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence)
-                    .map((ss: any) => (
-                      <div key={ss.id} className="flex-1 text-center">
-                        <div
-                          className={cn(
-                            "h-2 rounded-full mb-1",
-                            STAGE_DOT_COLORS[ss.status as keyof typeof STAGE_DOT_COLORS]
+                    .map((ss: any) => {
+                      const firstViewed = detail.firstAccessByStage?.[ss.stage.key];
+                      return (
+                        <div key={ss.id} className="flex-1 text-center">
+                          <div
+                            className={cn(
+                              "h-2 rounded-full mb-1",
+                              STAGE_DOT_COLORS[ss.status as keyof typeof STAGE_DOT_COLORS]
+                            )}
+                          />
+                          <span className="text-[10px] text-muted-foreground">{ss.stage.label}</span>
+                          {ss.completedAt && (
+                            <span className="block text-[9px] text-muted-foreground/70">
+                              {formatDate(ss.completedAt)}
+                            </span>
                           )}
-                        />
-                        <span className="text-[10px] text-muted-foreground">{ss.stage.label}</span>
-                        {ss.completedAt && (
-                          <span className="block text-[9px] text-muted-foreground/70">
-                            {formatDate(ss.completedAt)}
-                          </span>
-                        )}
-                        {ss.approvedAt && (
-                          <span className="block text-[9px] text-emerald-600">Approved</span>
-                        )}
-                      </div>
-                    ))}
+                          {ss.approvedAt && (
+                            <span className="block text-[9px] text-emerald-600">Approved</span>
+                          )}
+                          {firstViewed && !ss.completedAt && (
+                            <span
+                              className="block text-[9px] text-dils-700"
+                              title={`First opened ${formatDate(firstViewed)}`}
+                            >
+                              Viewed
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
+                {detail.firstAccessByStage?.im && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    IM first opened {formatDate(detail.firstAccessByStage.im)}
+                  </p>
+                )}
               </div>
 
               {/* NDA Approval section */}
