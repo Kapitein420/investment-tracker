@@ -34,30 +34,33 @@ function SidebarContent({
   userName?: string | null;
   onNavigate?: () => void;
 }) {
+  // Single 16 px outer padding everywhere — header logo, nav rail, and
+  // footer share the same horizontal rhythm. Nav items get 8 px inner
+  // padding so icons land at the same x-coordinate as the logo glyph.
   return (
     <>
-      <div className="flex h-14 flex-col justify-center gap-1 border-b border-dils-200 px-4">
+      <div className="flex flex-col gap-1.5 border-b border-dils-200 px-4 py-4">
         <Image
           src="/dils-logo.png"
           alt="DILS"
-          width={72}
-          height={22}
+          width={96}
+          height={28}
           priority
-          className="h-[22px] w-auto object-contain"
+          className="h-7 w-auto object-contain"
         />
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Investment Tracker
         </span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-0.5 px-2 py-3">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors",
               pathname === item.href
                 ? "bg-dils-black text-white"
                 : "text-dils-600 hover:bg-dils-50 hover:text-dils-black"
@@ -70,8 +73,8 @@ function SidebarContent({
 
         {isAdmin && (
           <>
-            <div className="px-3 pt-4 pb-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Admin</p>
+            <div className="px-2 pt-4 pb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Admin</p>
             </div>
             {adminItems.map((item) => (
               <Link
@@ -79,7 +82,7 @@ function SidebarContent({
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors",
                   pathname === item.href
                     ? "bg-dils-black text-white"
                     : "text-dils-600 hover:bg-dils-50 hover:text-dils-black"
@@ -93,25 +96,29 @@ function SidebarContent({
         )}
       </nav>
 
-      <div className="border-t border-dils-200 p-3">
-        <div className="flex items-center gap-2 px-3 py-2">
+      <div className="border-t border-dils-200 px-4 py-3">
+        <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-dils-black">{userName}</p>
-            <div className="flex items-center gap-1">
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "text-[10px] px-1.5 py-0 border-0",
-                  role === "ADMIN"
-                    ? "bg-dils-black text-white"
-                    : "bg-dils-100 text-dils-800"
-                )}
-              >
-                {role}
-              </Badge>
-            </div>
+            <p className="text-sm font-semibold truncate text-dils-black leading-tight">{userName}</p>
+            <Badge
+              variant="secondary"
+              className={cn(
+                "mt-1 text-[9px] font-bold uppercase tracking-[0.10em] px-1.5 py-0 border-0",
+                role === "ADMIN"
+                  ? "bg-dils-black text-white"
+                  : "bg-dils-100 text-dils-800"
+              )}
+            >
+              {role}
+            </Badge>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => signOut({ callbackUrl: "/login" })}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-dils-black"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            aria-label="Sign out"
+          >
             <LogOut className="h-4 w-4" strokeWidth={2} />
           </Button>
         </div>
