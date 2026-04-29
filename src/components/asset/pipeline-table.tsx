@@ -36,7 +36,7 @@ import {
 } from "@/lib/stages";
 import { StageCell } from "@/components/asset/stage-cell";
 import { StageSelectCell } from "@/components/asset/stage-select-cell";
-import { updateTracking } from "@/actions/tracking-actions";
+import { updateTracking, deleteTracking } from "@/actions/tracking-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -252,6 +252,35 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
                       Restore Active
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      // Two-step confirm: deleteTracking cascade-deletes the
+                      // company's documents, signing tokens, comments, stage
+                      // history, and activity log entries on this asset. No
+                      // undo, so we want the admin to type-think before
+                      // clicking. ADMIN-only on the server; EDITORs see the
+                      // option but get a clear "Forbidden" toast if they try.
+                      const company = row.original.company?.name ?? "this company";
+                      if (
+                        !confirm(
+                          `Delete ${company} from this asset?\n\nThis removes the tracking row, all NDA/IM documents, signing tokens, comments, and stage history for this company on this asset. The company itself is not deleted. This can't be undone.`
+                        )
+                      ) {
+                        return;
+                      }
+                      try {
+                        await deleteTracking(row.original.id);
+                        toast.success(`${company} removed from this asset`);
+                        router.refresh();
+                      } catch (e: any) {
+                        toast.error(e?.message || "Couldn't delete the tracking");
+                      }
+                    }}
+                    className="text-destructive"
+                  >
+                    Delete
+                  </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
