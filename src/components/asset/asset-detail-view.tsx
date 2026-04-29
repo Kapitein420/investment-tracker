@@ -20,6 +20,8 @@ import { AddTrackingDialog } from "@/components/asset/add-tracking-dialog";
 import { TrackingDetailDrawer } from "@/components/asset/tracking-detail-drawer";
 import { ContentTab } from "@/components/asset/content-tab";
 import { ImportDialog } from "@/components/asset/import-dialog";
+import { BulkInviteDialog } from "@/components/asset/bulk-invite-dialog";
+import { Users } from "lucide-react";
 
 type AssetDetailProps = {
   asset: any;
@@ -40,6 +42,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "overview" | "content">("overview");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
 
   const editable = canEdit(currentUser.role);
 
@@ -152,6 +155,12 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="mr-1.5 h-3.5 w-3.5" />
                 Import
+              </Button>
+            )}
+            {editable && (
+              <Button variant="outline" size="sm" onClick={() => setBulkInviteOpen(true)}>
+                <Users className="mr-1.5 h-3.5 w-3.5" />
+                Bulk invite
               </Button>
             )}
             {editable && (
@@ -333,6 +342,13 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
         assetId={asset.id}
         companies={companies}
         existingCompanyIds={asset.trackings.map((t: any) => t.companyId)}
+      />
+
+      {/* Bulk invite (CSV → up to 50 investors) */}
+      <BulkInviteDialog
+        open={bulkInviteOpen}
+        onOpenChange={setBulkInviteOpen}
+        assetId={asset.id}
       />
 
       {/* Detail drawer */}

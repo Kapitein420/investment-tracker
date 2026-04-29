@@ -55,13 +55,20 @@ export async function sendInvestorInvite({
       },
     });
   } else {
-    // Check if investor has already logged in (any accepted invites)
+    // Has the investor EVER logged in to the platform? Across any company,
+    // any asset. Previously this was scoped to (email, companyId) which
+    // meant a re-invite under the same company on a new asset would
+    // silently regenerate the password — investor's existing credentials
+    // would stop working with no warning. Now we look for any accepted
+    // invite OR any sign that the User row has been used (lastLoginAt
+    // would be ideal but isn't tracked; fallback is the InvestorInvite
+    // accept flag scoped only to email).
     const hasLoggedIn = await prisma.investorInvite.findFirst({
-      where: { email, companyId, acceptedAt: { not: null } },
+      where: { email, acceptedAt: { not: null } },
     });
 
     if (!hasLoggedIn) {
-      // Never logged in — safe to reset password
+      // Never logged in anywhere — safe to reset password.
       plainPassword = generatePassword();
       const passwordHash = await bcrypt.hash(plainPassword, 12);
       await prisma.user.update({
