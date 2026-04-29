@@ -176,6 +176,16 @@ export function InvitesAdmin({
   }
 
   async function handleResendFor(group: InvestorGroup, inviteAssetId: string) {
+    // Guard against accidental clicks on the ↻ icon — re-sending an invite
+    // creates a new InvestorInvite row + fires another email. Show the
+    // exact recipient and asset so the admin confirms what they're doing.
+    const assetName =
+      group.invites.find((i) => i.asset.id === inviteAssetId)?.asset.title ?? "this asset";
+    const ok = confirm(
+      `Resend invitation email to ${group.email} for ${assetName}?`
+    );
+    if (!ok) return;
+
     setResendingKey(group.key + "|" + inviteAssetId);
     try {
       const result = await sendInvestorInvite({
