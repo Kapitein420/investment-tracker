@@ -45,3 +45,17 @@ export function isAdmin(role: Role) {
 export function isInvestor(role: Role) {
   return role === "INVESTOR";
 }
+
+export function isViewer(role: Role) {
+  return role === "VIEWER";
+}
+
+/**
+ * Whether this role can see PII (contact names, emails, individual user
+ * names). VIEWER is intentionally restricted — opdrachtgevers (clients)
+ * can see deal flow & status but never investor identities or DILS-side
+ * staff identities.
+ */
+export function canSeeContactDetails(role: Role) {
+  return role === "ADMIN" || role === "EDITOR" || role === "INVESTOR";
+}

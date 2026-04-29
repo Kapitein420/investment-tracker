@@ -382,6 +382,42 @@ export async function getTrackingDetail(id: string) {
     throw new Error("Forbidden");
   }
 
+  // VIEWER role (opdrachtgevers / clients) — defence-in-depth: scrub PII
+  // server-side so the wire payload never contains contact names, emails,
+  // or DILS-staff identities. Client also hides these, but the server
+  // contract is the source of truth.
+  const REDACTED_NAME = "Team member";
+  if (user.role === "VIEWER") {
+    if (tracking.company) {
+      (tracking.company as any).contactName = null;
+      (tracking.company as any).contactEmail = null;
+    }
+    if (tracking.ownerUser) {
+      (tracking.ownerUser as any).name = REDACTED_NAME;
+      (tracking.ownerUser as any).email = null;
+    }
+    for (const c of tracking.comments ?? []) {
+      if (c.author) {
+        (c.author as any).name = REDACTED_NAME;
+        (c.author as any).email = null;
+      }
+    }
+    for (const h of tracking.stageHistory ?? []) {
+      if (h.changedBy) {
+        (h.changedBy as any).name = REDACTED_NAME;
+        (h.changedBy as any).email = null;
+      }
+    }
+    for (const d of tracking.documents ?? []) {
+      if ((d as any).uploadedBy) {
+        ((d as any).uploadedBy as any).name = REDACTED_NAME;
+      }
+      // Strip investor-side names from signed-document records
+      (d as any).signedByName = null;
+      (d as any).signedByEmail = null;
+    }
+  }
+
   // First-access timestamps per content stage. Logged via ActivityLog
   // CONTENT_ACCESSED in getSignedContentUrl. Only the earliest entry per
   // (tracking, stageKey) matters — that's "first viewed".
@@ -401,6 +437,100 @@ export async function getTrackingDetail(id: string) {
   }
 
   return { ...tracking, firstAccessByStage };
+}
+
+/**
+ * Finalize a deal — completes the final pipeline stage (typically NBO),
+ * marks the tracking lifecycle as COMPLETED, and logs the transition.
+ *
+ * Triggered from the "Finalize deal" CTA in the tracking-detail drawer
+ * when the admin clicks Advance on an already-final stage. Replaces the
+ * old "Already at the final stage" error.
+ */
+export async function finalizeTracking(trackingId: string) {
+  const user = await requireRole("EDITOR");
+
+  return prisma.$transaction(async (tx) => {
+    const tracking = await tx.assetCompanyTracking.findUniqueOrThrow({
+      where: { id: trackingId },
+    });
+
+    const allStatuses = await tx.stageStatus.findMany({
+      where: { trackingId },
+      include: { stage: true },
+      orderBy: { stage: { sequence: "asc" } },
+    });
+
+    if (allStatuses.length === 0) {
+      throw new Error("No pipeline stages configured");
+    }
+
+    const finalStage = allStatuses[allStatuses.length - 1];
+
+    // If the final stage isn't already completed, mark it done now
+    if (finalStage.status !== "COMPLETED") {
+      await tx.stageStatus.update({
+        where: { id: finalStage.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          updatedByUserId: user.id,
+        },
+      });
+
+      await tx.stageHistory.create({
+        data: {
+          trackingId,
+          stageId: finalStage.stageId,
+          fieldName: "status",
+          oldValue: finalStage.status,
+          newValue: "COMPLETED",
+          changedByUserId: user.id,
+          note: "finalize:DEAL_COMPLETED",
+        },
+      });
+    }
+
+    // Mark the tracking as COMPLETED in its lifecycle (separate from stage
+    // completion — lifecycle tracks the overall deal outcome).
+    if (tracking.lifecycleStatus !== "COMPLETED") {
+      await tx.assetCompanyTracking.update({
+        where: { id: trackingId },
+        data: {
+          lifecycleStatus: "COMPLETED",
+          currentStageKey: finalStage.stage.key,
+        },
+      });
+
+      await tx.stageHistory.create({
+        data: {
+          trackingId,
+          stageId: finalStage.stageId,
+          fieldName: "lifecycleStatus",
+          oldValue: tracking.lifecycleStatus,
+          newValue: "COMPLETED",
+          changedByUserId: user.id,
+          note: "finalize:DEAL_COMPLETED",
+        },
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "AssetCompanyTracking",
+        entityId: trackingId,
+        action: "DEAL_FINALIZED",
+        metadata: {
+          assetId: tracking.assetId,
+          companyId: tracking.companyId,
+          finalStageKey: finalStage.stage.key,
+        },
+        userId: user.id,
+      },
+    });
+
+    return { ok: true, finalStageKey: finalStage.stage.key };
+  });
 }
 
 export async function bulkImportTrackings(
