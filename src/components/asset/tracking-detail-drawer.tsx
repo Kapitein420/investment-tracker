@@ -292,6 +292,18 @@ export function TrackingDetailDrawer({
                         size="sm"
                         className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs"
                         onClick={async () => {
+                          // Approving an NDA fires a notification email AND
+                          // unlocks IM access. Both are user-visible actions
+                          // worth a confirmation step (consistent with the
+                          // other invite/email guard rails added in PR #25).
+                          const company = detail?.company?.name ?? "this investor";
+                          if (
+                            !confirm(
+                              `Approve NDA for ${company}?\n\nThis will:\n  • Send an "NDA approved" email to the investor\n  • Unlock IM access for them\n\nContinue?`
+                            )
+                          ) {
+                            return;
+                          }
                           try {
                             await approveStage(trackingId, "nda");
                             toast.success("NDA approved — IM access unlocked");

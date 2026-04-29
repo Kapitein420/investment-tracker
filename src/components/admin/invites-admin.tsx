@@ -80,10 +80,21 @@ function groupByInvestor(
     }
   }
 
-  // Resolve per-group status and sort invite lists newest-first
+  // Resolve per-group status and sort invite lists newest-first.
+  // Dedupe by asset.id keeping only the most recent invite per asset —
+  // re-inviting the same investor to the same asset used to render N chips
+  // all labelled "Asset X" with conflicting/stale email-delivery badges,
+  // because each InvestorInvite row had its own webhook events. Now the
+  // chip always reflects the latest token's state.
   const groups = Array.from(byKey.values());
   for (const group of groups) {
     group.invites.sort((a: InviteRow, b: InviteRow) => +b.createdAt - +a.createdAt);
+    const seenAssets = new Set<string>();
+    group.invites = group.invites.filter((inv) => {
+      if (seenAssets.has(inv.asset.id)) return false;
+      seenAssets.add(inv.asset.id);
+      return true;
+    });
     const hasAccepted = group.invites.some((i: InviteRow) => i.acceptedAt != null);
     const hasActive = group.invites.some(
       (i: InviteRow) => i.acceptedAt == null && i.expiresAt >= now
