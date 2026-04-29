@@ -69,6 +69,64 @@ const config: Config = {
           living: "#B1B3B3",      // Pantone Cool Gray 5
           retail: "#AB8B5F",      // Pantone 10127 (brass)
         },
+        // ─────────────────────────────────────────────────────────────
+        // Soft-enterprise palette (additive — see globals.css :root for
+        // the source-of-truth CSS variables and the HTML mockups).
+        // Hex values are duplicated here so Tailwind's opacity modifier
+        // (e.g. bg-soft-office/14) and arbitrary-value class names work
+        // without `hsl()` wrapping. Brand tokens (dils.*, unit.*) above
+        // are untouched.
+        // ─────────────────────────────────────────────────────────────
+        "banner-info": {
+          DEFAULT: "#D9F1F1",      // banner background
+          foreground: "#245C63",   // banner text + deep info accent
+        },
+        soft: {
+          office: "#7FA9B5",
+          "office-soft": "rgba(127, 169, 181, 0.14)",
+          retail: "#B89B4C",
+          "retail-soft": "rgba(184, 155, 76, 0.14)",
+          logistics: "#6FA08E",
+          "logistics-soft": "rgba(111, 160, 142, 0.14)",
+          living: "#C79AA5",
+          "living-soft": "rgba(199, 154, 165, 0.14)",
+          "capital-markets": "#8C6B73",
+          "capital-markets-soft": "rgba(140, 107, 115, 0.14)",
+          research: "#6D4C7D",
+          "research-soft": "rgba(109, 76, 125, 0.12)",
+          marketing: "#0F7C82",
+          "marketing-soft": "rgba(15, 124, 130, 0.12)",
+          accent: "#C2533F",
+          "bg-main": "#F6F7F9",
+          "bg-surface": "#FFFFFF",
+          "bg-surface-alt": "#F9FAFB",
+          border: "#E5E7EB",
+          "text-primary": "#1F2937",
+          "text-secondary": "#6B7280",
+          "text-muted": "#9CA3AF",
+        },
+        status: {
+          success: "#6FA08E",
+          "success-soft": "rgba(111, 160, 142, 0.14)",
+          warning: "#B89B4C",
+          "warning-soft": "rgba(184, 155, 76, 0.14)",
+          info: "#7FA9B5",
+          "info-soft": "rgba(127, 169, 181, 0.14)",
+          danger: "#C86B6B",
+          "danger-soft": "rgba(200, 107, 107, 0.12)",
+          current: "#245C63",
+        },
+        funnel: {
+          1: "#6FA08E", // success
+          2: "#7FA9B5", // office
+          3: "#6D4C7D", // research
+          4: "#B89B4C", // warning
+          5: "#C86B6B", // danger
+        },
+      },
+      boxShadow: {
+        "soft-card": "0 2px 8px rgba(17, 24, 39, 0.05)",
+        "soft-card-hover": "0 6px 20px rgba(17, 24, 39, 0.08)",
       },
       fontFamily: {
         heading: ["var(--font-rufina)", "Georgia", "serif"],
