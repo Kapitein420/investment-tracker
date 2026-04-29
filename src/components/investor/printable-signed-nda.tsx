@@ -73,26 +73,31 @@ export function PrintableSignedNda({ data }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-10 border-b bg-white px-6 py-3 print:hidden">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <Link href="/portal" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <header className="sticky top-0 z-10 border-b bg-white px-4 py-2.5 print:hidden sm:px-6 sm:py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 sm:gap-3">
+          <Link
+            href="/portal"
+            className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
-            Back to portal
+            <span className="hidden sm:inline">Back to portal</span>
+            <span className="sm:hidden">Portal</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden text-right sm:block">
               <p className="text-xs text-muted-foreground">Signed by</p>
               <p className="text-sm font-medium">{data.signedByName}</p>
             </div>
             <Button size="sm" onClick={handleDownload} disabled={downloading}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              {downloading ? "Generating…" : "Download PDF"}
+              <span className="hidden sm:inline">{downloading ? "Generating…" : "Download PDF"}</span>
+              <span className="sm:hidden">{downloading ? "…" : "PDF"}</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-4 p-6 print:p-0">
+      <main className="mx-auto max-w-5xl space-y-4 p-4 print:p-0 sm:p-6">
         {/* Next-steps callout — hidden in the PDF capture so it doesn't end up in the legal record */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 print:hidden">
           <div className="flex items-start gap-3">
@@ -110,7 +115,7 @@ export function PrintableSignedNda({ data }: Props) {
 
         <div
           ref={contentRef}
-          className="rounded-xl border bg-white p-12 shadow-sm print:border-0 print:shadow-none print:p-0"
+          className="rounded-xl border bg-white p-5 shadow-sm sm:p-8 lg:p-12 print:border-0 print:shadow-none print:p-0"
         >
           <div
             className="prose prose-sm max-w-none text-[13px] leading-relaxed"

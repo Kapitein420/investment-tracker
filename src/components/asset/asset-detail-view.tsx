@@ -61,6 +61,14 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   const activeCount = asset.trackings.filter((t: any) => t.lifecycleStatus === "ACTIVE").length;
   const droppedCount = asset.trackings.filter((t: any) => t.lifecycleStatus === "DROPPED").length;
 
+  // Investors stuck behind admin approval — NDA stage is COMPLETED
+  // (signed) but no approvedAt yet. IM stays locked silently otherwise.
+  const pendingApprovals = asset.trackings.filter((t: any) =>
+    t.stageStatuses?.some(
+      (ss: any) => ss.stage?.key === "nda" && ss.status === "COMPLETED" && !ss.approvedAt
+    )
+  );
+
   const relationshipTypes = Array.from(new Set(asset.trackings.map((t: any) => t.relationshipType)));
 
   function handleExportCSV() {
@@ -155,6 +163,35 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
           </div>
         </div>
       </div>
+
+      {/* NDAs awaiting approval banner. Shows up only when at least one
+          investor has signed but not been approved — that investor's IM
+          stays locked silently until an admin acts. */}
+      {editable && pendingApprovals.length > 0 && (
+        <div className="border-b bg-amber-50 px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-amber-900">
+              <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              <span>
+                <strong>{pendingApprovals.length}</strong>{" "}
+                {pendingApprovals.length === 1 ? "investor has" : "investors have"} signed the NDA and {pendingApprovals.length === 1 ? "is" : "are"} awaiting approval —{" "}
+                {pendingApprovals
+                  .slice(0, 3)
+                  .map((t: any) => t.company.name)
+                  .join(", ")}
+                {pendingApprovals.length > 3 ? ` +${pendingApprovals.length - 3} more` : ""}
+                .
+              </span>
+            </div>
+            <button
+              className="shrink-0 text-xs font-medium text-amber-900 underline-offset-2 hover:underline"
+              onClick={() => setSelectedTrackingId(pendingApprovals[0].id)}
+            >
+              Review →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stage summary strip */}
       <div className="border-b bg-white px-4 py-3 sm:px-6">
