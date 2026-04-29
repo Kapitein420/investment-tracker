@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser, getViewerAccessibleAssetIds } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import { getSignedUrl } from "@/lib/supabase-storage";
@@ -8,14 +8,23 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const assets = await prisma.asset.findMany({
-    include: {
-      _count: { select: { trackings: true } },
-      createdBy: { select: { name: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 100,
-  });
+  // VIEWER role: filter to only the assets they've been granted access to.
+  // Empty list ⇒ render the empty-state branch in DashboardContent.
+  // ADMIN / EDITOR: null ⇒ no filter.
+  const viewerScope = await getViewerAccessibleAssetIds(user.id, user.role);
+
+  const assets =
+    viewerScope !== null && viewerScope.length === 0
+      ? []
+      : await prisma.asset.findMany({
+          where: viewerScope === null ? undefined : { id: { in: viewerScope } },
+          include: {
+            _count: { select: { trackings: true } },
+            createdBy: { select: { name: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 100,
+        });
 
   // Pull the first teaser image per asset to render as a row thumbnail.
   // We do this in two steps so the dashboard query stays cheap on its

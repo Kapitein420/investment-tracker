@@ -136,11 +136,17 @@ export function DashboardContent({
 
       {/* Asset list */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-dils-200 py-20">
-          <p className="font-heading text-xl text-dils-black">No assets yet</p>
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-dils-200 py-20 px-6 text-center">
+          <p className="font-heading text-xl text-dils-black">
+            {userRole === "VIEWER" && assets.length === 0 ? "No access yet" : "No assets yet"}
+          </p>
           <div className="mt-2 h-px w-12 bg-dils-brass" />
-          <p className="mt-3 text-sm text-muted-foreground">
-            {search ? "No matches — try a different search." : "Create your first asset to start tracking."}
+          <p className="mt-3 text-sm text-muted-foreground max-w-sm">
+            {search
+              ? "No matches — try a different search."
+              : userRole === "VIEWER" && assets.length === 0
+                ? "You haven't been granted access to any assets yet. Ask the deal team to add you to an asset."
+                : "Create your first asset to start tracking."}
           </p>
         </div>
       ) : (

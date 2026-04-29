@@ -1,11 +1,22 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser, requireAssetAccess } from "@/lib/permissions";
 import { redirect, notFound } from "next/navigation";
 import { AssetDetailView } from "@/components/asset/asset-detail-view";
 
 export default async function AssetDetailPage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // VIEWER role: hard-block direct URL access to assets they weren't
+  // granted. We render notFound() rather than throwing so we don't leak
+  // existence — a VIEWER who guesses an id sees the same 404 as a typo.
+  if (user.role === "VIEWER") {
+    try {
+      await requireAssetAccess(user.id, user.role, params.id);
+    } catch {
+      notFound();
+    }
+  }
 
   const asset = await prisma.asset.findUnique({
     where: { id: params.id },
