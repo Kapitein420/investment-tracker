@@ -43,7 +43,7 @@ export async function sendInvestorInvite({
   if (!investorUser) {
     // Auto-create investor account
     plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, 12);
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     investorUser = await prisma.user.create({
       data: {
@@ -70,7 +70,7 @@ export async function sendInvestorInvite({
     if (!hasLoggedIn) {
       // Never logged in anywhere — safe to reset password.
       plainPassword = generatePassword();
-      const passwordHash = await bcrypt.hash(plainPassword, 12);
+      const passwordHash = await bcrypt.hash(plainPassword, 10);
       await prisma.user.update({
         where: { id: investorUser.id },
         data: { passwordHash },
