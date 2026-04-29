@@ -298,8 +298,9 @@ export async function sendInvestorInvite({
   // warning instead of a misleading "sent" toast.
   let emailSent = true;
   let emailError: string | undefined;
+  let messageId: string | null = null;
   try {
-    await sendEmail({
+    const result = await sendEmail({
       to: email,
       subject: `Your access to ${asset.title} — DILS Investment Portal`,
       html: renderEmail({
@@ -317,6 +318,7 @@ export async function sendInvestorInvite({
         meta: `${asset.title} · ${asset.city}, ${asset.country}`,
       }),
     });
+    messageId = result.messageId;
   } catch (e: any) {
     emailSent = false;
     emailError = e?.message ?? "Unknown email error";
@@ -335,6 +337,7 @@ export async function sendInvestorInvite({
         assetTitle: asset.title,
         companyName: company.name,
         emailError,
+        messageId, // Mailgun id — used by the webhook to correlate delivery events
       },
       userId: user.id,
     },

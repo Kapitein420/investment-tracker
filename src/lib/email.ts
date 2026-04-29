@@ -6,6 +6,10 @@ const MAILGUN_FROM =
   process.env.MAILGUN_FROM ||
   "Investment Tracker <investments.netherlands@mg.dils.com>";
 
+export interface SendEmailResult {
+  messageId: string | null; // Mailgun's "id" — present when delivered to MX, used to correlate webhooks
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -14,7 +18,7 @@ export async function sendEmail({
   to: string;
   subject: string;
   html: string;
-}) {
+}): Promise<SendEmailResult> {
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
     // Silent skip in dev; loud failure in production. Previously this branch
     // returned silently in every environment, which let an admin think they'd
@@ -27,7 +31,7 @@ export async function sendEmail({
     console.log(
       `[Email skipped - Mailgun not configured] To: ${to}, Subject: ${subject}`,
     );
-    return;
+    return { messageId: null };
   }
 
   const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
@@ -54,4 +58,16 @@ export async function sendEmail({
     const errorText = await res.text();
     throw new Error(`Mailgun email failed (${res.status}): ${errorText}`);
   }
+
+  // Mailgun returns { id: "<...@<domain>>", message: "Queued. Thank you." }.
+  // Strip the angle brackets so we can match it against webhook events
+  // later, where Mailgun normalises the same id without them.
+  let messageId: string | null = null;
+  try {
+    const json = (await res.json()) as { id?: string };
+    if (json.id) messageId = json.id.replace(/^<|>$/g, "");
+  } catch {
+    // Non-fatal; we still return the queued state.
+  }
+  return { messageId };
 }
