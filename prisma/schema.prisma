@@ -84,6 +84,8 @@ model User {
   savedViews         SavedView[]
   uploadedDocuments  Document[]            @relation("DocumentUploader")
   createdInvites     InvestorInvite[]      @relation("InviteCreator")
+  viewerAccess       AssetViewerAccess[]   @relation("ViewerAccessUser")
+  grantedViewerAccess AssetViewerAccess[]  @relation("ViewerAccessGranter")
 }
 
 // ─── 1b. UserCompanyMembership ──────────────────────────────────────────────
@@ -138,6 +140,31 @@ model Asset {
   savedViews SavedView[]
   invites    InvestorInvite[]
   contents   AssetContent[]
+  viewerAccess AssetViewerAccess[]
+}
+
+// ─── 2b. AssetViewerAccess ──────────────────────────────────────────────────
+// Per-asset access control for VIEWER role users (opdrachtgevers / clients).
+// VIEWERs only see the assets they're explicitly granted access to — never
+// the full portfolio. ADMIN and EDITOR roles bypass this gate (full access);
+// INVESTOR access is governed by AssetCompanyTracking, not this table.
+//
+// Cascade-delete on both sides: removing a user or asset wipes the access
+// rows so the table can never grant access to a phantom row.
+model AssetViewerAccess {
+  id              String   @id @default(cuid())
+  userId          String
+  assetId         String
+  grantedAt       DateTime @default(now())
+  grantedByUserId String?
+
+  user      User  @relation("ViewerAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  asset     Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  grantedBy User? @relation("ViewerAccessGranter", fields: [grantedByUserId], references: [id])
+
+  @@unique([userId, assetId])
+  @@index([userId])
+  @@index([assetId])
 }
 
 // ─── 3. Company ─────────────────────────────────────────────────────────────

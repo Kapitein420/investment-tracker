@@ -101,6 +101,118 @@ export async function updateUser(id: string, data: UpdateUserInput) {
   return user;
 }
 
+// ─── VIEWER per-asset access ────────────────────────────────────────────────
+// VIEWER role (opdrachtgevers / clients) can only see the assets they're
+// explicitly granted access to via AssetViewerAccess. ADMIN/EDITOR have full
+// access; INVESTOR access is governed by AssetCompanyTracking and is unrelated.
+
+/**
+ * Returns the set of asset ids a given VIEWER user has access to. Used to
+ * pre-populate the multi-select on the team-management UI.
+ */
+export async function getViewerAssetAccess(userId: string): Promise<string[]> {
+  await requireRole("ADMIN");
+
+  const rows = await prisma.assetViewerAccess.findMany({
+    where: { userId },
+    select: { assetId: true },
+  });
+  return rows.map((r) => r.assetId);
+}
+
+/**
+ * Replace the full set of accessible asset ids for a VIEWER user. Ignores
+ * non-VIEWER targets defensively (UI shouldn't expose the form for those
+ * roles, but the server is the source of truth).
+ *
+ * Diffs in a single transaction so a partial failure can never grant or
+ * revoke a subset.
+ */
+export async function setViewerAssetAccess(
+  userId: string,
+  assetIds: string[]
+): Promise<{ ok: true; granted: number; revoked: number; total: number }> {
+  const adminUser = await requireRole("ADMIN");
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+  if (!target) throw new Error("User not found");
+  if (target.role !== "VIEWER") {
+    throw new Error("Asset access is only configurable for VIEWER role users");
+  }
+
+  // Verify all submitted asset ids exist — drop any that don't to keep the
+  // table free of dangling rows even if the client serialised stale ids.
+  const validAssets = assetIds.length
+    ? await prisma.asset.findMany({
+        where: { id: { in: assetIds } },
+        select: { id: true },
+      })
+    : [];
+  const validIds = new Set(validAssets.map((a) => a.id));
+  const desired = Array.from(validIds);
+
+  const existing = await prisma.assetViewerAccess.findMany({
+    where: { userId },
+    select: { assetId: true },
+  });
+  const existingSet = new Set(existing.map((r) => r.assetId));
+  const desiredSet = new Set(desired);
+
+  const toGrant = desired.filter((id) => !existingSet.has(id));
+  const toRevoke = Array.from(existingSet).filter((id) => !desiredSet.has(id));
+
+  await prisma.$transaction(async (tx) => {
+    if (toRevoke.length > 0) {
+      await tx.assetViewerAccess.deleteMany({
+        where: { userId, assetId: { in: toRevoke } },
+      });
+    }
+    if (toGrant.length > 0) {
+      await tx.assetViewerAccess.createMany({
+        data: toGrant.map((assetId) => ({
+          userId,
+          assetId,
+          grantedByUserId: adminUser.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    await tx.activityLog.create({
+      data: {
+        entityType: "User",
+        entityId: userId,
+        action: "VIEWER_ASSET_ACCESS_UPDATED",
+        metadata: {
+          granted: toGrant,
+          revoked: toRevoke,
+          totalAfter: desired.length,
+        },
+        userId: adminUser.id,
+      },
+    });
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true, granted: toGrant.length, revoked: toRevoke.length, total: desired.length };
+}
+
+/**
+ * Lightweight asset list for the access-management dialog. ADMIN-only.
+ */
+export async function listAssetsForViewerPicker(): Promise<
+  Array<{ id: string; title: string; city: string; country: string }>
+> {
+  await requireRole("ADMIN");
+
+  return prisma.asset.findMany({
+    select: { id: true, title: true, city: true, country: true },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
 // ─── Pipeline Stage Management ──────────────────────────────────────────────
 
 export async function getPipelineStages() {

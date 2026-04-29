@@ -382,6 +382,19 @@ export async function getTrackingDetail(id: string) {
     throw new Error("Forbidden");
   }
 
+  // VIEWER role: enforce per-asset access — a viewer with a row only on
+  // asset A must not be able to call getTrackingDetail with an id from
+  // asset B (which they could guess or copy from a URL). The dashboard
+  // and asset-detail page already gate, but server actions are reachable
+  // from the browser without those gates.
+  if (user.role === "VIEWER") {
+    const access = await prisma.assetViewerAccess.findUnique({
+      where: { userId_assetId: { userId: user.id, assetId: tracking.assetId } },
+      select: { id: true },
+    });
+    if (!access) throw new Error("Forbidden");
+  }
+
   // VIEWER role (opdrachtgevers / clients) — defence-in-depth: scrub PII
   // server-side so the wire payload never contains contact names, emails,
   // or DILS-staff identities. Client also hides these, but the server

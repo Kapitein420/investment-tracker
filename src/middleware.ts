@@ -13,8 +13,18 @@ export default withAuth(
       }
     }
 
-    // Non-investor trying to access portal
-    if (path.startsWith("/portal") && token?.role !== "INVESTOR" && token?.role !== "ADMIN") {
+    // Non-investor trying to access portal. The signed-NDA viewer
+    // (/portal/signed-nda/*) is shared between INVESTOR (who signed it),
+    // ADMIN / EDITOR (deal team), and VIEWER (opdrachtgever following the
+    // deal) — all four hit the same page. Per-row authorisation happens in
+    // getSignedHtmlNda; this is just a coarser route gate. Everywhere else
+    // under /portal stays investor-only.
+    if (
+      path.startsWith("/portal") &&
+      !path.startsWith("/portal/signed-nda") &&
+      token?.role !== "INVESTOR" &&
+      token?.role !== "ADMIN"
+    ) {
       return NextResponse.redirect(new URL("/", req.url));
     }
 

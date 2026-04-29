@@ -425,27 +425,58 @@ export async function signHtmlNda(data: {
 }
 
 /**
- * Admin-side view: fetch a signed HTML NDA for download/preview.
+ * Fetch a signed HTML NDA for download/preview.
+ *
+ * Authorisation:
+ *  - INVESTOR  → only their own company's tracking
+ *  - VIEWER    → only if they have AssetViewerAccess for the tracking's
+ *                asset; PII (signedByName / signedByEmail) is scrubbed
+ *                before the response leaves the server
+ *  - ADMIN / EDITOR → unrestricted
+ *  - all other roles → Forbidden
  */
 export async function getSignedHtmlNda(documentId: string) {
   const user = await requireUser();
   const doc = await prisma.document.findUniqueOrThrow({
     where: { id: documentId },
-    include: { tracking: { select: { companyId: true, asset: { select: { title: true } } } } },
+    include: {
+      tracking: {
+        select: { companyId: true, assetId: true, asset: { select: { title: true } } },
+      },
+    },
   });
 
-  if (user.role === "INVESTOR" && doc.tracking.companyId !== user.companyId) {
-    throw new Error("Forbidden");
-  }
   if (doc.mimeType !== "text/html") throw new Error("Not an HTML NDA");
 
+  if (user.role === "INVESTOR") {
+    if (doc.tracking.companyId !== user.companyId) {
+      throw new Error("Forbidden");
+    }
+  } else if (user.role === "VIEWER") {
+    const access = await prisma.assetViewerAccess.findUnique({
+      where: {
+        userId_assetId: { userId: user.id, assetId: doc.tracking.assetId },
+      },
+      select: { id: true },
+    });
+    if (!access) throw new Error("Forbidden");
+  } else if (user.role !== "ADMIN" && user.role !== "EDITOR") {
+    throw new Error("Forbidden");
+  }
+
   const cfg = (doc.fieldConfig as any) ?? null;
+
+  // VIEWERs never see investor identity — strip the signed-by fields
+  // server-side as a defence-in-depth complement to the client redaction
+  // rules already in tracking-detail-drawer.
+  const showSignerIdentity = user.role !== "VIEWER";
+
   return {
     documentId: doc.id,
     assetTitle: doc.tracking.asset.title,
     signedAt: doc.signedAt,
-    signedByName: doc.signedByName,
-    signedByEmail: doc.signedByEmail,
+    signedByName: showSignerIdentity ? doc.signedByName : null,
+    signedByEmail: showSignerIdentity ? doc.signedByEmail : null,
     signedHtml: cfg?.signedHtml ?? null,
   };
 }

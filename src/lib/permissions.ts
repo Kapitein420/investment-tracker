@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
@@ -58,4 +59,52 @@ export function isViewer(role: Role) {
  */
 export function canSeeContactDetails(role: Role) {
   return role === "ADMIN" || role === "EDITOR" || role === "INVESTOR";
+}
+
+/**
+ * Per-asset access enforcement for the VIEWER role.
+ *
+ * Returns:
+ *  - `null` for ADMIN / EDITOR — they see everything (use this as a
+ *    "skip filter" sentinel rather than fetching ids unnecessarily).
+ *  - `string[]` for VIEWER — exact list of asset ids the viewer is
+ *    allowed to see. Empty array means no access at all.
+ *  - `string[]` (empty) for INVESTOR — investors don't use this gate
+ *    (they go through AssetCompanyTracking on /portal). Defensive zero.
+ *
+ * The DB row is the source of truth; never trust client-supplied IDs.
+ */
+export async function getViewerAccessibleAssetIds(
+  userId: string,
+  role: Role
+): Promise<string[] | null> {
+  if (role === "ADMIN" || role === "EDITOR") return null;
+  if (role !== "VIEWER") return [];
+
+  const rows = await prisma.assetViewerAccess.findMany({
+    where: { userId },
+    select: { assetId: true },
+  });
+  return rows.map((r) => r.assetId);
+}
+
+/**
+ * Hard guard for asset-scoped pages — throws "Forbidden" so route handlers
+ * can let it propagate to the error boundary (Next renders 500 with a
+ * neutral message, never leaking that the asset exists). VIEWERs without
+ * an access row see "Forbidden"; ADMIN / EDITOR pass through.
+ */
+export async function requireAssetAccess(
+  userId: string,
+  role: Role,
+  assetId: string
+): Promise<void> {
+  if (role === "ADMIN" || role === "EDITOR") return;
+  if (role !== "VIEWER") throw new Error("Forbidden");
+
+  const access = await prisma.assetViewerAccess.findUnique({
+    where: { userId_assetId: { userId, assetId } },
+    select: { id: true },
+  });
+  if (!access) throw new Error("Forbidden");
 }
