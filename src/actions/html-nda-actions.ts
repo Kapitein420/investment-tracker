@@ -342,17 +342,38 @@ export async function signHtmlNda(data: {
     ...data.values,
     ...assetDefaults,
     ...(meta.adminFieldDefaults ?? {}),
-    // Single full-name field on the signing form. NAME gets the entire
-    // string; SURNAME stays blank so legacy templates that still reference
-    // {{SURNAME}} render cleanly without duplicating the family name.
+    // Single full-name field on the signing form drives three name tokens
+    // — NAME (full string), FIRST_NAMES (everything except the last word),
+    // SURNAME (last word). The Orizon-style template renders Voornamen +
+    // Achternaam separately; legacy templates only reference {{NAME}}.
     NAME: data.signedByName.trim(),
-    SURNAME: data.values.SURNAME ?? "",
+    FIRST_NAMES: (() => {
+      const parts = data.signedByName.trim().split(/\s+/);
+      return parts.length === 1 ? parts[0] : parts.slice(0, -1).join(" ");
+    })(),
+    SURNAME: (() => {
+      const parts = data.signedByName.trim().split(/\s+/);
+      return parts.length > 1 ? parts[parts.length - 1] : "";
+    })(),
+    EMAIL: data.signedByEmail,
     DATE: formatDate(new Date()),
   };
+  // CAPACITY_TEXT renders the chosen "Handelend als …" sentence with the
+  // company name appended (except for "voor zich"). Mirrors the live
+  // preview built in html-nda-signing-page.tsx so the persisted document
+  // exactly matches what the signer saw.
+  {
+    const capacity = (data.values.CAPACITY ?? "").trim();
+    const co = (data.values.COMPANY_NAME ?? "").trim();
+    if (capacity) {
+      merged.CAPACITY_TEXT = capacity === "voor zich" || !co ? capacity : `${capacity} ${co}`;
+    }
+  }
   // Preserve admin/legacy explicit overrides if the values payload still
-  // carries them (older NDA templates with NAME / SURNAME as required
-  // investor fields, asset-specific overrides, etc.).
+  // carries them (older NDA templates with NAME / SURNAME / FIRST_NAMES
+  // as required investor fields, asset-specific overrides, etc.).
   if (data.values.NAME) merged.NAME = data.values.NAME;
+  if (data.values.FIRST_NAMES) merged.FIRST_NAMES = data.values.FIRST_NAMES;
   if (data.values.SURNAME) merged.SURNAME = data.values.SURNAME;
 
   const renderedHtml = renderTemplate(template.htmlContent, merged);
