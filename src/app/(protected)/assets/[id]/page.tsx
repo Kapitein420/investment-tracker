@@ -3,6 +3,13 @@ import { getCurrentUser, requireAssetAccess } from "@/lib/permissions";
 import { redirect, notFound } from "next/navigation";
 import { AssetDetailView } from "@/components/asset/asset-detail-view";
 
+// Bulk invite (up to 200 investors per batch) calls Mailgun once per row;
+// 200 × ~300ms ≈ 60s. Vercel's default function timeout is 60s on Pro and
+// 10s on Hobby — bump to 300s here so the action finishes comfortably.
+// On Hobby this declaration is ignored and the function still hard-caps at
+// 10s; switch to Pro before running large batches.
+export const maxDuration = 300;
+
 export default async function AssetDetailPage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

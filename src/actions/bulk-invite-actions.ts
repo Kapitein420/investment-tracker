@@ -6,10 +6,13 @@ import { sendInvestorInvite } from "@/actions/invite-actions";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
-// Cap: 50 rows per call. Each row can take ~300ms (Mailgun call inside
-// sendInvestorInvite). 50 × 300ms = 15s, safely under Vercel's 60s
-// fluid-compute ceiling. Larger batches must be split client-side.
-const MAX_ROWS = 50;
+// Cap: 200 rows per call. Each row can take ~300ms (Mailgun call inside
+// sendInvestorInvite). 200 × 300ms = 60s, which fits Vercel Pro's
+// max function duration. The parent route (assets/[id]) sets
+// maxDuration: 300 to bump the ceiling so this comfortably finishes.
+// Hobby plan caps at 10s — admins on Hobby will see a timeout for
+// batches > ~30 rows; bump to Pro before the wave.
+const MAX_ROWS = 200;
 
 export interface BulkInviteRow {
   companyName: string;
