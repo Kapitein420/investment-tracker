@@ -17,6 +17,16 @@ export async function createTracking(data: CreateTrackingInput) {
   const validated = createTrackingSchema.parse(data);
 
   const tracking = await prisma.$transaction(async (tx) => {
+    // Find the teaser stage so we can default new trackings to it. The
+    // pipeline-table previously rendered new rows with every stage column
+    // blank ("—") and an empty Stage dropdown, leaving the admin to fish
+    // it back out manually. Defaulting to teaser matches what an invited
+    // investor would see on day one.
+    const teaserStage = await tx.pipelineStage.findFirst({
+      where: { key: "teaser", isActive: true },
+      select: { key: true },
+    });
+
     const newTracking = await tx.assetCompanyTracking.create({
       data: {
         assetId: validated.assetId,
@@ -24,10 +34,13 @@ export async function createTracking(data: CreateTrackingInput) {
         relationshipType: validated.relationshipType ?? "Investor",
         interestLevel: validated.interestLevel ?? null,
         ownerUserId: validated.ownerUserId ?? null,
+        currentStageKey: teaserStage?.key ?? null,
       },
     });
 
-    // Create StageStatus records for all active pipeline stages
+    // Create StageStatus records for all active pipeline stages. Teaser
+    // starts IN_PROGRESS so the row reads "Teaser · Action needed" right
+    // away — same shape as a freshly invited investor.
     const activeStages = await tx.pipelineStage.findMany({
       where: { isActive: true },
       orderBy: { sequence: "asc" },
@@ -38,7 +51,10 @@ export async function createTracking(data: CreateTrackingInput) {
         data: activeStages.map((stage) => ({
           trackingId: newTracking.id,
           stageId: stage.id,
-          status: "NOT_STARTED" as const,
+          status:
+            stage.key === "teaser"
+              ? ("IN_PROGRESS" as const)
+              : ("NOT_STARTED" as const),
         })),
       });
     }
