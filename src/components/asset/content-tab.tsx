@@ -17,6 +17,7 @@ import { createAssetContent, updateAssetContent, deleteAssetContent, uploadConte
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
 import { enableHtmlNdaForAsset, disableHtmlNdaForAsset } from "@/actions/html-nda-actions";
 import { HtmlNdaEditor } from "@/components/asset/html-nda-editor";
+import { HtmlNdaPreview } from "@/components/asset/html-nda-preview";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
 import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
@@ -415,6 +416,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             {editable && (
               htmlNda ? (
                 <div className="flex items-center gap-2">
+                  <HtmlNdaPreview htmlNda={htmlNda} />
                   <HtmlNdaEditor htmlNda={htmlNda} />
                   <Button
                     variant="outline"

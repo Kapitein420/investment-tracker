@@ -358,17 +358,6 @@ export async function signHtmlNda(data: {
     EMAIL: data.signedByEmail,
     DATE: formatDate(new Date()),
   };
-  // CAPACITY_TEXT renders the chosen "Handelend als …" sentence with the
-  // company name appended (except for "voor zich"). Mirrors the live
-  // preview built in html-nda-signing-page.tsx so the persisted document
-  // exactly matches what the signer saw.
-  {
-    const capacity = (data.values.CAPACITY ?? "").trim();
-    const co = (data.values.COMPANY_NAME ?? "").trim();
-    if (capacity) {
-      merged.CAPACITY_TEXT = capacity === "voor zich" || !co ? capacity : `${capacity} ${co}`;
-    }
-  }
   // Preserve admin/legacy explicit overrides if the values payload still
   // carries them (older NDA templates with NAME / SURNAME / FIRST_NAMES
   // as required investor fields, asset-specific overrides, etc.).
