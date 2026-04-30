@@ -37,6 +37,7 @@ import {
 import { StageCell } from "@/components/asset/stage-cell";
 import { StageSelectCell } from "@/components/asset/stage-select-cell";
 import { updateTracking, deleteTracking } from "@/actions/tracking-actions";
+import { sendInvestorInvite } from "@/actions/invite-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -231,6 +232,49 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
               </DropdownMenuItem>
               {editable && (
                 <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      // Per-row "Send invite" — handy for companies added
+                      // via the bulk Import flow (which doesn't email) when
+                      // the admin later wants to onboard them.
+                      const companyName = row.original.company?.name ?? "this company";
+                      const email = row.original.company?.contactEmail;
+                      if (!email) {
+                        toast.error(
+                          `${companyName} has no contact email on file. Edit the company first to add one, then re-invite from here.`
+                        );
+                        return;
+                      }
+                      if (
+                        !confirm(
+                          `Send an invite email to ${companyName} <${email}> for this asset?\n\nA portal account will be created (or refreshed) and credentials emailed.`
+                        )
+                      ) {
+                        return;
+                      }
+                      try {
+                        const result = await sendInvestorInvite({
+                          companyId: row.original.company.id,
+                          assetId: row.original.assetId,
+                          email,
+                        });
+                        if (result.emailSent) {
+                          toast.success(`Invite emailed to ${email}`);
+                        } else {
+                          toast.warning(
+                            `Account created but email failed: ${result.emailError ?? "unknown error"}. Resend from /admin/invites.`,
+                            { duration: 12000 }
+                          );
+                        }
+                        router.refresh();
+                      } catch (e: any) {
+                        toast.error(e?.message || "Couldn't send invite");
+                      }
+                    }}
+                  >
+                    Send invite
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {row.original.lifecycleStatus === "ACTIVE" ? (
                     <DropdownMenuItem
