@@ -129,9 +129,23 @@ const NEXT_STEP_TITLES: Record<string, string> = {
 
 export function DealJourney({ tracking, contents }: DealJourneyProps) {
   const router = useRouter();
-  const stages = tracking.stageStatuses.sort(
-    (a: any, b: any) => a.stage.sequence - b.stage.sequence
-  );
+  // Optimistically mark the teaser as COMPLETED on the very first render —
+  // landing on this page IS opening the teaser, so the investor never
+  // needs to click anything for that stage. The fire-and-forget OPENED
+  // event below makes the same transition server-side; this just keeps
+  // the UI from flashing "Action needed" before the server round-trips.
+  const stages = tracking.stageStatuses
+    .map((ss: any) => {
+      if (ss.stage?.key === "teaser" && ss.status !== "COMPLETED") {
+        return {
+          ...ss,
+          status: "COMPLETED",
+          completedAt: ss.completedAt ?? new Date(),
+        };
+      }
+      return ss;
+    })
+    .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence);
 
   const [signingDoc, setSigningDoc] = useState<any>(null);
   const [signingToken, setSigningToken] = useState<string>("");
