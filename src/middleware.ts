@@ -6,6 +6,22 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
+    // First-login force-change-password gate. When passwordChangedAt is
+    // NULL on the User row (admin reset, self-serve reset, or invite-set
+    // password), the JWT carries mustChangePassword=true. Funnel every
+    // authenticated route through /portal/change-password until the
+    // password is rotated. The change-password page itself is exempt
+    // (otherwise the redirect loops); /api/auth/* stays open so sign-out
+    // works.
+    if (token?.mustChangePassword) {
+      if (
+        !path.startsWith("/portal/change-password") &&
+        !path.startsWith("/api/auth")
+      ) {
+        return NextResponse.redirect(new URL("/portal/change-password", req.url));
+      }
+    }
+
     // INVESTOR role: redirect away from admin routes to portal
     if (token?.role === "INVESTOR") {
       if (path === "/" || path.startsWith("/assets") || path.startsWith("/admin")) {

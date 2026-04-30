@@ -61,6 +61,8 @@ export async function sendInvestorInvite({
         passwordHash,
         role: "INVESTOR",
         companyId,
+        // passwordChangedAt left NULL → first login forces a change
+        // before any other portal route is reachable.
       },
     });
   } else if (investorUser.role !== "INVESTOR") {
@@ -88,7 +90,7 @@ export async function sendInvestorInvite({
       const passwordHash = await bcrypt.hash(plainPassword, 10);
       await prisma.user.update({
         where: { id: investorUser.id },
-        data: { passwordHash },
+        data: { passwordHash, passwordChangedAt: null },
       });
     } else {
       // Already active — don't reset password, just send a reminder with login link
