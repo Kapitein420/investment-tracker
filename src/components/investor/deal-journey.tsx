@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { assetTypeToUnit } from "@/lib/stages";
+import { orderedHighlightEntries } from "@/lib/highlights";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { recordInvestorStageEvent, requestViewing } from "@/actions/portal-actions";
@@ -608,7 +609,9 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                     const teaserMetrics: Record<string, string> = teaserContent?.keyMetrics && typeof teaserContent.keyMetrics === "object"
                       ? teaserContent.keyMetrics
                       : {};
-                    const metricEntries = Object.entries(teaserMetrics).filter(([_, v]) => v);
+                    // Stable ordering: standard 6 highlights first in canonical
+                    // sequence (Office LFA → WALT/WALB), then any custom rows.
+                    const metricEntries = orderedHighlightEntries(teaserMetrics);
                     return (
                       <div className="overflow-hidden rounded-lg border border-dils-200 bg-white">
                         {/* Hero image strip */}
@@ -625,14 +628,14 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 src={url}
                                 alt={`Property image ${i + 1}`}
                                 className={cn(
-                                  "h-44 w-full object-cover md:h-52",
+                                  "h-72 w-full object-cover md:h-96",
                                   i > 0 && "border-l border-dils-100"
                                 )}
                               />
                             ))}
                           </div>
                         ) : (
-                          <div className={cn("flex h-44 items-center justify-center border-b border-dils-100 md:h-52", unit.tint)}>
+                          <div className={cn("flex h-72 items-center justify-center border-b border-dils-100 md:h-96", unit.tint)}>
                             <Building className="h-12 w-12 text-dils-black/40" strokeWidth={1.5} />
                           </div>
                         )}
@@ -661,18 +664,13 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                             <p className="text-sm text-muted-foreground">{tracking.asset.description}</p>
                           )}
                           {metricEntries.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-dils-100 md:grid-cols-4">
-                              {metricEntries.map(([key, value]) => {
-                                const isAccent = key.toLowerCase().includes("note") || key.toLowerCase().includes("highlight");
-                                return (
-                                  <div key={key}>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">{key}</p>
-                                    <p className={cn("mt-1 font-heading text-base font-semibold", isAccent ? "text-soft-accent" : "text-foreground")}>
-                                      {String(value)}
-                                    </p>
-                                  </div>
-                                );
-                              })}
+                            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-dils-100 md:grid-cols-3">
+                              {metricEntries.map(({ key, label, value }) => (
+                                <div key={key}>
+                                  <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">{label}</p>
+                                  <p className="mt-1 font-heading text-base font-semibold text-foreground">{value}</p>
+                                </div>
+                              ))}
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground italic">
