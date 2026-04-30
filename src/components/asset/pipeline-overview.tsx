@@ -59,8 +59,6 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
     });
   }, [activeTrackings, stages]);
 
-  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
-
   // Lifecycle breakdown
   const lifecycleCounts = useMemo(() => {
     const counts: Record<string, number> = { ACTIVE: 0, COMPLETED: 0, DROPPED: 0, ON_HOLD: 0 };
@@ -72,58 +70,29 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
 
   return (
     <div className="space-y-8">
-      {/* Funnel visualization */}
+      {/* Combined Pipeline Stages — replaces the prior "Pipeline Funnel"
+          + "Current Stage Distribution" + "Stage Conversion" trio. The
+          funnel chart was confusing (showed cumulative-pass percentages
+          like "60%" with no obvious denominator). This single view shows
+          where each company currently sits, lists their names inline, and
+          weaves the stage-to-stage conversion arrows between cards. */}
       <section>
-        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Pipeline Funnel</h2>
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Pipeline Stages</h2>
         <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Companies that have reached or passed each stage
-        </p>
-        <div className="rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
-          <div className="space-y-1.5">
-            {buckets.map((bucket) => {
-              const widthPct = Math.max((bucket.count / maxCount) * 100, 8);
-              const pct =
-                activeTrackings.length > 0
-                  ? `${Math.round((bucket.count / activeTrackings.length) * 100)}%`
-                  : "0%";
-              return (
-                <div
-                  key={bucket.stage.id}
-                  className="grid items-center gap-3"
-                  style={{ gridTemplateColumns: "80px 1fr 56px" }}
-                >
-                  <span className="text-right text-[13px] font-semibold text-muted-foreground">
-                    {bucket.stage.label}
-                  </span>
-                  <div className="h-8 overflow-hidden rounded-md bg-soft-bg-surface-alt">
-                    <div
-                      className={cn("h-full flex items-center px-3 rounded-md transition-all duration-500", bucket.band.bar)}
-                      style={{ width: `${widthPct}%` }}
-                    >
-                      <span className="text-[13px] font-semibold text-white">
-                        {bucket.count}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-right text-xs font-semibold text-muted-foreground">
-                    {pct}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Current stage distribution */}
-      <section>
-        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Current Stage Distribution</h2>
-        <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Where each company currently sits in the pipeline
+          Where each company currently sits, with conversion to the next stage
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {currentStageBuckets.map((bucket) => {
+          {currentStageBuckets.map((bucket, idx) => {
             const isEmpty = bucket.count === 0;
+            // Cumulative-pass bucket for the conversion math — companies
+            // that have reached this stage or passed it. Conversion to
+            // the next stage = nextReached / thisReached.
+            const reachedThis = buckets[idx]?.count ?? 0;
+            const reachedNext = buckets[idx + 1]?.count ?? null;
+            const conversion =
+              reachedNext !== null && reachedThis > 0
+                ? Math.round((reachedNext / reachedThis) * 100)
+                : null;
             return (
               <div
                 key={bucket.stage.id}
@@ -136,6 +105,11 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
                 <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
                   {bucket.stage.label}
                 </p>
+                {conversion !== null && (
+                  <p className="mt-1 text-[10px] font-medium text-foreground/60">
+                    {conversion}% → next
+                  </p>
+                )}
                 <div className="mt-3 border-t border-dashed border-dils-200 pt-3 min-h-[22px]">
                   {isEmpty ? (
                     <p className="text-[12px] italic text-muted-foreground">—</p>
@@ -176,33 +150,6 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
         </div>
       </section>
 
-      {/* Conversion rates */}
-      <section>
-        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Stage Conversion</h2>
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
-          {buckets.map((bucket, idx) => {
-            const nextBucket = buckets[idx + 1];
-            const conversionRate = nextBucket && bucket.count > 0
-              ? Math.round((nextBucket.count / bucket.count) * 100)
-              : null;
-
-            return (
-              <div key={bucket.stage.id} className="flex items-center gap-2">
-                <div className="flex min-w-[80px] flex-col items-center gap-1 rounded-md border border-dils-200 bg-soft-bg-surface-alt px-4 py-3">
-                  <p className="font-heading text-xl font-semibold leading-none text-foreground tabular-nums">{bucket.count}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">{bucket.stage.label}</p>
-                </div>
-                {conversionRate !== null && (
-                  <div className="flex flex-col items-center gap-0.5 px-1 text-muted-foreground">
-                    <span className="text-[11px] font-semibold text-foreground/70">{conversionRate}%</span>
-                    <span className="text-base leading-none">→</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }
