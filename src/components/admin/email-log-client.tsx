@@ -70,11 +70,11 @@ export function EmailLogClient({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Admin</p>
-          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground">Email log</h1>
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground">My email log</h1>
           <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-            Live feed of the last {result.events.length || 200} Mailgun events for the configured sending domain.
-            Use it to confirm whether transactional emails (invites, NDA approvals, password resets) reached the
-            recipient&rsquo;s mailbox or got held / bounced upstream.
+            Last {result.events.length || 200} Mailgun events for emails <strong>you</strong> sent — invites, NDA
+            approvals, password resets you triggered. Use it to confirm a message reached the recipient&rsquo;s
+            mailbox or got held / bounced upstream. Other admins&rsquo; sends and pre-scoping events don&rsquo;t appear here.
           </p>
         </div>
         <Button

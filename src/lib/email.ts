@@ -1,3 +1,6 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
@@ -10,12 +13,23 @@ export interface SendEmailResult {
   messageId: string | null; // Mailgun's "id" — present when delivered to MX, used to correlate webhooks
 }
 
+// Mailgun tag values must be ASCII [\w.-]+. Prisma cuids are already
+// alphanumeric, but coerce defensively in case a future caller passes
+// an email or other value.
+function actorTag(userId: string): string {
+  const safe = userId.replace(/[^A-Za-z0-9_.-]/g, "-");
+  return `actor-${safe}`;
+}
+
+export { actorTag };
+
 export async function sendEmail({
   to,
   subject,
   html,
   from,
   replyTo,
+  actor,
 }: {
   to: string;
   subject: string;
@@ -29,6 +43,12 @@ export async function sendEmail({
   /** Optional Reply-To. Useful when the From is a broker mailbox but
    *  the team wants replies to land on a shared inbox. */
   replyTo?: string;
+  /** Who initiated this send. Tagged on the Mailgun message so the
+   *  email-log can scope events to "emails I caused".
+   *  - undefined (default) → auto-pick from the current request session
+   *  - a userId string → tag with that explicit actor
+   *  - null → skip tagging (system / cron / unauthenticated callers) */
+  actor?: string | null;
 }): Promise<SendEmailResult> {
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
     // Silent skip in dev; loud failure in production. Previously this branch
@@ -53,6 +73,21 @@ export async function sendEmail({
     html,
   });
   if (replyTo) body.set("h:Reply-To", replyTo);
+
+  // Resolve the actor: explicit override beats session pickup, null skips.
+  let resolvedActor: string | null = null;
+  if (actor === undefined) {
+    try {
+      const session = await getServerSession(authOptions);
+      const id = (session?.user as { id?: unknown } | undefined)?.id;
+      if (typeof id === "string" && id.length > 0) resolvedActor = id;
+    } catch {
+      // No request scope (cron / webhook / build-time render) — just don't tag.
+    }
+  } else if (actor) {
+    resolvedActor = actor;
+  }
+  if (resolvedActor) body.append("o:tag", actorTag(resolvedActor));
 
   const res = await fetch(
     `${MAILGUN_API_BASE}/${MAILGUN_DOMAIN}/messages`,
