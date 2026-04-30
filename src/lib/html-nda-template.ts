@@ -23,8 +23,10 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
     { key: "CITY", label: "City", adminOnly: true },
     { key: "VENDOR", label: "Vendor", adminOnly: true },
     { key: "ADDRESS", label: "Subject of sale address", adminOnly: true },
-    { key: "NAME", label: "First name(s) in full", required: true },
-    { key: "SURNAME", label: "Surname", required: true },
+    // Single "Full name" investor field. The signing page auto-fills both
+    // NAME and SURNAME tokens from this so legacy templates that still
+    // reference {{SURNAME}} continue to render.
+    { key: "NAME", label: "Full name", required: true },
     { key: "ADDRESS_SIGNEE", label: "Your address", required: true },
     { key: "POSTCODE_CITY", label: "Postcode and town/city", required: true },
     { key: "COMPANY_NAME", label: "Company name", required: true },
@@ -39,8 +41,7 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
   <p>The undersigned,</p>
 
   <table style="width:100%;border-collapse:collapse;margin:12px 0;">
-    <tr><td style="padding:4px 8px;width:40%;">first name(s) in full</td><td style="padding:4px 8px;">: <span class="field">{{NAME}}</span></td></tr>
-    <tr><td style="padding:4px 8px;">surname</td><td style="padding:4px 8px;">: <span class="field">{{SURNAME}}</span></td></tr>
+    <tr><td style="padding:4px 8px;width:40%;">full name</td><td style="padding:4px 8px;">: <span class="field">{{NAME}}</span></td></tr>
     <tr><td style="padding:4px 8px;">address</td><td style="padding:4px 8px;">: <span class="field">{{ADDRESS_SIGNEE}}</span></td></tr>
     <tr><td style="padding:4px 8px;">postcode and town/city</td><td style="padding:4px 8px;">: <span class="field">{{POSTCODE_CITY}}</span></td></tr>
   </table>
@@ -107,7 +108,7 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
 
   <div style="margin-top:24px;border-top:1px solid #000;padding-top:8px;display:inline-block;min-width:240px;">{{SIGNATURE_BLOCK}}</div>
   <p style="margin:4px 0 0 0;"><strong>Recipient</strong></p>
-  <p style="margin:0;">By: <span class="field">{{NAME}} {{SURNAME}}</span></p>
+  <p style="margin:0;">By: <span class="field">{{NAME}}</span></p>
   <p style="margin:0;">Date: <span class="field">{{DATE}}</span></p>
 </article>
 `.trim(),

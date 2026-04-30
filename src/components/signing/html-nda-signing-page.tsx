@@ -34,11 +34,17 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
   const [completed, setCompleted] = useState(false);
 
   // Investor-fillable fields = template fields not marked adminOnly and not
-  // already present in adminFieldDefaults.
+  // already present in adminFieldDefaults. NAME / SURNAME are filled from
+  // the dedicated "Full name" header input above the field list, so we
+  // exclude them here to avoid asking for the same thing twice.
   const investorFields = useMemo(
     () =>
       data.fields.filter(
-        (f) => !f.adminOnly && !data.adminFieldDefaults[f.key]
+        (f) =>
+          !f.adminOnly &&
+          !data.adminFieldDefaults[f.key] &&
+          f.key !== "NAME" &&
+          f.key !== "SURNAME"
       ),
     [data.fields, data.adminFieldDefaults]
   );
@@ -51,9 +57,11 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
       DATE: new Date().toLocaleDateString("en-GB"),
     };
     if (name) {
-      const parts = name.trim().split(/\s+/);
-      merged.NAME = parts[0] ?? "";
-      merged.SURNAME = parts.slice(1).join(" ");
+      // Single full-name field. Set NAME = the whole string and SURNAME = ""
+      // so legacy templates that still reference {{SURNAME}} render cleanly
+      // without doubling up the family name.
+      merged.NAME = name.trim();
+      merged.SURNAME = "";
     }
     const html = renderTemplate(data.html, merged);
     return injectSignature(

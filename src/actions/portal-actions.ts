@@ -9,7 +9,9 @@ import { StageStatusValue } from "@prisma/client";
 // - teaser: always unlocked
 // - nda: unlocked if teaser is COMPLETED
 // - im: unlocked if nda has approvedAt set
-// - viewing: unlocked if im is COMPLETED
+// - viewing: unlocked once the NDA is approved (alongside IM). Investors
+//   asked to be able to schedule a viewing as soon as they have access to
+//   the materials, not only after they've explicitly opened the IM.
 // - nbo: unlocked if viewing is COMPLETED
 const STAGE_UNLOCK_RULES: Record<
   string,
@@ -18,7 +20,7 @@ const STAGE_UNLOCK_RULES: Record<
   teaser: () => true,
   nda: (stages) => stages.get("teaser")?.status === "COMPLETED",
   im: (stages) => stages.get("nda")?.approvedAt != null,
-  viewing: (stages) => stages.get("im")?.status === "COMPLETED",
+  viewing: (stages) => stages.get("nda")?.approvedAt != null,
   nbo: (stages) => stages.get("viewing")?.status === "COMPLETED",
 };
 
@@ -269,10 +271,12 @@ export async function requestViewing(
     return { ok: false, error: "Forbidden" };
   }
 
-  // Verify viewing stage is unlocked (IM must be COMPLETED)
-  const imStatus = tracking.stageStatuses.find((ss) => ss.stage.key === "im");
-  if (!imStatus || imStatus.status !== "COMPLETED") {
-    return { ok: false, error: "Review the IM before requesting a viewing." };
+  // Verify viewing stage is unlocked. Investors can request a viewing as
+  // soon as the NDA is approved (in lockstep with IM access) — they don't
+  // need to have opened the IM first.
+  const ndaStatus = tracking.stageStatuses.find((ss) => ss.stage.key === "nda");
+  if (!ndaStatus?.approvedAt) {
+    return { ok: false, error: "Sign and have your NDA approved before requesting a viewing." };
   }
 
   const viewingStatus = tracking.stageStatuses.find(

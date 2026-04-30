@@ -512,13 +512,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           )}
                         </div>
 
-                        {/* Signature preview for signed docs */}
-                        {doc.status === "SIGNED" && doc.signatureData && (
-                          <div className="w-full mt-3 pt-3 border-t border-dils-100">
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Signature on file</p>
-                            <img src={doc.signatureData} alt="Signature" className="h-10 opacity-70" />
-                          </div>
-                        )}
+                        {/* Signature image is intentionally NOT rendered here.
+                            Investors can verify the signed document via the
+                            "View" / "Download" buttons above; surfacing the
+                            raw signature on the journey overview made the
+                            page feel less safe. */}
                         {doc.status === "REJECTED" && (
                           <div className="w-full mt-2 rounded-md bg-status-danger-soft px-3 py-2">
                             <p className="text-xs text-status-danger">
@@ -558,8 +556,20 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                               </Button>
                             </a>
                             <a
-                              href={content.fileUrl}
-                              download={content.fileName ?? `${content.title}.pdf`}
+                              // The HTML `download` attribute is ignored on
+                              // cross-origin URLs (which Supabase signed URLs
+                              // are), so the browser would just open the PDF
+                              // inline. Append Supabase's `?download=name`
+                              // query so the storage layer responds with
+                              // Content-Disposition: attachment instead.
+                              href={(() => {
+                                const url = content.fileUrl as string;
+                                const sep = url.includes("?") ? "&" : "?";
+                                const fname = encodeURIComponent(
+                                  content.fileName ?? `${content.title}.pdf`
+                                );
+                                return `${url}${sep}download=${fname}`;
+                              })()}
                               onClick={() => {
                                 recordInvestorStageEvent({
                                   trackingId: tracking.id,

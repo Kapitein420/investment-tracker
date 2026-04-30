@@ -432,12 +432,16 @@ export async function getTrackingDetail(id: string) {
   }
 
   // First-access timestamps per content stage. Logged via ActivityLog
-  // CONTENT_ACCESSED in getSignedContentUrl. Only the earliest entry per
-  // (tracking, stageKey) matters — that's "first viewed".
+  // CONTENT_ACCESSED (server-side signed-URL fetch in getSignedContentUrl)
+  // and INVESTOR_STAGE_EVENT (client-side Open / Download / VIEWED_DOCUMENT
+  // events on the deal-journey card) both count as "stage opened by
+  // investor". Earliest entry wins.
   const accessLogs = await prisma.activityLog.findMany({
     where: {
-      action: "CONTENT_ACCESSED",
-      entityType: "AssetContent",
+      OR: [
+        { action: "CONTENT_ACCESSED", entityType: "AssetContent" },
+        { action: "INVESTOR_STAGE_EVENT", entityType: "StageStatus" },
+      ],
     },
     select: { metadata: true, createdAt: true },
     orderBy: { createdAt: "asc" },

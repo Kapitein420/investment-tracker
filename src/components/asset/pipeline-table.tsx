@@ -84,19 +84,32 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
           </Button>
         ),
         size: 180,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <span className="font-heading text-base font-semibold tracking-tight text-foreground">{row.original.company.name}</span>
-            {isStaleDate(row.original.updatedAt) && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <AlertCircle className="h-3 w-3 text-status-warning" />
-                </TooltipTrigger>
-                <TooltipContent>Not updated in 14+ days</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const imAccess = row.original.firstAccessByStage?.im as Date | string | undefined;
+          return (
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">{row.original.company.name}</span>
+                {isStaleDate(row.original.updatedAt) && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <AlertCircle className="h-3 w-3 text-status-warning" />
+                    </TooltipTrigger>
+                    <TooltipContent>Not updated in 14+ days</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+              {imAccess && (
+                <span
+                  className="text-[10px] text-dils-700"
+                  title={`First IM open / download: ${formatDate(imAccess)}`}
+                >
+                  IM viewed {formatDate(imAccess)}
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "latestCommentPreview",

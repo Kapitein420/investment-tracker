@@ -187,5 +187,43 @@ export async function getAssetById(id: string) {
   });
 
   if (!asset) throw new Error("Asset not found");
+
+  // Pull "first IM access" per tracking (Open / Download / VIEWED_DOCUMENT
+  // events on the investor card, plus server-side CONTENT_ACCESSED). Used
+  // by the pipeline-table row to surface investor engagement at-a-glance,
+  // without requiring an admin to open each drawer.
+  const trackingIds = asset.trackings.map((t) => t.id);
+  if (trackingIds.length > 0) {
+    const accessLogs = await prisma.activityLog.findMany({
+      where: {
+        OR: [
+          { action: "CONTENT_ACCESSED", entityType: "AssetContent" },
+          { action: "INVESTOR_STAGE_EVENT", entityType: "StageStatus" },
+        ],
+      },
+      select: { metadata: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const firstByTrackingStage = new Map<string, Date>();
+    for (const log of accessLogs) {
+      const m = log.metadata as
+        | { trackingId?: string; stageKey?: string }
+        | null;
+      if (!m?.trackingId || !m.stageKey) continue;
+      const k = `${m.trackingId}::${m.stageKey}`;
+      if (!firstByTrackingStage.has(k)) firstByTrackingStage.set(k, log.createdAt);
+    }
+    const trackingsWithAccess = asset.trackings.map((t) => {
+      const fa: Record<string, Date> = {};
+      for (const ss of t.stageStatuses) {
+        const k = `${t.id}::${ss.stage.key}`;
+        const at = firstByTrackingStage.get(k);
+        if (at) fa[ss.stage.key] = at;
+      }
+      return { ...t, firstAccessByStage: fa };
+    });
+    return { ...asset, trackings: trackingsWithAccess };
+  }
+
   return asset;
 }

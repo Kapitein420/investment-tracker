@@ -342,11 +342,16 @@ export async function signHtmlNda(data: {
     ...data.values,
     ...assetDefaults,
     ...(meta.adminFieldDefaults ?? {}),
-    NAME: data.signedByName.split(" ")[0] || data.signedByName,
-    SURNAME: data.signedByName.split(" ").slice(1).join(" ") || data.values.SURNAME || "",
+    // Single full-name field on the signing form. NAME gets the entire
+    // string; SURNAME stays blank so legacy templates that still reference
+    // {{SURNAME}} render cleanly without duplicating the family name.
+    NAME: data.signedByName.trim(),
+    SURNAME: data.values.SURNAME ?? "",
     DATE: formatDate(new Date()),
   };
-  // Preserve full name if user explicitly provided NAME / SURNAME inputs.
+  // Preserve admin/legacy explicit overrides if the values payload still
+  // carries them (older NDA templates with NAME / SURNAME as required
+  // investor fields, asset-specific overrides, etc.).
   if (data.values.NAME) merged.NAME = data.values.NAME;
   if (data.values.SURNAME) merged.SURNAME = data.values.SURNAME;
 
@@ -480,6 +485,7 @@ export async function getSignedHtmlNda(documentId: string) {
 
   return {
     documentId: doc.id,
+    assetId: doc.tracking.assetId,
     assetTitle: doc.tracking.asset.title,
     signedAt: doc.signedAt,
     signedByName: showSignerIdentity ? doc.signedByName : null,
