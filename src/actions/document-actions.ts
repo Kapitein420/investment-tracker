@@ -13,6 +13,7 @@ import {
   saveDocumentPlacementsSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
+import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -744,6 +745,11 @@ export async function signDocument(data: {
     }
     throw e;
   }
+
+  // POST-COMMIT: roll currentStageKey forward — same reason as the
+  // HTML NDA flow. Outside the transaction so a sync failure can't
+  // roll back signing.
+  await syncCurrentStageKeyAfterCommit(token.document.trackingId);
 
   return { success: true };
 }

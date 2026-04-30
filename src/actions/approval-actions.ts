@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { getAppUrl } from "@/lib/app-url";
+import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
 
 export async function approveStage(trackingId: string, stageKey: string) {
   const user = await requireRole("EDITOR");
@@ -178,6 +179,8 @@ export async function revokeStageApproval(
 
     return tracking;
   });
+
+  await syncCurrentStageKeyAfterCommit(trackingId);
 
   revalidatePath(`/assets/${result.assetId}`);
   revalidatePath(`/portal`);
