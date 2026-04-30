@@ -93,6 +93,98 @@ export function renderCta(text: string, url: string): string {
   `;
 }
 
+// Friendly labels for the standard teaser highlight keys (kept in sync with
+// the admin-side STANDARD_HIGHLIGHTS in content-tab.tsx). Anything outside
+// this map is rendered with humanise(snake_case → Title Case) fallback.
+const HIGHLIGHT_LABELS: Record<string, string> = {
+  office_lfa: "Office LFA",
+  construction_year: "Construction year",
+  epc_label: "EPC label",
+  ownership: "Ownership",
+  annual_rent_income: "Annual rent income",
+  walt_walb: "WALT / WALB",
+};
+
+function humaniseKey(k: string): string {
+  return k
+    .split("_")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+/**
+ * Teaser preview block for the invite email — short pitch with up to 6
+ * key investment highlights and (optionally) the hero image. Renders
+ * nothing if there's no description AND no highlights AND no image, so
+ * an asset without a teaser uploaded yet still gets a clean email.
+ */
+export function renderTeaserPreview(opts: {
+  assetTitle: string;
+  city?: string | null;
+  country?: string | null;
+  description?: string | null;
+  highlights?: Record<string, string> | null;
+  heroImageUrl?: string | null;
+}): string {
+  const description = (opts.description ?? "").trim();
+  const highlights = opts.highlights ?? {};
+  const highlightEntries = Object.entries(highlights)
+    .filter(([, v]) => v && v.trim())
+    .slice(0, 6);
+
+  if (!description && highlightEntries.length === 0 && !opts.heroImageUrl) {
+    return "";
+  }
+
+  const location = [opts.city, opts.country].filter(Boolean).join(", ");
+
+  const heroBlock = opts.heroImageUrl
+    ? `<img src="${opts.heroImageUrl}" alt="${opts.assetTitle}" style="display:block; width:100%; max-width:600px; height:auto; border:0; border-radius:4px; margin:0 0 20px 0;" />`
+    : "";
+
+  const truncated =
+    description.length > 320 ? description.slice(0, 317).trimEnd() + "…" : description;
+  const descriptionBlock = truncated
+    ? `<p style="color: ${COLORS.ink}; line-height: 1.6; font-size: 14px; margin: 0 0 20px 0; font-style: italic;">${escape(truncated)}</p>`
+    : "";
+
+  const highlightsBlock =
+    highlightEntries.length > 0
+      ? `
+      <table style="width: 100%; border-collapse: collapse; margin: 0 0 24px 0;">
+        ${highlightEntries
+          .map(
+            ([k, v], i) => `
+          <tr>
+            <td style="padding: 10px 12px; width: 50%; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${COLORS.ink}; font-weight: 700; background: ${COLORS.surface}; ${i < highlightEntries.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(HIGHLIGHT_LABELS[k] ?? humaniseKey(k))}</td>
+            <td style="padding: 10px 12px; font-size: 13px; color: ${COLORS.ink}; ${i < highlightEntries.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(v.trim())}</td>
+          </tr>`,
+          )
+          .join("")}
+      </table>`
+      : "";
+
+  return `
+    <div style="margin: 0 0 28px 0; padding: 24px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-radius: 4px;">
+      ${heroBlock}
+      <p style="color: ${COLORS.brass}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 6px 0;">Investment Opportunity</p>
+      <h2 style="font-family: Georgia, 'Times New Roman', serif; color: ${COLORS.ink}; font-size: 18px; font-weight: 700; margin: 0 0 ${location ? "4" : "16"}px 0; line-height: 1.3;">${escape(opts.assetTitle)}</h2>
+      ${location ? `<p style="color: ${COLORS.muted ?? "#6B7280"}; font-size: 12px; margin: 0 0 16px 0;">${escape(location)}</p>` : ""}
+      ${descriptionBlock}
+      ${highlightsBlock}
+    </div>
+  `;
+}
+
+function escape(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Editorial credentials table — used by the invite + password-reset emails.
  */

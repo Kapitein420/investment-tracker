@@ -56,24 +56,39 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
   const [teaserDescription, setTeaserDescription] = useState<string>("");
   const [teaserImageUrls, setTeaserImageUrls] = useState<string[]>([]);
   const [teaserImageSigned, setTeaserImageSigned] = useState<Record<string, string>>({});
-  const [teaserMetrics, setTeaserMetrics] = useState<{ price: string; size: string; yield: string; notes: string }>({
-    price: "", size: "", yield: "", notes: "",
-  });
+  // Standard key investment highlights — the six metrics every DILS deal
+  // teaser should carry. Stored in keyMetrics as snake_case keys; everything
+  // outside this list goes into the freeform "custom" section.
+  const STANDARD_HIGHLIGHTS: Array<{ key: string; label: string; placeholder: string }> = [
+    { key: "office_lfa", label: "Office LFA", placeholder: "2,500 m²" },
+    { key: "construction_year", label: "Construction year", placeholder: "1998 (renovated 2019)" },
+    { key: "epc_label", label: "EPC label", placeholder: "A++" },
+    { key: "ownership", label: "Ownership", placeholder: "Freehold" },
+    { key: "annual_rent_income", label: "Annual rent income", placeholder: "€1.2M" },
+    { key: "walt_walb", label: "WALT / WALB", placeholder: "6.4 / 4.1 yrs" },
+  ];
+  const STANDARD_KEYS = new Set(STANDARD_HIGHLIGHTS.map((h) => h.key));
+
+  const [teaserHighlights, setTeaserHighlights] = useState<Record<string, string>>(() =>
+    Object.fromEntries(STANDARD_HIGHLIGHTS.map((h) => [h.key, ""]))
+  );
   const [teaserCustomMetrics, setTeaserCustomMetrics] = useState<Array<{ key: string; value: string }>>([]);
 
   function openTeaserDialog() {
     const existingMetrics = (teaserContent?.keyMetrics as Record<string, string>) || {};
     setTeaserDescription(teaserContent?.description || "");
     setTeaserImageUrls(Array.isArray(teaserContent?.imageUrls) ? (teaserContent!.imageUrls as string[]) : []);
-    setTeaserMetrics({
-      price: existingMetrics.price || "",
-      size: existingMetrics.size || "",
-      yield: existingMetrics.yield || "",
-      notes: existingMetrics.notes || "",
-    });
-    const reserved = new Set(["price", "size", "yield", "notes"]);
+
+    // Backfill the new standard slots from the existing keyMetrics blob.
+    // Old data with price/size/yield/notes survives as custom rows so the
+    // admin can re-enter into the new fields if they want.
+    setTeaserHighlights(
+      Object.fromEntries(
+        STANDARD_HIGHLIGHTS.map((h) => [h.key, existingMetrics[h.key] ?? ""])
+      )
+    );
     const custom = Object.entries(existingMetrics)
-      .filter(([k]) => !reserved.has(k))
+      .filter(([k]) => !STANDARD_KEYS.has(k))
       .map(([key, value]) => ({ key, value: String(value) }));
     setTeaserCustomMetrics(custom);
     setTeaserDialogOpen(true);
@@ -124,10 +139,10 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
     setTeaserSaving(true);
     try {
       const metrics: Record<string, string> = {};
-      if (teaserMetrics.price) metrics.price = teaserMetrics.price;
-      if (teaserMetrics.size) metrics.size = teaserMetrics.size;
-      if (teaserMetrics.yield) metrics.yield = teaserMetrics.yield;
-      if (teaserMetrics.notes) metrics.notes = teaserMetrics.notes;
+      for (const h of STANDARD_HIGHLIGHTS) {
+        const v = (teaserHighlights[h.key] ?? "").trim();
+        if (v) metrics[h.key] = v;
+      }
       for (const { key, value } of teaserCustomMetrics) {
         if (key.trim() && value.trim()) metrics[key.trim()] = value.trim();
       }
@@ -701,42 +716,22 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
               </div>
             </div>
 
-            {/* Key Metrics */}
+            {/* Key Investment Highlights */}
             <div className="space-y-3">
-              <Label>Key Metrics</Label>
+              <Label>Key Investment Highlights</Label>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Price</Label>
-                  <Input
-                    value={teaserMetrics.price}
-                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, price: e.target.value }))}
-                    placeholder="€5M"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Size</Label>
-                  <Input
-                    value={teaserMetrics.size}
-                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, size: e.target.value }))}
-                    placeholder="2,500 m²"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Yield</Label>
-                  <Input
-                    value={teaserMetrics.yield}
-                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, yield: e.target.value }))}
-                    placeholder="5.8%"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Notes</Label>
-                  <Input
-                    value={teaserMetrics.notes}
-                    onChange={(e) => setTeaserMetrics((m) => ({ ...m, notes: e.target.value }))}
-                    placeholder="Prime location"
-                  />
-                </div>
+                {STANDARD_HIGHLIGHTS.map((h) => (
+                  <div key={h.key} className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{h.label}</Label>
+                    <Input
+                      value={teaserHighlights[h.key] ?? ""}
+                      onChange={(e) =>
+                        setTeaserHighlights((prev) => ({ ...prev, [h.key]: e.target.value }))
+                      }
+                      placeholder={h.placeholder}
+                    />
+                  </div>
+                ))}
               </div>
 
               {/* Custom metrics */}
