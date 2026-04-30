@@ -21,16 +21,18 @@ export async function GET(request: Request) {
   const secret = url.searchParams.get("secret");
   const expected = process.env.HEALTH_SECRET;
 
-  // If HEALTH_SECRET is unset, only allow in development
+  // Detailed health diagnostics are gated by an env-var-shared secret.
+  // Both unauthorized cases (secret unset OR secret mismatch) return an
+  // identical 401 with an opaque body — this avoids two failure modes:
+  // (a) leaking the literal env-var name into a public 5xx body, and
+  // (b) returning 503 for an *authorization* problem, which broke any
+  //     uptime monitor pointed at this URL into perpetual false alerts.
   if (process.env.NODE_ENV === "production") {
-    if (!expected) {
+    if (!expected || secret !== expected) {
       return NextResponse.json(
-        { error: "HEALTH_SECRET not configured" },
-        { status: 503 }
+        { status: "unauthorized" },
+        { status: 401 }
       );
-    }
-    if (secret !== expected) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
