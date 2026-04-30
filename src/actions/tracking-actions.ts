@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
 import {
@@ -11,6 +12,62 @@ import {
   type UpdateTrackingInput,
   type UpdateStageStatusInput,
 } from "@/lib/validators";
+
+/**
+ * Compute the canonical currentStageKey for a tracking based on its
+ * StageStatus rows: the highest-sequence stage that is IN_PROGRESS,
+ * falling back to the highest COMPLETED. Returns null when no stages
+ * are active (e.g. a brand-new tracking).
+ *
+ * Exported because signing / approval / investor-event flows all need to
+ * recompute this when they advance a stage — otherwise the pipeline-table
+ * "Stage" dropdown stays stuck on whatever the value was the last time
+ * updateStageStatus ran (which is "—" for any flow that doesn't go
+ * through the manual stage-change UI).
+ */
+export async function deriveCurrentStageKey(
+  tx: Prisma.TransactionClient,
+  trackingId: string
+): Promise<string | null> {
+  const allStatuses = await tx.stageStatus.findMany({
+    where: { trackingId },
+    include: { stage: true },
+    orderBy: { stage: { sequence: "asc" } },
+  });
+
+  const inProgress = allStatuses.filter((s) => s.status === "IN_PROGRESS");
+  if (inProgress.length > 0) {
+    return inProgress[inProgress.length - 1].stage.key;
+  }
+  const completed = allStatuses.filter((s) => s.status === "COMPLETED");
+  if (completed.length > 0) {
+    return completed[completed.length - 1].stage.key;
+  }
+  return null;
+}
+
+/**
+ * Same as deriveCurrentStageKey, but additionally writes the result to
+ * the tracking row — unless the admin has explicitly pinned a stage via
+ * the dropdown (currentStageManualOverride = true), in which case we
+ * leave their choice alone.
+ */
+export async function syncCurrentStageKey(
+  tx: Prisma.TransactionClient,
+  trackingId: string
+): Promise<void> {
+  const tracking = await tx.assetCompanyTracking.findUnique({
+    where: { id: trackingId },
+    select: { currentStageManualOverride: true },
+  });
+  if (!tracking || tracking.currentStageManualOverride) return;
+
+  const derived = await deriveCurrentStageKey(tx, trackingId);
+  await tx.assetCompanyTracking.update({
+    where: { id: trackingId },
+    data: { currentStageKey: derived },
+  });
+}
 
 export async function createTracking(data: CreateTrackingInput) {
   const user = await requireRole("EDITOR");
@@ -192,30 +249,9 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
       },
     });
 
-    // Derive currentStageKey: the highest-sequence stage that is IN_PROGRESS,
-    // or the highest COMPLETED if none are IN_PROGRESS
-    const allStatuses = await tx.stageStatus.findMany({
-      where: { trackingId: validated.trackingId },
-      include: { stage: true },
-      orderBy: { stage: { sequence: "asc" } },
-    });
-
-    let derivedStageKey: string | null = null;
-    const inProgress = allStatuses.filter(
-      (s) => s.status === "IN_PROGRESS"
-    );
-    if (inProgress.length > 0) {
-      derivedStageKey =
-        inProgress[inProgress.length - 1].stage.key;
-    } else {
-      const completed = allStatuses.filter(
-        (s) => s.status === "COMPLETED"
-      );
-      if (completed.length > 0) {
-        derivedStageKey =
-          completed[completed.length - 1].stage.key;
-      }
-    }
+    // Derive currentStageKey via the shared helper so signing / approval
+    // flows can trigger the same recomputation.
+    const derivedStageKey = await deriveCurrentStageKey(tx, validated.trackingId);
 
     const tracking = await tx.assetCompanyTracking.update({
       where: { id: validated.trackingId },

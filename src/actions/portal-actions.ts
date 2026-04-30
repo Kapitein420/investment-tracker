@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { StageStatusValue } from "@prisma/client";
+import { syncCurrentStageKey } from "@/actions/tracking-actions";
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -236,6 +237,11 @@ export async function recordInvestorStageEvent(input: {
         userId: user.id,
       },
     });
+
+    // Roll currentStageKey forward so the admin pipeline-table reflects
+    // investor-driven progress (teaser open → COMPLETED, IM viewed →
+    // IN_PROGRESS, etc.).
+    await syncCurrentStageKey(tx, tracking.id);
   });
 
   return { ok: true, transitioned: true };
@@ -343,6 +349,8 @@ export async function requestViewing(
         userId: user.id,
       },
     });
+
+    await syncCurrentStageKey(tx, tracking.id);
   });
 
   // Determine recipients: tracking owner, fallback to all admins

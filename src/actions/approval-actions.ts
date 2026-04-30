@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { getAppUrl } from "@/lib/app-url";
+import { syncCurrentStageKey } from "@/actions/tracking-actions";
 
 export async function approveStage(trackingId: string, stageKey: string) {
   const user = await requireRole("EDITOR");
@@ -90,6 +91,10 @@ export async function approveStage(trackingId: string, stageKey: string) {
         userId: user.id,
       },
     });
+
+    // Roll currentStageKey forward so the pipeline-table dropdown reflects
+    // the new state (NDA approved → IM IN_PROGRESS).
+    await syncCurrentStageKey(tx, trackingId);
 
     const tracking = await tx.assetCompanyTracking.findUniqueOrThrow({
       where: { id: trackingId },
