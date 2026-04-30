@@ -206,23 +206,33 @@ export async function deleteDocument(
 
     // Deleting a SIGNED doc puts the investor back into the signing flow:
     //   - stage status reverts to NOT_STARTED (green check → question mark)
-    //   - approval cleared (so IM re-locks)
-    //   - subsequent stages that were unlocked by this approval also revert
-    // Mostly used for re-testing, but also valid if the admin notices a
-    // mistake on the signed copy and wants the investor to redo it.
+    //   - For NDA: approvedAt / approvedByUserId are PRESERVED, not cleared.
+    //     This is intentional — the admin already approved this investor on
+    //     this asset; if the doc is being replaced (typo on the legal copy,
+    //     re-sign requested for any reason), the next signature should
+    //     auto-inherit that approval rather than forcing the admin to
+    //     manually approve a second time. Unlock rules below additionally
+    //     require status === "COMPLETED" so IM/Viewing relock until the
+    //     replacement NDA is actually signed.
+    //   - subsequent stages that were unlocked by this approval revert
     if (doc.status === "SIGNED") {
       const ss = await tx.stageStatus.findUnique({
         where: { trackingId_stageId: { trackingId: doc.trackingId, stageId: doc.stageId } },
         include: { stage: { select: { key: true } } },
       });
       if (ss) {
+        const isNda = ss.stage.key === "nda";
         await tx.stageStatus.update({
           where: { id: ss.id },
           data: {
             status: "NOT_STARTED",
             completedAt: null,
-            approvedAt: null,
-            approvedByUserId: null,
+            // Only the NDA stage retains its prior approval marker so the
+            // investor's next signature auto-re-approves. Other stages
+            // don't use approvedAt today, but be explicit.
+            ...(isNda
+              ? {}
+              : { approvedAt: null, approvedByUserId: null }),
             updatedByUserId: user.id,
           },
         });

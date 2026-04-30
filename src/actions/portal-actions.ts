@@ -8,19 +8,28 @@ import { StageStatusValue } from "@prisma/client";
 // Stage unlock rules:
 // - teaser: always unlocked
 // - nda: unlocked if teaser is COMPLETED
-// - im: unlocked if nda has approvedAt set
-// - viewing: unlocked once the NDA is approved (alongside IM). Investors
-//   asked to be able to schedule a viewing as soon as they have access to
-//   the materials, not only after they've explicitly opened the IM.
+// - im / viewing: unlocked once the NDA is BOTH signed (status COMPLETED)
+//   AND admin-approved (approvedAt set). The status check matters because
+//   when an admin deletes a signed-and-approved NDA we deliberately keep
+//   approvedAt around so the re-signed copy auto-re-approves; that
+//   in-between state has approvedAt set but status NOT_STARTED, and IM /
+//   Viewing must re-lock during the re-sign window.
 // - nbo: unlocked if viewing is COMPLETED
+const isNdaApprovedAndSigned = (
+  stages: Map<string, { status: string; approvedAt: Date | null }>
+): boolean => {
+  const nda = stages.get("nda");
+  return nda?.status === "COMPLETED" && nda?.approvedAt != null;
+};
+
 const STAGE_UNLOCK_RULES: Record<
   string,
   (stages: Map<string, { status: string; approvedAt: Date | null }>) => boolean
 > = {
   teaser: () => true,
   nda: (stages) => stages.get("teaser")?.status === "COMPLETED",
-  im: (stages) => stages.get("nda")?.approvedAt != null,
-  viewing: (stages) => stages.get("nda")?.approvedAt != null,
+  im: isNdaApprovedAndSigned,
+  viewing: isNdaApprovedAndSigned,
   nbo: (stages) => stages.get("viewing")?.status === "COMPLETED",
 };
 
@@ -272,10 +281,15 @@ export async function requestViewing(
   }
 
   // Verify viewing stage is unlocked. Investors can request a viewing as
-  // soon as the NDA is approved (in lockstep with IM access) — they don't
-  // need to have opened the IM first.
+  // soon as the NDA is signed AND approved (in lockstep with IM access).
+  // Both checks matter: if the admin deleted a previously-approved NDA the
+  // approvedAt marker survives, so we additionally require the status to
+  // be COMPLETED to confirm the *current* NDA copy was actually signed.
   const ndaStatus = tracking.stageStatuses.find((ss) => ss.stage.key === "nda");
-  if (!ndaStatus?.approvedAt) {
+  if (
+    !ndaStatus?.approvedAt ||
+    ndaStatus.status !== "COMPLETED"
+  ) {
     return { ok: false, error: "Sign and have your NDA approved before requesting a viewing." };
   }
 
@@ -431,12 +445,14 @@ export async function getAssetContentForInvestor(
     throw new Error("This stage is not yet unlocked");
   }
 
-  // For gated stages (im), additionally check approvedAt
+  // For gated stages (im), additionally require both signed + approved
+  // — see the deleteDocument note in document-actions.ts on why approvedAt
+  // alone isn't enough during the re-sign window.
   if (stageKey === "im") {
     const ndaStatus = tracking.stageStatuses.find(
       (ss) => ss.stage.key === "nda"
     );
-    if (!ndaStatus?.approvedAt) {
+    if (!ndaStatus?.approvedAt || ndaStatus.status !== "COMPLETED") {
       throw new Error("NDA approval required to access IM content");
     }
   }

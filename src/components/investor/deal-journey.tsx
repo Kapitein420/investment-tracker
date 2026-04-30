@@ -24,7 +24,7 @@ interface DealJourneyProps {
 
 type StageState = "locked" | "available" | "action_needed" | "pending_review" | "completed";
 
-function getStageState(ss: any, prevSs: any | null): StageState {
+function getStageState(ss: any, prevSs: any | null, allStages?: any[]): StageState {
   // Only NDA requires admin approval; other stages complete normally
   const needsApproval = ss.stage.key === "nda";
 
@@ -33,6 +33,16 @@ function getStageState(ss: any, prevSs: any | null): StageState {
     return "completed";
   }
   if (ss.status === "IN_PROGRESS") return "action_needed";
+
+  // Viewing unlocks alongside IM as soon as the NDA is signed AND approved
+  // — investors shouldn't have to mark the IM "completed" before they can
+  // ask for a viewing. Both status + approvedAt are required because the
+  // delete-NDA flow preserves approvedAt (so re-sign auto-re-approves) but
+  // the in-between state should NOT keep IM/Viewing unlocked.
+  if (ss.stage.key === "viewing" && allStages) {
+    const ndaSs = allStages.find((s) => s.stage?.key === "nda");
+    if (ndaSs?.approvedAt && ndaSs?.status === "COMPLETED") return "available";
+  }
 
   // Check if previous stage allows access
   if (!prevSs) return ss.status === "NOT_STARTED" ? "available" : "locked";
@@ -155,7 +165,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
   const nextActionStage = stages.find((s: any) => s.status === "IN_PROGRESS")
     ?? stages.find((s: any, idx: number) => {
       const prev = idx > 0 ? stages[idx - 1] : null;
-      return getStageState(s, prev) === "available";
+      return getStageState(s, prev, stages) === "available";
     });
   const nextStateKey = nextActionStage?.stage?.key as string | undefined;
   const allCompleted = stages.every((s: any) => s.status === "COMPLETED");
@@ -259,7 +269,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
         <div className="relative grid" style={{ gridTemplateColumns: `repeat(${stages.length}, 1fr)` }}>
           {stages.map((ss: any, idx: number) => {
             const prevSs = idx > 0 ? stages[idx - 1] : null;
-            const state = getStageState(ss, prevSs);
+            const state = getStageState(ss, prevSs, stages);
             const isDone = state === "completed";
             const isCurrent = state === "action_needed" || state === "pending_review";
             const isLast = idx === stages.length - 1;
@@ -340,7 +350,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
       <div className="space-y-3.5">
         {stages.map((ss: any, idx: number) => {
           const prevSs = idx > 0 ? stages[idx - 1] : null;
-          const state = getStageState(ss, prevSs);
+          const state = getStageState(ss, prevSs, stages);
           const config = STATE_CONFIG[state];
           const Icon = config.icon;
 
