@@ -17,8 +17,45 @@
  * CredentialsSignin null on auth, etc.).
  */
 
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+/**
+ * Resolve the Upstash REST URL + token from any of the env-var name
+ * patterns Vercel Marketplace + manual setups produce:
+ *  - Standard: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
+ *  - Vercel KV legacy: KV_REST_API_URL / KV_REST_API_TOKEN
+ *  - Vercel Marketplace prefixed: <DBNAME>_KV_REST_API_URL /
+ *    <DBNAME>_KV_REST_API_TOKEN (the integration auto-prefixes vars with
+ *    the storage database's short-name, e.g. TRACKER_KV_REST_API_URL).
+ *
+ * Resolved once at module load. Excludes the READ_ONLY token variant —
+ * the limiter does INCR which needs write access.
+ */
+function resolveUpstashEnv(): { url?: string; token?: string } {
+  const directUrl =
+    process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const directToken =
+    process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (directUrl && directToken) return { url: directUrl, token: directToken };
+
+  // Scan for prefixed Vercel Marketplace names (e.g. TRACKER_KV_REST_API_*).
+  let scannedUrl: string | undefined;
+  let scannedToken: string | undefined;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!v) continue;
+    if (k.endsWith("_KV_REST_API_URL")) scannedUrl ??= v;
+    else if (
+      k.endsWith("_KV_REST_API_TOKEN") &&
+      !k.includes("READ_ONLY")
+    ) {
+      scannedToken ??= v;
+    }
+  }
+  return {
+    url: directUrl ?? scannedUrl,
+    token: directToken ?? scannedToken,
+  };
+}
+
+const { url: UPSTASH_URL, token: UPSTASH_TOKEN } = resolveUpstashEnv();
 
 const memoryStore = new Map<string, { count: number; resetAt: number }>();
 let warnedNoUpstash = false;
