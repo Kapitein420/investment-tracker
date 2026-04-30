@@ -29,13 +29,16 @@ export const authOptions: NextAuthOptions = {
 
         // Rate-limit failed credentials before the bcrypt cost. Vercel-
         // edge WAF blocks high-RPS bursts; this layer catches a paced
-        // attacker that stays under the WAF threshold. 5 attempts /
-        // 15 min per (email, IP). Successful login below resets nothing
-        // — the window expires naturally.
+        // attacker that stays under the WAF threshold. 15 attempts /
+        // 15 min per email + 60 / 15 min per IP — generous enough that
+        // legitimate testing-day mistypes don't lock the operator out,
+        // strict enough that a paced credential-stuffing attack still
+        // dies long before any meaningful coverage. Tune lower again
+        // post-rollout when usage is steadier.
         const ip = await getClientIp();
         const [emailLimit, ipLimit] = await Promise.all([
-          checkRateLimit(`auth:email:${email}`, 5, 15 * 60),
-          checkRateLimit(`auth:ip:${ip}`, 30, 15 * 60),
+          checkRateLimit(`auth:email:${email}`, 15, 15 * 60),
+          checkRateLimit(`auth:ip:${ip}`, 60, 15 * 60),
         ]);
         if (!emailLimit.allowed || !ipLimit.allowed) {
           console.warn(
