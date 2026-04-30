@@ -46,22 +46,6 @@ function formatLongDate(d: Date | string | null): string {
   }
 }
 
-async function loadLogoDataUrl(): Promise<string | null> {
-  try {
-    const res = await fetch("/dils-logo.png", { cache: "force-cache" });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
-
 export function PrintableSignedNda({ data }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -82,10 +66,9 @@ export function PrintableSignedNda({ data }: Props) {
     try {
       // Lazy-load the PDF stack — keeps initial bundle slim and avoids
       // pulling html2canvas / jspdf into routes that don't need them.
-      const [{ default: html2canvas }, { jsPDF }, logoDataUrl] = await Promise.all([
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
-        loadLogoDataUrl(),
       ]);
 
       // Higher scale → crisper text in the rasterised slice. 3 is the
@@ -120,75 +103,14 @@ export function PrintableSignedNda({ data }: Props) {
       const contentHeightPx = CONTENT_HEIGHT_MM * pxPerMm;
       const pageCount = Math.max(1, Math.ceil(canvasHeightPx / contentHeightPx));
 
-      const drawHeader = () => {
-        // Logo (PNG) — left-aligned. Aspect ratio of the brand kit asset
-        // is roughly 4:1, so 24mm wide → 6mm tall sits comfortably inside
-        // the 14mm header band.
-        if (logoDataUrl) {
-          try {
-            pdf.addImage(logoDataUrl, "PNG", MARGIN_MM, MARGIN_MM - 6, 24, 8);
-          } catch {
-            // Fall through to text fallback below.
-          }
-        } else {
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(12);
-          pdf.setTextColor(36, 92, 99);
-          pdf.text("DILS", MARGIN_MM, MARGIN_MM);
-        }
-
-        // Right side — document type + asset
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9);
-        pdf.setTextColor(31, 41, 55);
-        const headerRight = `Non-Disclosure Agreement · ${data.assetTitle}`;
-        // Truncate if it's silly-long so it never collides with the logo
-        const maxRightWidth = PAGE_WIDTH_MM - MARGIN_MM - 30 - MARGIN_MM;
-        let displayed = headerRight;
-        let displayedWidth = pdf.getTextWidth(displayed);
-        while (displayedWidth > maxRightWidth && displayed.length > 8) {
-          displayed = displayed.slice(0, -1);
-          displayedWidth = pdf.getTextWidth(displayed + "…");
-        }
-        if (displayed !== headerRight) displayed = displayed + "…";
-        const rightX = PAGE_WIDTH_MM - MARGIN_MM - pdf.getTextWidth(displayed);
-        pdf.text(displayed, rightX, MARGIN_MM);
-
-        // Underline
-        pdf.setDrawColor(229, 231, 235);
-        pdf.setLineWidth(0.2);
-        pdf.line(MARGIN_MM, MARGIN_MM + 4, PAGE_WIDTH_MM - MARGIN_MM, MARGIN_MM + 4);
-      };
-
-      const drawFooter = (pageNum: number, total: number) => {
-        const footerY = PAGE_HEIGHT_MM - FOOTER_HEIGHT_MM;
-        pdf.setDrawColor(229, 231, 235);
-        pdf.setLineWidth(0.2);
-        pdf.line(MARGIN_MM, footerY, PAGE_WIDTH_MM - MARGIN_MM, footerY);
-
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(8);
-        pdf.setTextColor(107, 114, 128);
-
-        const signedDate = formatLongDate(data.signedAt);
-        const signedByLine = data.signedByName
-          ? `Signed by ${data.signedByName}${signedDate ? ` · ${signedDate}` : ""}`
-          : "Unsigned record";
-        pdf.text(signedByLine, MARGIN_MM, footerY + 5);
-
-        const pageText = `Page ${pageNum} of ${total}`;
-        const pageTextWidth = pdf.getTextWidth(pageText);
-        pdf.text(pageText, PAGE_WIDTH_MM - MARGIN_MM - pageTextWidth, footerY + 5);
-
-        // Document ID — subtle, second line
-        pdf.setFontSize(6);
-        pdf.setTextColor(170, 174, 181);
-        pdf.text(`Doc ID: ${data.documentId}`, MARGIN_MM, footerY + 9);
-
-        const corp = "DILS Group B.V. · dils.nl";
-        const corpWidth = pdf.getTextWidth(corp);
-        pdf.text(corp, PAGE_WIDTH_MM - MARGIN_MM - corpWidth, footerY + 9);
-      };
+      // Per-page header / footer were removed at Noah's request — the
+      // captured cover already includes the DILS logo + asset title +
+      // signed-by/signed-on metadata, so the extra band on top + page
+      // number / doc-id strip on the bottom were redundant and visually
+      // noisy. Page count is still computed correctly from the canvas
+      // slicing below; if we ever need pagination back, restore the
+      // drawHeader / drawFooter functions and call them inside the slice
+      // loop.
 
       // Slice the captured canvas into per-page chunks. We composite each
       // slice onto its own canvas so the PNG we embed is exactly the page
@@ -202,11 +124,7 @@ export function PrintableSignedNda({ data }: Props) {
           canvasHeightPx - sliceTopPx
         );
 
-        if (sliceHeightPx <= 0) {
-          drawHeader();
-          drawFooter(p + 1, pageCount);
-          continue;
-        }
+        if (sliceHeightPx <= 0) continue;
 
         const sliceCanvas = document.createElement("canvas");
         sliceCanvas.width = canvasWidthPx;
@@ -234,9 +152,6 @@ export function PrintableSignedNda({ data }: Props) {
           undefined,
           "FAST"
         );
-
-        drawHeader();
-        drawFooter(p + 1, pageCount);
       }
 
       const safeName = (data.signedByName || "investor")
