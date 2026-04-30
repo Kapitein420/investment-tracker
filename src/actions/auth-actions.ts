@@ -41,20 +41,12 @@ export async function requestPasswordReset(
   });
 
   if (!user) {
-    // Don't reveal that this email isn't registered. Still log so we can
-    // see misuse patterns in ActivityLog (no userId, just metadata).
-    try {
-      await prisma.activityLog.create({
-        data: {
-          entityType: "User",
-          entityId: "unknown",
-          action: "PASSWORD_RESET_REQUESTED_NO_USER",
-          metadata: { email },
-        },
-      });
-    } catch {
-      // best-effort
-    }
+    // Don't reveal that this email isn't registered. ActivityLog rows
+    // require a userId by schema, so we can't persist a "no-user"
+    // attempt directly — log to the server console instead. A follow-up
+    // can introduce a separate AuthAuditEvent table if we need queryable
+    // unknown-email audit.
+    console.info(`[requestPasswordReset] no user for email "${email}"`);
     return { ok: true };
   }
 
