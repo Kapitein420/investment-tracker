@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
-import { enableHtmlNdaForAsset, disableHtmlNdaForAsset } from "@/actions/html-nda-actions";
+import { enableHtmlNdaForAsset, disableHtmlNdaForAsset, issueHtmlNdaToAllTrackings } from "@/actions/html-nda-actions";
 import { HtmlNdaEditor } from "@/components/asset/html-nda-editor";
 import { HtmlNdaPreview } from "@/components/asset/html-nda-preview";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
@@ -418,6 +418,32 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                 <div className="flex items-center gap-2">
                   <HtmlNdaPreview htmlNda={htmlNda} />
                   <HtmlNdaEditor htmlNda={htmlNda} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={async () => {
+                      try {
+                        const r = await issueHtmlNdaToAllTrackings(assetId);
+                        if (r.total === 0) {
+                          toast.info("No investors yet on this asset.");
+                        } else if (r.cloned > 0) {
+                          toast.success(
+                            `Issued NDA to ${r.cloned} investor${r.cloned === 1 ? "" : "s"}` +
+                              (r.skipped > 0 ? ` (${r.skipped} already had it)` : "")
+                          );
+                        } else {
+                          toast.info(`All ${r.total} investors already had this NDA.`);
+                        }
+                        router.refresh();
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to issue NDA");
+                      }
+                    }}
+                    title="Clone the master template into every existing tracking — useful when investors were added before the NDA was set up."
+                  >
+                    Issue to all investors
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
