@@ -565,10 +565,21 @@ export async function bulkImportTrackings(
 
   const validTypes = ["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"];
   let imported = 0;
+  let skipped = 0;
+  const errors: Array<{ row: number; companyName: string; message: string }> = [];
 
-  await prisma.$transaction(async (tx) => {
-    for (const row of rows) {
-      let company = await tx.company.findFirst({
+  // Per-row processing with no enclosing $transaction. The previous version
+  // wrapped the whole loop in prisma.$transaction(), which doesn't work
+  // against Supabase's transaction pooler (port 6543) — the long-running
+  // transaction gets dropped between queries and Prisma throws P2028.
+  // Trade-off: a row that fails halfway through (e.g. tracking created but
+  // stageStatus.createMany rejects) leaves a partial tracking. Acceptable
+  // because the bulk import is admin-driven and re-running is idempotent
+  // (existing assetId+companyId pairs are skipped).
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      let company = await prisma.company.findFirst({
         where: { name: { equals: row.companyName, mode: "insensitive" } },
       });
 
@@ -577,7 +588,7 @@ export async function bulkImportTrackings(
           ? row.companyType.toUpperCase()
           : "INVESTOR";
 
-        company = await tx.company.create({
+        company = await prisma.company.create({
           data: {
             name: row.companyName,
             type: companyType as any,
@@ -587,25 +598,29 @@ export async function bulkImportTrackings(
         });
       }
 
-      const existing = await tx.assetCompanyTracking.findUnique({
+      const existing = await prisma.assetCompanyTracking.findUnique({
         where: { assetId_companyId: { assetId, companyId: company.id } },
       });
 
-      if (existing) continue;
+      if (existing) {
+        skipped++;
+        continue;
+      }
 
-      const tracking = await tx.assetCompanyTracking.create({
+      const tracking = await prisma.assetCompanyTracking.create({
         data: {
           assetId,
           companyId: company.id,
           relationshipType: row.companyType || "Investor",
-          interestLevel: row.interestLevel && ["HOT", "WARM", "COLD", "NONE"].includes(row.interestLevel.toUpperCase())
+          interestLevel:
+            row.interestLevel && ["HOT", "WARM", "COLD", "NONE"].includes(row.interestLevel.toUpperCase())
               ? (row.interestLevel.toUpperCase() as any)
               : null,
         },
       });
 
       if (stages.length > 0) {
-        await tx.stageStatus.createMany({
+        await prisma.stageStatus.createMany({
           data: stages.map((stage) => ({
             trackingId: tracking.id,
             stageId: stage.id,
@@ -615,9 +630,16 @@ export async function bulkImportTrackings(
       }
 
       imported++;
+    } catch (e: any) {
+      errors.push({
+        row: i + 1,
+        companyName: row.companyName ?? "(unknown)",
+        message: e?.message ?? "Unknown error",
+      });
+      console.error(`[bulkImportTrackings] row ${i + 1} (${row.companyName}) failed:`, e);
     }
-  });
+  }
 
   revalidatePath(`/assets/${assetId}`);
-  return { imported, total: rows.length };
+  return { imported, skipped, errors, total: rows.length };
 }
