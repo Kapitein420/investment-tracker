@@ -2,6 +2,7 @@ import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -20,8 +21,32 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Normalise email before lookup. CSV imports often arrive with
+        // mixed case ("Anna@Test.dils.com") and mobile keyboards
+        // autocapitalise the first character — lookup is otherwise
+        // exact-match and the legit user silently fails to log in.
+        const email = credentials.email.trim().toLowerCase();
+
+        // Rate-limit failed credentials before the bcrypt cost. Vercel-
+        // edge WAF blocks high-RPS bursts; this layer catches a paced
+        // attacker that stays under the WAF threshold. 5 attempts /
+        // 15 min per (email, IP). Successful login below resets nothing
+        // — the window expires naturally.
+        const ip = await getClientIp();
+        const [emailLimit, ipLimit] = await Promise.all([
+          checkRateLimit(`auth:email:${email}`, 5, 15 * 60),
+          checkRateLimit(`auth:ip:${ip}`, 30, 15 * 60),
+        ]);
+        if (!emailLimit.allowed || !ipLimit.allowed) {
+          console.warn(
+            `[auth] rate-limited email=${email} ip=${ip} ` +
+              `emailRemaining=${emailLimit.remaining} ipRemaining=${ipLimit.remaining}`
+          );
+          return null;
+        }
+
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
         });
 
         if (!user || !user.isActive) return null;
