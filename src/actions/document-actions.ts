@@ -13,7 +13,6 @@ import {
   saveDocumentPlacementsSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
-import { syncCurrentStageKey } from "@/actions/tracking-actions";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -738,11 +737,6 @@ export async function signDocument(data: {
         userId: document.uploadedByUserId,
       },
     });
-
-    // Roll currentStageKey forward — signing typically advances NDA →
-    // COMPLETED, which in turn means the next-IN_PROGRESS stage (or the
-    // newly-completed NDA) should reflect on the admin pipeline-table.
-    await syncCurrentStageKey(tx, document.trackingId);
     });
   } catch (e: any) {
     if (e?.code === "P2025") {
