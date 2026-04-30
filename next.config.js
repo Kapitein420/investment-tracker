@@ -30,6 +30,23 @@ const nextConfig = {
     ],
   },
   async headers() {
+    // CSP shipped in Report-Only first so we can observe violations
+    // (Next.js inlines hydration JS, sonner toasts inject styles, etc.)
+    // without breaking real users while we tune the policy. Promote to
+    // enforced `Content-Security-Policy` once the report stream is clean.
+    const cspReportOnly = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.eu.mailgun.net https://api.mailgun.net",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
@@ -39,7 +56,8 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
+          { key: 'Content-Security-Policy-Report-Only', value: cspReportOnly },
         ],
       },
     ];
