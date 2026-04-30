@@ -374,6 +374,12 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
             : contents.filter((c: any) => {
                 if (c.stageKey !== ss.stage.key) return false;
                 if (ss.stage.key === "teaser" && c.contentType === "LANDING_PAGE") return false;
+                // The HTML NDA template is stored as a LANDING_PAGE
+                // AssetContent (contentType + isHtmlNda flag in keyMetrics).
+                // Investors sign via the signing modal, not by reading the
+                // raw template — exclude it from the journey card so they
+                // don't see the source HTML rendered as text.
+                if (c.keyMetrics && (c.keyMetrics as any).isHtmlNda) return false;
                 return true;
               });
           const isExpanded = state !== "locked";
