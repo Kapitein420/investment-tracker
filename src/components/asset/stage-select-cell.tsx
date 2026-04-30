@@ -56,13 +56,8 @@ export function StageSelectCell({
         const label = stages.find((s) => s.key === newKey)?.label ?? newKey;
         toast.success(`Moved to ${label}`);
         router.refresh();
-      } catch (e: any) {
-        // Surface the actual error so the admin can see whether it's a
-        // permission / validation / DB issue instead of a generic toast
-        // that hides the cause.
-        const detail = e?.message ?? String(e);
-        toast.error(`Failed to update stage: ${detail}`);
-        console.error("[StageSelectCell] updateTracking failed:", e);
+      } catch {
+        toast.error("Failed to update stage");
         setValue(prev);
       }
     });

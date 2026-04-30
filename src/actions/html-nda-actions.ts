@@ -13,7 +13,6 @@ import {
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
-import { syncCurrentStageKey } from "@/actions/tracking-actions";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -426,11 +425,6 @@ export async function signHtmlNda(data: {
         userId: doc.uploadedByUserId,
       },
     });
-
-    // Roll currentStageKey forward — same reason as PDF signDocument:
-    // pipeline-table dropdown otherwise stays on the previous stage
-    // until someone manually re-selects.
-    await syncCurrentStageKey(tx, doc.trackingId);
     });
   } catch (e: any) {
     // P2025: "Record to update not found" — happens when the atomic
