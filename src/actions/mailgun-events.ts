@@ -1,6 +1,9 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { requireRole } from "@/lib/permissions";
+import { actorTag } from "@/lib/email";
 
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
@@ -59,12 +62,16 @@ function classify(event: string): MailgunEvent["status"] {
 }
 
 /**
- * Fetch the most recent Mailgun events for the configured domain.
+ * Fetch recent Mailgun events for the **current admin** — i.e. only emails
+ * that the logged-in admin caused to be sent.
  *
- * Admin-only. Calls Mailgun's Events API and normalises the response into
- * a flat shape the email-log table can render directly. Failures (network,
- * auth, rate limit) come back as `{ ok: false, error: "..." }` so the UI
- * shows the actual reason instead of a blank table.
+ * Scoping: every send tags the message with `actor-<userId>` (see
+ * `sendEmail` in `lib/email.ts`). This action filters Mailgun's events
+ * API by that tag so each admin sees their own activity, not the entire
+ * domain pipeline. Emails sent before this scoping was wired up — and
+ * system / cron emails with no actor — won't appear in any admin's view.
+ *
+ * Failures (network, auth, rate limit) come back as `{ ok: false, error }`.
  */
 export async function getRecentMailgunEvents(opts?: {
   limit?: number;
@@ -76,8 +83,17 @@ export async function getRecentMailgunEvents(opts?: {
     return { ok: false, events: [], configured: false, error: "Mailgun not configured (MAILGUN_API_KEY / MAILGUN_DOMAIN missing in env)." };
   }
 
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: unknown } | undefined)?.id;
+  if (typeof userId !== "string" || userId.length === 0) {
+    // requireRole already guarantees a session, but if the id is missing
+    // we'd otherwise leak the domain-wide feed — fail closed.
+    return { ok: true, events: [], configured: true };
+  }
+
   const limit = Math.min(Math.max(opts?.limit ?? 100, 1), 300);
   const params = new URLSearchParams({ limit: String(limit) });
+  params.set("tags", actorTag(userId));
   if (opts?.recipient) params.set("recipient", opts.recipient);
 
   const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
