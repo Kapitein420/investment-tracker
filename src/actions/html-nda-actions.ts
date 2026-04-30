@@ -449,7 +449,14 @@ export async function getSignedHtmlNda(documentId: string) {
   if (doc.mimeType !== "text/html") throw new Error("Not an HTML NDA");
 
   if (user.role === "INVESTOR") {
-    if (doc.tracking.companyId !== user.companyId) {
+    // Sprint B PR-2: investors can hold this asset under any of the
+    // companies they belong to. The legacy User.companyId check rejected
+    // investors with multi-company memberships if the doc's company
+    // happened to be a non-primary one — manifested as a 500 right after
+    // signing for some test accounts. Use the membership shim instead.
+    const { getUserCompanyIds } = await import("@/lib/user-companies");
+    const companyIds = await getUserCompanyIds(user.id);
+    if (!companyIds.includes(doc.tracking.companyId)) {
       throw new Error("Forbidden");
     }
   } else if (user.role === "VIEWER") {
