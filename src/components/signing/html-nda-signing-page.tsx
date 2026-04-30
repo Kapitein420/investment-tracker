@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { signHtmlNda } from "@/actions/html-nda-actions";
-import { renderTemplate, injectSignature, buildCapacityText } from "@/lib/html-nda-template";
+import { renderTemplate, injectSignature } from "@/lib/html-nda-template";
 import type { TemplateField } from "@/lib/html-nda-template";
 import { toast } from "sonner";
 import { Building2, Check, FileText } from "lucide-react";
@@ -78,10 +78,6 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
         merged.FIRST_NAMES = parts.slice(0, -1).join(" ");
       }
     }
-    // Build the rendered "Handelend als" sentence from the CAPACITY select
-    // + the company name input. Only the "voor zich" option omits the
-    // company-name suffix.
-    merged.CAPACITY_TEXT = buildCapacityText(values.CAPACITY, values.COMPANY_NAME);
     const html = renderTemplate(data.html, merged);
     return injectSignature(
       html,
