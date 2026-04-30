@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
+import { renderEmail, renderCredentialsTable, renderCta, renderTeaserPreview } from "@/lib/email-template";
+import { getSignedUrl } from "@/lib/supabase-storage";
 import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
@@ -302,6 +303,48 @@ export async function sendInvestorInvite({
 
   const loginUrl = `${getAppUrl()}/login`;
 
+  // Pull the asset's teaser content so the invite email can carry a real
+  // preview (description + key investment highlights + first hero image).
+  // If no teaser is set up yet, the preview block renders nothing —
+  // existing pre-teaser invites still work, just without the pitch block.
+  let teaserPreviewHtml = "";
+  try {
+    const teaser = await prisma.assetContent.findFirst({
+      where: { assetId, stageKey: "teaser", contentType: "LANDING_PAGE", isPublished: true },
+      select: { description: true, keyMetrics: true, imageUrls: true },
+    });
+    if (teaser) {
+      let heroImageUrl: string | null = null;
+      const imgs = Array.isArray(teaser.imageUrls) ? (teaser.imageUrls as unknown[]) : [];
+      const firstImg = imgs.find((p) => typeof p === "string" && (p as string).length > 0) as
+        | string
+        | undefined;
+      if (firstImg) {
+        if (firstImg.startsWith("http")) {
+          heroImageUrl = firstImg;
+        } else {
+          // Generate a 7-day signed URL — the email may sit unread for
+          // several days, so a short TTL would 404 by the time it's opened.
+          try {
+            heroImageUrl = await getSignedUrl(firstImg, 7 * 24 * 60 * 60);
+          } catch (e) {
+            console.error("[sendInvestorInvite] hero image signed-URL failed:", e);
+          }
+        }
+      }
+      teaserPreviewHtml = renderTeaserPreview({
+        assetTitle: asset.title,
+        city: asset.city,
+        country: asset.country,
+        description: teaser.description,
+        highlights: (teaser.keyMetrics as Record<string, string>) ?? null,
+        heroImageUrl,
+      });
+    }
+  } catch (e) {
+    console.error("[sendInvestorInvite] teaser preview render failed (sending without it):", e);
+  }
+
   const credentialsBlock = plainPassword
     ? renderCredentialsTable([
         { label: "Email", value: email, mono: true },
@@ -336,8 +379,9 @@ export async function sendInvestorInvite({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. Your credentials for the investor portal are below.
+            You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. A short preview is below — full details unlock in the portal once you sign the NDA.
           </p>
+          ${teaserPreviewHtml}
           ${credentialsBlock}
           ${renderCta("Log in to portal", loginUrl)}
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
