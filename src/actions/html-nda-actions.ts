@@ -56,7 +56,7 @@ async function findHtmlNda(assetId: string) {
  * NDA template and the standard field set.
  */
 export async function enableHtmlNdaForAsset(assetId: string) {
-  await requireRole("EDITOR");
+  const user = await requireRole("EDITOR");
 
   const existing = await findHtmlNda(assetId);
   if (existing) return existing;
@@ -76,6 +76,32 @@ export async function enableHtmlNdaForAsset(assetId: string) {
       isPublished: true,
     },
   });
+
+  // Retroactively clone the HTML NDA for every tracking that already
+  // exists on this asset. Without this, investors who were added /
+  // invited BEFORE the admin enabled HTML NDA never see a "Sign Now"
+  // button — their tracking has no Document, and the master template
+  // is hidden from the journey card by design. Idempotent per tracking
+  // (cloneHtmlNdaForInvestor returns the existing PENDING html doc if
+  // one is already there).
+  try {
+    const trackings = await prisma.assetCompanyTracking.findMany({
+      where: { assetId },
+      select: { id: true },
+    });
+    for (const t of trackings) {
+      try {
+        await cloneHtmlNdaForInvestor(t.id, created.id, user.id);
+      } catch (e) {
+        console.error(
+          `[enableHtmlNdaForAsset] clone failed for tracking ${t.id}:`,
+          e
+        );
+      }
+    }
+  } catch (e) {
+    console.error("[enableHtmlNdaForAsset] retroactive clone batch failed:", e);
+  }
 
   revalidatePath(`/assets/${assetId}`);
   return created;
@@ -110,6 +136,63 @@ export async function updateHtmlNdaTemplate(
 
   revalidatePath(`/assets/${existing.assetId}`);
   return updated;
+}
+
+/**
+ * Manually clone the master HTML NDA into every tracking on an asset that
+ * doesn't already have a PENDING html-NDA document. Used to repair assets
+ * where investors were added before the master template existed (no
+ * Sign Now button shows on the journey card without a per-tracking
+ * Document). Idempotent — re-running is a no-op for trackings that
+ * already have a clone.
+ */
+export async function issueHtmlNdaToAllTrackings(
+  assetId: string
+): Promise<{ cloned: number; skipped: number; total: number }> {
+  const user = await requireRole("EDITOR");
+
+  const master = await findHtmlNda(assetId);
+  if (!master) {
+    throw new Error("HTML NDA is not enabled for this asset.");
+  }
+
+  const trackings = await prisma.assetCompanyTracking.findMany({
+    where: { assetId },
+    select: { id: true },
+  });
+
+  let cloned = 0;
+  let skipped = 0;
+  for (const t of trackings) {
+    try {
+      // cloneHtmlNdaForInvestor returns the existing PENDING html doc if
+      // one is already attached; reading the activity log distinguishes
+      // a fresh create from a pre-existing match.
+      const before = await prisma.activityLog.count({
+        where: {
+          action: "HTML_NDA_CLONED_FROM_MASTER",
+          metadata: { path: ["trackingId"], equals: t.id },
+        },
+      });
+      await cloneHtmlNdaForInvestor(t.id, master.id, user.id);
+      const after = await prisma.activityLog.count({
+        where: {
+          action: "HTML_NDA_CLONED_FROM_MASTER",
+          metadata: { path: ["trackingId"], equals: t.id },
+        },
+      });
+      if (after > before) cloned += 1;
+      else skipped += 1;
+    } catch (e) {
+      console.error(
+        `[issueHtmlNdaToAllTrackings] failed for tracking ${t.id}:`,
+        e
+      );
+    }
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  return { cloned, skipped, total: trackings.length };
 }
 
 /**
