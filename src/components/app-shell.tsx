@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { LayoutDashboard, Settings, Users, LogOut, Mail, Menu } from "lucide-react";
+import { LayoutDashboard, Settings, Users, LogOut, Mail, Menu, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const adminItems = [
   { href: "/admin/users", label: "Team", icon: Users },
   { href: "/admin/stages", label: "Stages", icon: Settings },
   { href: "/admin/invites", label: "Investors", icon: Mail },
+  { href: "/admin/email-log", label: "Email log", icon: Send },
 ];
 
 function SidebarContent({
