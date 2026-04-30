@@ -105,7 +105,12 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState<string>("");
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; total: number } | null>(null);
+  const [result, setResult] = useState<{
+    imported: number;
+    skipped: number;
+    total: number;
+    errors: Array<{ row: number; companyName: string; message: string }>;
+  } | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -138,11 +143,23 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
           interestLevel: r.interestLevel || undefined,
         }))
       );
-      setResult(res);
-      toast.success(`Successfully imported ${res.imported} companies`);
+      setResult({
+        imported: res.imported,
+        skipped: res.skipped ?? 0,
+        total: res.total,
+        errors: res.errors ?? [],
+      });
+      if (res.errors && res.errors.length > 0) {
+        toast.warning(
+          `Imported ${res.imported}/${res.total}. ${res.errors.length} row${res.errors.length === 1 ? "" : "s"} failed — see results below.`,
+          { duration: 12000 }
+        );
+      } else {
+        toast.success(`Imported ${res.imported} compan${res.imported === 1 ? "y" : "ies"}${res.skipped ? ` (${res.skipped} already existed)` : ""}.`);
+      }
       router.refresh();
-    } catch (error) {
-      toast.error("Failed to import companies");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to import companies");
     } finally {
       setImporting(false);
     }
@@ -172,23 +189,44 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
         </DialogHeader>
 
         {result ? (
-          <div className="flex flex-col items-center gap-4 py-8">
-            <div className="rounded-full bg-green-100 p-3 dark:bg-green-900/30">
-              <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-semibold">
-                {result.imported} of {result.total} companies imported
-              </p>
-              {result.imported < result.total && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {result.total - result.imported} were skipped (duplicates or errors)
+          <div className="flex flex-col gap-4 py-6">
+            <div className="flex flex-col items-center gap-3">
+              <div className="rounded-full bg-green-100 p-3 dark:bg-green-900/30">
+                <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold">
+                  {result.imported} of {result.total} companies imported
                 </p>
-              )}
+                {result.skipped > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {result.skipped} already existed (skipped)
+                  </p>
+                )}
+                {result.errors.length > 0 && (
+                  <p className="text-sm text-destructive mt-1">
+                    {result.errors.length} row{result.errors.length === 1 ? "" : "s"} failed
+                  </p>
+                )}
+              </div>
             </div>
-            <Button variant="outline" onClick={() => handleClose(false)}>
-              Close
-            </Button>
+            {result.errors.length > 0 && (
+              <div className="max-h-[200px] overflow-auto rounded-md border bg-muted/30 p-3 text-[12px]">
+                <p className="mb-2 font-medium">Failures:</p>
+                <ul className="space-y-1 text-muted-foreground">
+                  {result.errors.map((e) => (
+                    <li key={e.row}>
+                      <span className="font-mono">Row {e.row}</span> — {e.companyName}: {e.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex justify-center">
+              <Button variant="outline" onClick={() => handleClose(false)}>
+                Close
+              </Button>
+            </div>
           </div>
         ) : (
           <>
