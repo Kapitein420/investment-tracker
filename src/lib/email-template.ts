@@ -93,24 +93,14 @@ export function renderCta(text: string, url: string): string {
   `;
 }
 
-// Friendly labels for the standard teaser highlight keys (kept in sync with
-// the admin-side STANDARD_HIGHLIGHTS in content-tab.tsx). Anything outside
-// this map is rendered with humanise(snake_case → Title Case) fallback.
-const HIGHLIGHT_LABELS: Record<string, string> = {
-  office_lfa: "Office LFA",
-  construction_year: "Construction year",
-  epc_label: "EPC label",
-  ownership: "Ownership",
-  annual_rent_income: "Annual rent income",
-  walt_walb: "WALT / WALB",
-};
-
-function humaniseKey(k: string): string {
-  return k
-    .split("_")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(" ");
-}
+// Re-export the shared highlight metadata so the invite email always
+// matches what the investor portal renders (canonical order, € formatting
+// on annual_rent_income, etc.). Local copies were drifting.
+import {
+  STANDARD_HIGHLIGHT_LABELS as HIGHLIGHT_LABELS,
+  humaniseKey,
+  orderedHighlightEntries,
+} from "@/lib/highlights";
 
 /**
  * Teaser preview block for the invite email — short pitch with up to 6
@@ -128,8 +118,12 @@ export function renderTeaserPreview(opts: {
 }): string {
   const description = (opts.description ?? "").trim();
   const highlights = opts.highlights ?? {};
-  const highlightEntries = Object.entries(highlights)
-    .filter(([, v]) => v && v.trim())
+  // Use the shared ordering helper so canonical highlights (Office LFA →
+  // WALT/WALB) appear first and annual_rent_income gets €1.500.000
+  // formatting — same as the investor portal.
+  const ordered = orderedHighlightEntries(highlights);
+  const highlightEntries: Array<[string, string]> = ordered
+    .map((e) => [e.key, e.value] as [string, string])
     .slice(0, 6);
 
   if (!description && highlightEntries.length === 0 && !opts.heroImageUrl) {

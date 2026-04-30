@@ -25,7 +25,11 @@ export async function approveStage(trackingId: string, stageKey: string) {
       },
     });
 
-    // If NDA is approved, advance IM stage to IN_PROGRESS
+    // If NDA is approved, advance IM stage to IN_PROGRESS and (defensively)
+    // mark the teaser as COMPLETED. The teaser normally completes when the
+    // investor opens the asset, but an admin sometimes approves the NDA
+    // out-of-band (signed offline, then uploaded) before the investor ever
+    // logs in — leaving the teaser stuck NOT_STARTED in the journey UI.
     if (stageKey === "nda") {
       const imStageStatus = await tx.stageStatus.findFirst({
         where: {
@@ -39,6 +43,24 @@ export async function approveStage(trackingId: string, stageKey: string) {
           where: { id: imStageStatus.id },
           data: {
             status: "IN_PROGRESS",
+            updatedByUserId: user.id,
+          },
+        });
+      }
+
+      const teaserStageStatus = await tx.stageStatus.findFirst({
+        where: {
+          trackingId,
+          stage: { key: "teaser" },
+        },
+      });
+
+      if (teaserStageStatus && teaserStageStatus.status !== "COMPLETED") {
+        await tx.stageStatus.update({
+          where: { id: teaserStageStatus.id },
+          data: {
+            status: "COMPLETED",
+            completedAt: teaserStageStatus.completedAt ?? new Date(),
             updatedByUserId: user.id,
           },
         });

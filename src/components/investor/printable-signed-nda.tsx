@@ -11,6 +11,7 @@ import { toast } from "sonner";
 interface Props {
   data: {
     documentId: string;
+    assetId: string | null;
     assetTitle: string;
     signedAt: Date | null;
     signedByName: string | null;
@@ -271,12 +272,12 @@ export function PrintableSignedNda({ data }: Props) {
       <header className="sticky top-0 z-10 border-b bg-white px-4 py-2.5 print:hidden sm:px-6 sm:py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 sm:gap-3">
           <Link
-            href="/portal"
+            href={data.assetId ? `/portal/${data.assetId}` : "/portal"}
             className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Back to portal</span>
-            <span className="sm:hidden">Portal</span>
+            <span className="hidden sm:inline">{data.assetId ? "Back to deal" : "Back to portal"}</span>
+            <span className="sm:hidden">{data.assetId ? "Deal" : "Portal"}</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden text-right sm:block">
