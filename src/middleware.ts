@@ -6,14 +6,20 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // First-login force-change-password gate. When passwordChangedAt is
-    // NULL on the User row (admin reset, self-serve reset, or invite-set
-    // password), the JWT carries mustChangePassword=true. Funnel every
-    // authenticated route through /portal/change-password until the
-    // password is rotated. The change-password page itself is exempt
-    // (otherwise the redirect loops); /api/auth/* stays open so sign-out
-    // works.
-    if (token?.mustChangePassword) {
+    // First-login force-change-password gate. Disabled by default —
+    // Noah's preference is that investors use the system-issued
+    // password rather than picking their own (avoids accidental reuse
+    // of personal/banking passwords).
+    //
+    // The /portal/change-password page itself stays available so
+    // anyone who wants to change their password voluntarily still can,
+    // and the schema flag is preserved so flipping this behaviour
+    // back on is a one-env-var change. To re-enable: set
+    // FORCE_PASSWORD_CHANGE_ON_FIRST_LOGIN=true on Vercel.
+    if (
+      process.env.FORCE_PASSWORD_CHANGE_ON_FIRST_LOGIN === "true" &&
+      token?.mustChangePassword
+    ) {
       if (
         !path.startsWith("/portal/change-password") &&
         !path.startsWith("/api/auth")
