@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * Self-serve password reset.
@@ -27,17 +28,49 @@ import { getAppUrl } from "@/lib/app-url";
  *    "click this reset link" flow, but Noah specifically requested
  *    parity with the admin flow already shipped.
  */
+/** Email tone variants. Both rotate the password the same way; only the
+ *  subject line + body copy + heading change. */
+export type AccessRequestFlavor = "reset" | "welcome";
+
 export async function requestPasswordReset(
-  rawEmail: string
+  rawEmail: string,
+  opts?: { flavor?: AccessRequestFlavor; restrictToInvestor?: boolean }
 ): Promise<{ ok: true }> {
+  // Kill switch: setting INVITES_PAUSED=true on Vercel pauses every
+  // self-serve credential rotation without a redeploy. Used to halt
+  // mid-rollout if Mailgun reputation tanks or a wave goes sideways.
+  if (process.env.INVITES_PAUSED === "true") {
+    console.info("[requestPasswordReset] INVITES_PAUSED=true — silently no-op");
+    return { ok: true };
+  }
+
+  const flavor: AccessRequestFlavor = opts?.flavor ?? "reset";
   const email = rawEmail.trim().toLowerCase();
   if (!email || !email.includes("@")) {
     // Treat invalid input the same as a no-op so the response is uniform.
     return { ok: true };
   }
 
+  // Rate limit per-email (3/hr) AND per-IP (10/hr). Either being hit
+  // returns the standard ok-true response so the attacker can't tell
+  // they were blocked. Legit users retry the next hour.
+  const ip = await getClientIp();
+  const [emailLimit, ipLimit] = await Promise.all([
+    checkRateLimit(`pwreset:email:${email}`, 3, 60 * 60),
+    checkRateLimit(`pwreset:ip:${ip}`, 10, 60 * 60),
+  ]);
+  if (!emailLimit.allowed || !ipLimit.allowed) {
+    console.warn(
+      `[requestPasswordReset] rate-limited email=${email} ip=${ip} ` +
+        `emailRemaining=${emailLimit.remaining} ipRemaining=${ipLimit.remaining}`
+    );
+    return { ok: true };
+  }
+
   const user = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
+    where: opts?.restrictToInvestor
+      ? { email: { equals: email, mode: "insensitive" }, role: "INVESTOR" }
+      : { email: { equals: email, mode: "insensitive" } },
   });
 
   if (!user) {
@@ -46,7 +79,7 @@ export async function requestPasswordReset(
     // attempt directly — log to the server console instead. A follow-up
     // can introduce a separate AuthAuditEvent table if we need queryable
     // unknown-email audit.
-    console.info(`[requestPasswordReset] no user for email "${email}"`);
+    console.info(`[requestPasswordReset] no user for email "${email}" (flavor=${flavor})`);
     return { ok: true };
   }
 
@@ -58,7 +91,7 @@ export async function requestPasswordReset(
           entityType: "User",
           entityId: user.id,
           action: "PASSWORD_RESET_REQUESTED_INACTIVE",
-          metadata: { email: user.email },
+          metadata: { email: user.email, flavor },
           userId: user.id,
         },
       });
@@ -80,26 +113,76 @@ export async function requestPasswordReset(
     data: { passwordHash },
   });
 
+  // Email content varies by flavor so a "first-time access" request from
+  // /request-access doesn't sound like a "you forgot your password" notice.
+  // Both branches rotate the password identically — only the copy differs.
+  const emailContent =
+    flavor === "welcome"
+      ? {
+          subject: "Your DILS Investor Portal login",
+          heading: "Your DILS Investor Portal login is ready",
+          intro: `
+            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
+              Following up on the access request from the DILS Investor Portal — your sign-in
+              details are below. Sign in to see the live deal opportunities your DILS contact has
+              shared with you.
+            </p>
+          `,
+          ctaLabel: "Sign in to the portal",
+          footer: `
+            <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+              You'll be asked to set your own password the first time you sign in. If you didn't
+              request access, you can safely ignore this email — no action is needed and your
+              account stays inactive. For questions, reply to your DILS broker directly.
+            </p>
+          `,
+        }
+      : {
+          subject: "Your password has been reset — DILS Investor Portal",
+          heading: "Password reset requested",
+          intro: `
+            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
+              We received a request to reset the password for your DILS Investor Portal account.
+              Use the new credentials below to sign in.
+            </p>
+          `,
+          ctaLabel: "Sign in",
+          footer: `
+            <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+              If you didn't request this reset, contact the deal team immediately — your previous password
+              has been invalidated.
+            </p>
+          `,
+        };
+
+  // Use a broker-style From for welcome emails when configured (closes
+  // the cross-domain trust gap after a marketing email from
+  // broker@dils.com — investor sees credentials arrive from the same
+  // brand instead of mg.dils.com). Falls back to MAILGUN_FROM if the
+  // override env var isn't set. Operator note: the chosen From domain
+  // must be DKIM/SPF/DMARC-verified in Mailgun before this is safe.
+  const accessFrom =
+    flavor === "welcome"
+      ? process.env.MAILGUN_FROM_ACCESS || process.env.MAILGUN_FROM
+      : undefined;
+  const replyTo = process.env.MAILGUN_REPLY_TO || undefined;
+
   try {
     await sendEmail({
       to: user.email,
-      subject: "Your password has been reset — DILS Investment Portal",
+      subject: emailContent.subject,
+      from: accessFrom,
+      replyTo,
       html: renderEmail({
-        heading: "Password reset requested",
+        heading: emailContent.heading,
         bodyHtml: `
-          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
-            We received a request to reset the password for your DILS Investment Portal account.
-            Use the new credentials below to sign in.
-          </p>
+          ${emailContent.intro}
           ${renderCredentialsTable([
             { label: "Email", value: user.email, mono: true },
             { label: "Password", value: newPassword, mono: true },
           ])}
-          ${renderCta("Sign in", `${getAppUrl()}/login`)}
-          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-            If you didn't request this reset, contact the deal team immediately — your previous password
-            has been invalidated.
-          </p>
+          ${renderCta(emailContent.ctaLabel, `${getAppUrl()}/login`)}
+          ${emailContent.footer}
         `,
       }),
     });
@@ -113,12 +196,27 @@ export async function requestPasswordReset(
       data: {
         entityType: "User",
         entityId: user.id,
-        action: "PASSWORD_RESET_REQUESTED",
-        metadata: { email: user.email, source: "self-serve" },
+        action: flavor === "welcome" ? "ACCESS_REQUESTED" : "PASSWORD_RESET_REQUESTED",
+        metadata: { email: user.email, source: "self-serve", flavor },
         userId: user.id,
       },
     });
   } catch {}
 
   return { ok: true };
+}
+
+/**
+ * Convenience wrapper for the "broker sends a marketing email via
+ * ActiveCampaign with a 'request access' link" flow.
+ *
+ * Behaves identically to `requestPasswordReset` (silent no-op if email
+ * isn't pre-loaded), but locked to INVESTOR role so an attacker who
+ * harvests an admin email from somewhere can't use the public access
+ * page to rotate that admin's password. Uses welcome-tone email copy so
+ * first-time recipients don't see a "your password was reset" notice
+ * they never asked for.
+ */
+export async function requestAccessEmail(rawEmail: string) {
+  return requestPasswordReset(rawEmail, { flavor: "welcome", restrictToInvestor: true });
 }

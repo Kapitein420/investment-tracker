@@ -14,10 +14,21 @@ export async function sendEmail({
   to,
   subject,
   html,
+  from,
+  replyTo,
 }: {
   to: string;
   subject: string;
   html: string;
+  /** Override the global MAILGUN_FROM. Used by the access/credential
+   *  flow so the credential email arrives from the broker's domain
+   *  instead of the mg.dils.com transactional subdomain — preserves
+   *  the trust chain after a marketing email from broker@dils.com.
+   *  Caller must ensure DKIM/SPF on the chosen domain. */
+  from?: string;
+  /** Optional Reply-To. Useful when the From is a broker mailbox but
+   *  the team wants replies to land on a shared inbox. */
+  replyTo?: string;
 }): Promise<SendEmailResult> {
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
     // Silent skip in dev; loud failure in production. Previously this branch
@@ -36,11 +47,12 @@ export async function sendEmail({
 
   const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
   const body = new URLSearchParams({
-    from: MAILGUN_FROM,
+    from: from ?? MAILGUN_FROM,
     to,
     subject,
     html,
   });
+  if (replyTo) body.set("h:Reply-To", replyTo);
 
   const res = await fetch(
     `${MAILGUN_API_BASE}/${MAILGUN_DOMAIN}/messages`,

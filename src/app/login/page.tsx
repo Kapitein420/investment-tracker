@@ -100,6 +100,16 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
+
+          <p className="text-center text-[11px] text-muted-foreground">
+            New here?{" "}
+            <a
+              href="/request-access"
+              className="font-medium text-foreground hover:underline"
+            >
+              Request your portal access
+            </a>
+          </p>
         </form>
 
         {process.env.NODE_ENV === "development" && (
