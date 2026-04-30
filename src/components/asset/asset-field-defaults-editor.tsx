@@ -54,8 +54,12 @@ export function AssetFieldDefaultsEditor({
       const keys = await getAssetPlaceholderTokens(assetId);
       const projectKeys = keys.filter((k) => !isSystemToken(k));
       setTokens(projectKeys);
-    } catch {
-      toast.error("Could not load placeholders");
+    } catch (e: any) {
+      // Surface the actual error so a transient deploy / session / DB
+      // hiccup is debuggable instead of just "Could not load placeholders".
+      const detail = e?.message ?? String(e);
+      console.error("[AssetFieldDefaults] loadTokens failed:", e);
+      toast.error(`Could not load placeholders: ${detail}`);
     } finally {
       setLoading(false);
     }
