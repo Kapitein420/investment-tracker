@@ -254,7 +254,7 @@ export async function resetUserPassword(userId: string) {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash },
+    data: { passwordHash, passwordChangedAt: null },
   });
 
   // Send email with new password

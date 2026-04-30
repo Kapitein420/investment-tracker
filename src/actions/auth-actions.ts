@@ -110,7 +110,7 @@ export async function requestPasswordReset(
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, passwordChangedAt: null },
   });
 
   // Email content varies by flavor so a "first-time access" request from

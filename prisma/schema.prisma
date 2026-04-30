@@ -69,6 +69,13 @@ model User {
   // for the many-to-many shape; this scalar will be deprecated once the
   // portal fully reads from memberships.
   companyId    String?
+  // When the user last changed their own password (set by changeMyPassword).
+  // NULL means the current passwordHash was set by an admin / system flow
+  // (initial invite, resetUserPassword, requestPasswordReset, etc.) — middleware
+  // forces the next session to /portal/change-password before any other route.
+  // Cleared (set NULL) on every system rotation; set to now() when the user
+  // rotates it themselves via the change-password page.
+  passwordChangedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           companyId: user.companyId,
+          mustChangePassword: user.passwordChangedAt === null,
         };
       },
     }),
@@ -81,16 +82,23 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
+        token.mustChangePassword = (user as any).mustChangePassword === true;
       }
-      // Refresh role/companyId from DB on each token refresh
+      // Refresh role/companyId/mustChangePassword from DB on token refresh
       if (token.id && !user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { role: true, companyId: true, isActive: true },
+          select: {
+            role: true,
+            companyId: true,
+            isActive: true,
+            passwordChangedAt: true,
+          },
         });
         if (dbUser && dbUser.isActive) {
           token.role = dbUser.role;
           token.companyId = dbUser.companyId;
+          token.mustChangePassword = dbUser.passwordChangedAt === null;
         }
       }
       return token;
@@ -100,6 +108,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
         (session.user as any).companyId = token.companyId;
+        (session.user as any).mustChangePassword = token.mustChangePassword === true;
       }
       return session;
     },
