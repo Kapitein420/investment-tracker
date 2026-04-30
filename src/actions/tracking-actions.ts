@@ -12,6 +12,58 @@ import {
   type UpdateStageStatusInput,
 } from "@/lib/validators";
 
+/**
+ * Recompute and persist the canonical currentStageKey for a tracking
+ * based on its StageStatus rows: highest-sequence IN_PROGRESS, fallback
+ * highest COMPLETED. Skipped when the admin has manually pinned a stage
+ * (currentStageManualOverride = true).
+ *
+ * IMPORTANT: this MUST be called from outside the parent transaction.
+ * The earlier in-transaction version (PR #58, reverted by PR #61) caused
+ * a single bad sync to roll back NDA signing. Now it's a best-effort
+ * post-commit update — if it throws, the stage transition that triggered
+ * it has already persisted; the column might just be stale on this row
+ * until the next event fires.
+ */
+export async function syncCurrentStageKeyAfterCommit(
+  trackingId: string
+): Promise<void> {
+  try {
+    const tracking = await prisma.assetCompanyTracking.findUnique({
+      where: { id: trackingId },
+      select: { id: true, currentStageManualOverride: true },
+    });
+    if (!tracking || tracking.currentStageManualOverride) return;
+
+    const allStatuses = await prisma.stageStatus.findMany({
+      where: { trackingId },
+      include: { stage: true },
+      orderBy: { stage: { sequence: "asc" } },
+    });
+
+    let derivedStageKey: string | null = null;
+    const inProgress = allStatuses.filter((s) => s.status === "IN_PROGRESS");
+    if (inProgress.length > 0) {
+      derivedStageKey = inProgress[inProgress.length - 1].stage.key;
+    } else {
+      const completed = allStatuses.filter((s) => s.status === "COMPLETED");
+      if (completed.length > 0) {
+        derivedStageKey = completed[completed.length - 1].stage.key;
+      }
+    }
+
+    await prisma.assetCompanyTracking.update({
+      where: { id: trackingId },
+      data: { currentStageKey: derivedStageKey },
+    });
+  } catch (e) {
+    // Never let a sync failure leak — the stage transition that triggered
+    // this is already committed; the worst case is the dropdown shows
+    // a stale value until the next event fires.
+    console.error("[syncCurrentStageKeyAfterCommit] failed:", e);
+  }
+}
+
 export async function createTracking(data: CreateTrackingInput) {
   const user = await requireRole("EDITOR");
   const validated = createTrackingSchema.parse(data);

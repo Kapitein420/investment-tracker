@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { StageStatusValue } from "@prisma/client";
+import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -238,6 +239,11 @@ export async function recordInvestorStageEvent(input: {
     });
   });
 
+  // POST-COMMIT: roll currentStageKey forward (teaser open → COMPLETED,
+  // IM viewed/downloaded, etc.). Outside the transaction so a sync
+  // failure doesn't break the investor event recording.
+  await syncCurrentStageKeyAfterCommit(tracking.id);
+
   return { ok: true, transitioned: true };
 }
 
@@ -354,6 +360,9 @@ export async function requestViewing(
       },
     });
   });
+
+  // POST-COMMIT: roll currentStageKey forward (Viewing → IN_PROGRESS).
+  await syncCurrentStageKeyAfterCommit(tracking.id);
 
   // Determine recipients: tracking owner, fallback to all admins
   const recipients: string[] = [];

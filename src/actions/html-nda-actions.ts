@@ -13,6 +13,7 @@ import {
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
+import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -518,6 +519,12 @@ export async function signHtmlNda(data: {
     }
     throw e;
   }
+
+  // POST-COMMIT only: roll currentStageKey forward so the admin
+  // pipeline-table reflects the just-completed NDA stage. Outside the
+  // transaction so a sync failure doesn't roll back the signing — that
+  // exact in-transaction call was what bricked PR #58.
+  await syncCurrentStageKeyAfterCommit(doc.trackingId);
 
   return { success: true };
 }
