@@ -258,9 +258,6 @@ export async function requestViewing(
   if (user.role !== "INVESTOR" && user.role !== "ADMIN") {
     return { ok: false, error: "Forbidden" };
   }
-  if (user.role === "INVESTOR" && !user.companyId) {
-    return { ok: false, error: "No company associated" };
-  }
 
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
@@ -276,8 +273,21 @@ export async function requestViewing(
 
   if (!tracking) return { ok: false, error: "Deal not found" };
 
-  if (user.role === "INVESTOR" && tracking.companyId !== user.companyId) {
-    return { ok: false, error: "Forbidden" };
+  // Sprint B PR-2: investors can hold this asset under any of the
+  // companies they belong to. The legacy User.companyId check rejected
+  // investors with multi-company memberships if the tracking's company
+  // happened to be a non-primary one — surfaced as "Forbidden" on the
+  // Plan a viewing button. Use the membership shim instead, same as
+  // getSignedHtmlNda already does.
+  if (user.role === "INVESTOR") {
+    const { getUserCompanyIds } = await import("@/lib/user-companies");
+    const companyIds = await getUserCompanyIds(user.id);
+    if (companyIds.length === 0) {
+      return { ok: false, error: "No company associated" };
+    }
+    if (!companyIds.includes(tracking.companyId)) {
+      return { ok: false, error: "Forbidden" };
+    }
   }
 
   // Verify viewing stage is unlocked. Investors can request a viewing as

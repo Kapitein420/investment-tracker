@@ -768,6 +768,21 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         The deal team is preparing the documents for this stage. You'll be able to proceed once they're ready.
                       </p>
                     </div>
+                  ) : state === "pending_review" && ss.stage.key === "im" ? (
+                    /* Specific copy for IM stage when NDA is signed but not
+                       yet admin-approved. The default pending_review hint
+                       talks about "your submission being reviewed" which
+                       reads as if the IM itself is being reviewed, not the
+                       NDA. Make it explicit so the investor doesn't think
+                       the IM is auto-opened. */
+                    <div className="rounded-md border-l-[3px] border-l-status-warning bg-status-warning-soft p-4">
+                      <p className="text-sm font-semibold text-status-warning">Waiting for NDA approval</p>
+                      <p className="mt-1 text-xs text-status-warning/80">
+                        The deal team has received your signed NDA and is reviewing it. The
+                        Information Memorandum will unlock here automatically once they approve.
+                        We&rsquo;ll email you when that happens.
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-xs italic text-muted-foreground">
                       No materials available yet. The deal team will share documents when ready.
