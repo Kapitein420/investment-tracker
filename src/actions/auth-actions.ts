@@ -54,10 +54,14 @@ export async function requestPasswordReset(
   // Rate limit per-email (3/hr) AND per-IP (10/hr). Either being hit
   // returns the standard ok-true response so the attacker can't tell
   // they were blocked. Legit users retry the next hour.
+  //
+  // AUTH_LIMIT_BOOST triples both caps for launch windows (9 email /
+  // 30 IP per hour). See src/lib/auth.ts and the /launch-mode skill.
+  const boost = process.env.AUTH_LIMIT_BOOST === "true";
   const ip = await getClientIp();
   const [emailLimit, ipLimit] = await Promise.all([
-    checkRateLimit(`pwreset:email:${email}`, 3, 60 * 60),
-    checkRateLimit(`pwreset:ip:${ip}`, 10, 60 * 60),
+    checkRateLimit(`pwreset:email:${email}`, boost ? 9 : 3, 60 * 60),
+    checkRateLimit(`pwreset:ip:${ip}`, boost ? 30 : 10, 60 * 60),
   ]);
   if (!emailLimit.allowed || !ipLimit.allowed) {
     console.warn(
