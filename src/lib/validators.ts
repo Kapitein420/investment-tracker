@@ -78,6 +78,10 @@ export const createUserSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["ADMIN", "EDITOR", "VIEWER", "INVESTOR"]),
+  // VIEWER-only: which assets the new viewer is allowed to see. Empty
+  // array = no access (empty dashboard until an admin grants assets via
+  // Manage access). Ignored for non-VIEWER roles.
+  accessibleAssetIds: z.array(z.string()).optional(),
 });
 
 export const updateUserSchema = z.object({

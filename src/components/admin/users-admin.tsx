@@ -127,17 +127,69 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateUserInput>({
     resolver: zodResolver(createUserSchema),
     defaultValues: { role: "VIEWER" },
   });
+  const watchedRole = watch("role");
+
+  // Asset picker state for the Create User dialog (VIEWER only). Loaded
+  // lazily on first dialog open so we don't fetch the list on every page
+  // visit. Re-uses the same listAssetsForViewerPicker action as the
+  // Manage access dialog.
+  const [createAssets, setCreateAssets] = useState<AssetPickerItem[]>([]);
+  const [createAssetsLoaded, setCreateAssetsLoaded] = useState(false);
+  const [createAssetsLoading, setCreateAssetsLoading] = useState(false);
+  const [createSelectedAssets, setCreateSelectedAssets] = useState<Set<string>>(new Set());
+  const [createAssetSearch, setCreateAssetSearch] = useState("");
+
+  useEffect(() => {
+    if (!dialogOpen || createAssetsLoaded || createAssetsLoading) return;
+    setCreateAssetsLoading(true);
+    listAssetsForViewerPicker()
+      .then((assets) => {
+        setCreateAssets(assets);
+        setCreateAssetsLoaded(true);
+      })
+      .catch((e) => {
+        console.error("[create-user] failed to load assets:", e);
+      })
+      .finally(() => setCreateAssetsLoading(false));
+  }, [dialogOpen, createAssetsLoaded, createAssetsLoading]);
+
+  const filteredCreateAssets = useMemo(() => {
+    if (!createAssetSearch.trim()) return createAssets;
+    const q = createAssetSearch.toLowerCase();
+    return createAssets.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.city.toLowerCase().includes(q) ||
+        a.country.toLowerCase().includes(q)
+    );
+  }, [createAssets, createAssetSearch]);
+
+  function toggleCreateAsset(id: string) {
+    setCreateSelectedAssets((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function onSubmit(data: CreateUserInput) {
     try {
-      await createUser(data);
+      const payload =
+        data.role === "VIEWER"
+          ? { ...data, accessibleAssetIds: Array.from(createSelectedAssets) }
+          : data;
+      await createUser(payload);
       toast.success("User created");
       reset();
+      setCreateSelectedAssets(new Set());
+      setCreateAssetSearch("");
       setDialogOpen(false);
       router.refresh();
     } catch {
@@ -270,7 +322,7 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add Team Member</DialogTitle>
             <DialogDescription>Create an internal team account (Admin, Editor, or Viewer).</DialogDescription>
@@ -293,7 +345,12 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select defaultValue="VIEWER" onValueChange={(v: any) => setValue("role", v)}>
+              <Select
+                defaultValue="VIEWER"
+                onValueChange={(v: any) =>
+                  setValue("role", v, { shouldDirty: true, shouldTouch: true })
+                }
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ADMIN">Admin</SelectItem>
@@ -302,6 +359,94 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                 </SelectContent>
               </Select>
             </div>
+
+            {watchedRole === "VIEWER" && (
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label>Asset access</Label>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {createSelectedAssets.size} of {createAssets.length} selected
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Pick which assets this viewer can see. You can change this later
+                  via Manage access.
+                </p>
+
+                <Input
+                  placeholder="Search assets…"
+                  value={createAssetSearch}
+                  onChange={(e) => setCreateAssetSearch(e.target.value)}
+                  className="h-8 text-sm"
+                />
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      setCreateSelectedAssets(new Set(createAssets.map((a) => a.id)))
+                    }
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setCreateSelectedAssets(new Set())}
+                  >
+                    Clear
+                  </Button>
+                </div>
+
+                <div className="max-h-[220px] overflow-y-auto rounded-md border border-dils-200 bg-white">
+                  {createAssetsLoading ? (
+                    <p className="px-4 py-4 text-center text-xs text-muted-foreground">
+                      Loading assets…
+                    </p>
+                  ) : filteredCreateAssets.length === 0 ? (
+                    <p className="px-4 py-4 text-center text-xs text-muted-foreground">
+                      {createAssetSearch ? "No assets match your search." : "No assets yet."}
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-dils-100">
+                      {filteredCreateAssets.map((a) => {
+                        const checked = createSelectedAssets.has(a.id);
+                        return (
+                          <li key={a.id}>
+                            <label
+                              className={cn(
+                                "flex cursor-pointer items-start gap-2.5 px-3 py-2 transition-colors hover:bg-soft-bg-surface-alt",
+                                checked && "bg-status-current/5"
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCreateAsset(a.id)}
+                                className="mt-1 h-4 w-4 shrink-0 rounded border-dils-300 text-status-current focus:ring-status-current/40"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-medium text-foreground">{a.title}</p>
+                                <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                  <MapPin className="h-2.5 w-2.5" strokeWidth={2} />
+                                  {a.city}, {a.country}
+                                </p>
+                              </div>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={isSubmitting}>
