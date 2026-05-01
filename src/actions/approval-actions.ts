@@ -26,11 +26,13 @@ export async function approveStage(trackingId: string, stageKey: string) {
       },
     });
 
-    // If NDA is approved, advance IM stage to IN_PROGRESS and (defensively)
-    // mark the teaser as COMPLETED. The teaser normally completes when the
-    // investor opens the asset, but an admin sometimes approves the NDA
-    // out-of-band (signed offline, then uploaded) before the investor ever
-    // logs in — leaving the teaser stuck NOT_STARTED in the journey UI.
+    // When NDA is approved, the IM is now in the investor's hands —
+    // mark IM as COMPLETED so the admin's overview reflects "they have
+    // access to it" rather than waiting for an actual download to flip
+    // the green check (downloads still get logged as timeline events
+    // via recordInvestorStageEvent, just no longer drive completion).
+    // Teaser is also defensively completed for offline-signed NDAs that
+    // get uploaded before the investor ever opens the portal.
     if (stageKey === "nda") {
       const imStageStatus = await tx.stageStatus.findFirst({
         where: {
@@ -39,12 +41,24 @@ export async function approveStage(trackingId: string, stageKey: string) {
         },
       });
 
-      if (imStageStatus) {
+      if (imStageStatus && imStageStatus.status !== "COMPLETED") {
         await tx.stageStatus.update({
           where: { id: imStageStatus.id },
           data: {
-            status: "IN_PROGRESS",
+            status: "COMPLETED",
+            completedAt: imStageStatus.completedAt ?? new Date(),
             updatedByUserId: user.id,
+          },
+        });
+        await tx.stageHistory.create({
+          data: {
+            trackingId,
+            stageId: imStageStatus.stageId,
+            fieldName: "status",
+            oldValue: imStageStatus.status,
+            newValue: "COMPLETED",
+            changedByUserId: user.id,
+            note: "auto:nda-approved",
           },
         });
       }
@@ -98,6 +112,10 @@ export async function approveStage(trackingId: string, stageKey: string) {
 
     return tracking;
   });
+
+  // POST-COMMIT: roll currentStageKey forward and auto-complete any
+  // earlier stages that are still NOT_STARTED.
+  await syncCurrentStageKeyAfterCommit(trackingId);
 
   revalidatePath(`/assets/${result.assetId}`);
   revalidatePath(`/portal`);

@@ -46,24 +46,36 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessSaving, setAccessSaving] = useState(false);
   const [accessSearch, setAccessSearch] = useState("");
+  const [accessError, setAccessError] = useState<string | null>(null);
 
-  async function openAccessDialog(user: UserRow) {
-    setAccessDialog({ user });
+  async function loadAccessForUser(userId: string) {
     setAccessLoading(true);
-    setAccessSearch("");
+    setAccessError(null);
     try {
       const [assets, granted] = await Promise.all([
         listAssetsForViewerPicker(),
-        getViewerAssetAccess(user.id),
+        getViewerAssetAccess(userId),
       ]);
       setAccessAssets(assets);
       setAccessSelected(new Set(granted));
-    } catch {
-      toast.error("Couldn't load asset access");
-      setAccessDialog(null);
+    } catch (e: any) {
+      // Keep the dialog open so the admin sees the error inline rather
+      // than the dialog flashing open and closing — the previous version
+      // dismissed silently on any fetch failure, which read as "the
+      // button doesn't work" from the admin's perspective.
+      console.error("[openAccessDialog] failed to load:", e);
+      setAccessError(e?.message ?? "Couldn't load asset access");
     } finally {
       setAccessLoading(false);
     }
+  }
+
+  async function openAccessDialog(user: UserRow) {
+    setAccessDialog({ user });
+    setAccessSearch("");
+    setAccessAssets([]);
+    setAccessSelected(new Set());
+    await loadAccessForUser(user.id);
   }
 
   function toggleAsset(id: string) {
@@ -323,6 +335,18 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
             <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
               Loading…
             </div>
+          ) : accessError ? (
+            <div className="space-y-3 py-6 text-center">
+              <p className="text-sm text-destructive">{accessError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => accessDialog && loadAccessForUser(accessDialog.user.id)}
+              >
+                Retry
+              </Button>
+            </div>
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
@@ -410,7 +434,7 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
             <Button
               type="button"
               onClick={handleSaveAccess}
-              disabled={accessSaving || accessLoading}
+              disabled={accessSaving || accessLoading || !!accessError}
             >
               {accessSaving ? "Saving…" : "Save access"}
             </Button>

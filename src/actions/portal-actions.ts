@@ -130,16 +130,10 @@ function nextStatusForEvent(
     return null;
   }
 
-  if (event === "VIEWED_DOCUMENT" && key === "im") {
-    if (current === "NOT_STARTED") return "IN_PROGRESS";
-    return null;
-  }
-
-  if (event === "DOWNLOADED" && key === "im") {
-    if (current === "NOT_STARTED" || current === "IN_PROGRESS") return "COMPLETED";
-    return null;
-  }
-
+  // IM completion is now driven by NDA approval (see approval-actions).
+  // VIEWED_DOCUMENT and DOWNLOADED still get logged via the activityLog
+  // entry below as timeline events, but they never change the stage
+  // status — the green check tracks "has access" not "has consumed".
   return null;
 }
 
@@ -192,34 +186,36 @@ export async function recordInvestorStageEvent(input: {
     stageStatus.status
   );
 
-  if (!next) return { ok: true, transitioned: false };
-
-  // Guard against regression (belt + suspenders with nextStatusForEvent).
-  if (STATUS_RANK[next] <= STATUS_RANK[stageStatus.status]) {
-    return { ok: true, transitioned: false };
-  }
+  // Even when there's no status transition (e.g. IM downloaded after the
+  // stage was already completed by NDA approval), we still log the event
+  // to the activity timeline so the admin can see "investor downloaded
+  // the IM at 14:02".
+  const willTransition =
+    next != null && STATUS_RANK[next] > STATUS_RANK[stageStatus.status];
 
   await prisma.$transaction(async (tx) => {
-    await tx.stageStatus.update({
-      where: { id: stageStatus.id },
-      data: {
-        status: next,
-        updatedByUserId: user.id,
-        completedAt: next === "COMPLETED" ? new Date() : stageStatus.completedAt,
-      },
-    });
+    if (willTransition && next != null) {
+      await tx.stageStatus.update({
+        where: { id: stageStatus.id },
+        data: {
+          status: next,
+          updatedByUserId: user.id,
+          completedAt: next === "COMPLETED" ? new Date() : stageStatus.completedAt,
+        },
+      });
 
-    await tx.stageHistory.create({
-      data: {
-        trackingId: tracking.id,
-        stageId: stageStatus.stageId,
-        fieldName: "status",
-        oldValue: stageStatus.status,
-        newValue: next,
-        changedByUserId: user.id,
-        note: `investor:${input.event}`,
-      },
-    });
+      await tx.stageHistory.create({
+        data: {
+          trackingId: tracking.id,
+          stageId: stageStatus.stageId,
+          fieldName: "status",
+          oldValue: stageStatus.status,
+          newValue: next,
+          changedByUserId: user.id,
+          note: `investor:${input.event}`,
+        },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -232,19 +228,20 @@ export async function recordInvestorStageEvent(input: {
           stageKey: stageStatus.stage.key,
           event: input.event,
           from: stageStatus.status,
-          to: next,
+          to: willTransition ? next : stageStatus.status,
         },
         userId: user.id,
       },
     });
   });
 
-  // POST-COMMIT: roll currentStageKey forward (teaser open → COMPLETED,
-  // IM viewed/downloaded, etc.). Outside the transaction so a sync
-  // failure doesn't break the investor event recording.
-  await syncCurrentStageKeyAfterCommit(tracking.id);
+  // POST-COMMIT: roll currentStageKey forward (teaser open → COMPLETED, etc.).
+  // Outside the transaction so a sync failure doesn't break event recording.
+  if (willTransition) {
+    await syncCurrentStageKeyAfterCommit(tracking.id);
+  }
 
-  return { ok: true, transitioned: true };
+  return { ok: true, transitioned: willTransition };
 }
 
 /**
@@ -394,7 +391,7 @@ export async function requestViewing(
           <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Asset</td><td>${escapeHtml(tracking.asset.title)}</td></tr>
         </table>
         <p style="font-size:13px; line-height:1.55; margin:0;">
-          Please reach out to schedule a date. The deal page in Investment Tracker now shows
+          Please reach out to schedule a date. The deal page in Investment Portal now shows
           this row with the Viewing stage marked <em>In progress</em>.
         </p>
       </div>

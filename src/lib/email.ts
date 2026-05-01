@@ -7,7 +7,7 @@ const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
 const MAILGUN_FROM =
   process.env.MAILGUN_FROM ||
-  "Investment Tracker <investments.netherlands@mg.dils.com>";
+  "Investment Portal <investments.netherlands@mg.dils.com>";
 
 export interface SendEmailResult {
   messageId: string | null; // Mailgun's "id" — present when delivered to MX, used to correlate webhooks

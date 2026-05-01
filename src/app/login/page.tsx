@@ -56,7 +56,7 @@ export default function LoginPage() {
           />
           <div className="space-y-1">
             <p className="dils-accent inline-block text-sm font-medium text-dils-black">
-              Investment Tracker
+              Investment Portal
             </p>
             <p className="text-xs text-muted-foreground">Sign in to your account</p>
           </div>
