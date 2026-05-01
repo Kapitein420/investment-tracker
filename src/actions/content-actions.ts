@@ -32,8 +32,10 @@ export async function createAssetContent(data: {
 
   // Scan PDFs for {{TOKEN}} / {TOKEN} placeholders so the admin sees them in
   // the Project fields panel and per-investor signing forms can be auto-built.
+  // Skip for non-PDF attachments (e.g. rent roll xlsx) tagged via keyMetrics.
+  const isRentRoll = (data.keyMetrics as any)?.isRentRoll === true;
   let placeholderMap: Record<string, unknown> | null = null;
-  if (data.contentType === "PDF" && data.fileUrl) {
+  if (data.contentType === "PDF" && data.fileUrl && !isRentRoll) {
     try {
       const bytes = await downloadFile(data.fileUrl);
       const map = await scanPlaceholders(Buffer.from(bytes));
@@ -98,9 +100,10 @@ export async function updateAssetContent(
     try {
       const existing = await prisma.assetContent.findUnique({
         where: { id },
-        select: { contentType: true },
+        select: { contentType: true, keyMetrics: true },
       });
-      if (existing?.contentType === "PDF") {
+      const existingIsRentRoll = (existing?.keyMetrics as any)?.isRentRoll === true;
+      if (existing?.contentType === "PDF" && !existingIsRentRoll) {
         const bytes = await downloadFile(data.fileUrl);
         const map = await scanPlaceholders(Buffer.from(bytes));
         updateData.placeholderMap = Object.keys(map).length > 0 ? (map as any) : null;
@@ -356,7 +359,14 @@ export async function uploadContentFile(formData: FormData) {
   const file = formData.get("file") as File | null;
   if (!file) throw new Error("No file provided");
 
-  const ALLOWED_MIMES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  const ALLOWED_MIMES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
+    "application/vnd.ms-excel", // xls (legacy)
+  ];
   if (!ALLOWED_MIMES.includes(file.type)) {
     throw new Error("File type not allowed");
   }

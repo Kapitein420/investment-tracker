@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, Building, MapPin, Calendar, Check, Clock, Lock, Pen, FileText,
+  ArrowLeft, Building, MapPin, Calendar, Check, Clock, Lock, Pen, FileText, FileSpreadsheet,
   Download, Eye, ChevronRight, Mail,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
@@ -559,32 +559,40 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                   })}
 
                   {/* Content (IM materials etc.) */}
-                  {stageContent.map((content: any) => (
+                  {stageContent.map((content: any) => {
+                    const isRentRoll = (content.keyMetrics as any)?.isRentRoll === true;
+                    return (
                     <div key={content.id} className="overflow-hidden rounded-lg border border-dils-200 bg-white">
                       <div className="flex items-center justify-between gap-3 border-b border-dils-100 bg-soft-bg-surface-alt px-4 py-3">
                         <h4 className="inline-flex items-center gap-2 font-semibold text-banner-info-foreground text-sm">
-                          <FileText className="h-3.5 w-3.5" strokeWidth={2} />
-                          {content.title}
+                          {isRentRoll ? (
+                            <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={2} />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5" strokeWidth={2} />
+                          )}
+                          {isRentRoll ? "Rent Roll" : content.title}
                         </h4>
                         {content.contentType === "PDF" && content.fileUrl && (
                           <div className="flex items-center gap-2">
-                            <a
-                              href={content.fileUrl}
-                              target="_blank"
-                              rel="noopener"
-                              onClick={() => {
-                                recordInvestorStageEvent({
-                                  trackingId: tracking.id,
-                                  stageKey: ss.stage.key,
-                                  event: "DOWNLOADED",
-                                }).catch(() => {});
-                              }}
-                            >
-                              <Button variant="outline" size="sm" className="h-8 text-xs">
-                                <Eye className="mr-1.5 h-3 w-3" />
-                                Open
-                              </Button>
-                            </a>
+                            {!isRentRoll && (
+                              <a
+                                href={content.fileUrl}
+                                target="_blank"
+                                rel="noopener"
+                                onClick={() => {
+                                  recordInvestorStageEvent({
+                                    trackingId: tracking.id,
+                                    stageKey: ss.stage.key,
+                                    event: "DOWNLOADED",
+                                  }).catch(() => {});
+                                }}
+                              >
+                                <Button variant="outline" size="sm" className="h-8 text-xs">
+                                  <Eye className="mr-1.5 h-3 w-3" />
+                                  Open
+                                </Button>
+                              </a>
+                            )}
                             <a
                               // The HTML `download` attribute is ignored on
                               // cross-origin URLs (which Supabase signed URLs
@@ -596,7 +604,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 const url = content.fileUrl as string;
                                 const sep = url.includes("?") ? "&" : "?";
                                 const fname = encodeURIComponent(
-                                  content.fileName ?? `${content.title}.pdf`
+                                  content.fileName ??
+                                    (isRentRoll ? `${content.title}.xlsx` : `${content.title}.pdf`)
                                 );
                                 return `${url}${sep}download=${fname}`;
                               })()}
@@ -616,10 +625,10 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           </div>
                         )}
                       </div>
-                      {content.description && (
+                      {content.description && !isRentRoll && (
                         <p className="px-4 pt-3 text-xs text-muted-foreground">{content.description}</p>
                       )}
-                      {content.contentType === "PDF" && content.fileUrl && (
+                      {content.contentType === "PDF" && content.fileUrl && !isRentRoll && (
                         <embed
                           src={content.fileUrl}
                           type="application/pdf"
@@ -632,7 +641,8 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
