@@ -120,40 +120,101 @@ export async function approveStage(trackingId: string, stageKey: string) {
   revalidatePath(`/assets/${result.assetId}`);
   revalidatePath(`/portal`);
 
-  // Send approval notification email to investor
-  try {
-    // Find the company's investor user
-    const tracking = await prisma.assetCompanyTracking.findUnique({
-      where: { id: trackingId },
-      include: {
-        company: { include: { users: { where: { role: "INVESTOR" }, take: 1 } } },
-        asset: true,
-      },
-    });
-
-    if (tracking?.company.users[0]?.email) {
-      const { sendEmail } = await import("@/lib/email");
-      const { renderEmail, renderCta } = await import("@/lib/email-template");
-      await sendEmail({
-        to: tracking.company.users[0].email,
-        subject: `NDA Approved — ${tracking.asset.title}`,
-        html: renderEmail({
-          heading: "Your NDA has been approved",
-          bodyHtml: `
-            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
-              Your NDA for <strong>${tracking.asset.title}</strong> has been reviewed and approved.
-            </p>
-            <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-              You now have access to the Information Memorandum. Log in to your investor portal to review the materials.
-            </p>
-            ${renderCta("View Information Memorandum", `${getAppUrl()}/portal/${tracking.assetId}`)}
-          `,
-          meta: `${tracking.asset.title}`,
-        }),
+  // Send approval notification email to the investor.
+  //
+  // Recipient resolution covers three sources because no single one is
+  // guaranteed to have the right address:
+  //   1. The actual NDA document's signedByEmail — most accurate, that's
+  //      who proved they read it.
+  //   2. Users linked via UserCompanyMembership (the multi-company shim
+  //      added in Sprint B). The legacy company.users relation only
+  //      catches User.companyId scalar, so investors invited via the
+  //      newer membership flow never showed up there — silent
+  //      "approval emailed nothing" failure with no Mailgun log.
+  //   3. Legacy company.users (User.companyId scalar) — fallback for
+  //      pre-membership-shim accounts.
+  // We dedupe and send to all unique addresses.
+  if (stageKey === "nda") {
+    try {
+      const tracking = await prisma.assetCompanyTracking.findUnique({
+        where: { id: trackingId },
+        include: {
+          asset: true,
+          company: {
+            include: {
+              users: { where: { role: "INVESTOR" }, select: { email: true } },
+            },
+          },
+          documents: {
+            where: { stage: { key: "nda" }, status: "SIGNED" },
+            orderBy: { signedAt: "desc" },
+            take: 1,
+            select: { signedByEmail: true },
+          },
+        },
       });
+
+      if (!tracking) {
+        console.warn(`[approveStage:email] tracking ${trackingId} not found`);
+      } else {
+        const memberships = await prisma.userCompanyMembership.findMany({
+          where: {
+            companyId: tracking.companyId,
+            user: { role: "INVESTOR", isActive: true },
+          },
+          select: { user: { select: { email: true } } },
+        });
+
+        const recipients = new Set<string>();
+        const signedByEmail = tracking.documents[0]?.signedByEmail;
+        if (signedByEmail) recipients.add(signedByEmail.toLowerCase());
+        for (const u of tracking.company.users) {
+          if (u.email) recipients.add(u.email.toLowerCase());
+        }
+        for (const m of memberships) {
+          if (m.user.email) recipients.add(m.user.email.toLowerCase());
+        }
+
+        if (recipients.size === 0) {
+          console.warn(
+            `[approveStage:email] no recipients found for tracking ${trackingId} ` +
+              `(company=${tracking.companyId}) — nothing emailed`
+          );
+        } else {
+          const { sendEmail } = await import("@/lib/email");
+          const { renderEmail, renderCta } = await import("@/lib/email-template");
+          const html = renderEmail({
+            heading: "Your NDA has been approved",
+            bodyHtml: `
+              <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
+                Your NDA for <strong>${tracking.asset.title}</strong> has been reviewed and approved.
+              </p>
+              <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+                You now have access to the Information Memorandum. Log in to your investor portal to review the materials.
+              </p>
+              ${renderCta("View Information Memorandum", `${getAppUrl()}/portal/${tracking.assetId}`)}
+            `,
+            meta: `${tracking.asset.title}`,
+          });
+          // Send in parallel; any individual failure is logged but doesn't
+          // block the rest. The approval is already committed at this point.
+          await Promise.allSettled(
+            Array.from(recipients).map((to) =>
+              sendEmail({
+                to,
+                subject: `NDA Approved — ${tracking.asset.title}`,
+                html,
+              })
+            )
+          );
+          console.info(
+            `[approveStage:email] sent NDA-approved to ${recipients.size} recipient(s) for tracking ${trackingId}`
+          );
+        }
+      }
+    } catch (e) {
+      console.error("[approveStage:email] notification failed:", e);
     }
-  } catch (e) {
-    console.error("Approval notification email failed:", e);
   }
 }
 
