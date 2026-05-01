@@ -29,6 +29,144 @@ function isHtmlNdaSentinel(path: string | null | undefined): boolean {
   return !!path && path.startsWith(HTML_NDA_FILEURL_PREFIX);
 }
 
+/**
+ * Render the signed PDF bytes for a Document and upload to Supabase.
+ * Pure helper — no DB writes. Returns the storage path.
+ *
+ * Used by both the synchronous post-sign generation and the lazy
+ * regen path (ensureSignedPdf), so the rendering logic lives in one place.
+ *
+ * Throws on failure (caller decides whether to surface to user).
+ */
+async function renderAndUploadSignedPdf(args: {
+  doc: {
+    id: string;
+    trackingId: string;
+    fileName: string;
+    fileUrl: string;
+    fieldConfig: any;
+    placeholderMap: any;
+  } & Record<string, any>;
+  signatureData: string;
+  signedByName: string;
+  signedByEmail: string;
+  signedAt: Date;
+  fieldValues: Record<string, string>;
+  assetFieldDefaults: Record<string, string>;
+}): Promise<string> {
+  const { doc, signatureData, signedByName, signedByEmail, signedAt, fieldValues, assetFieldDefaults } = args;
+  const pdfStart = Date.now();
+  const originalPdfBytes = await downloadFile(doc.fileUrl);
+
+  let signedPdfBytes: Uint8Array;
+  if (doc.placementMode === "PLACEHOLDER" && doc.placeholderMap) {
+    // Merge order (later overrides earlier):
+    //   1. investor-supplied values (lowest)
+    //   2. admin-set asset defaults
+    //   3. system-authoritative identity / date (highest)
+    const mergedValues: Record<string, string> = {
+      ...fieldValues,
+      ...assetFieldDefaults,
+      NAME: signedByName,
+      EMAIL: signedByEmail,
+      DATE: formatDate(signedAt),
+    };
+    signedPdfBytes = await generateSignedPdfFromPlaceholders(
+      originalPdfBytes,
+      signatureData,
+      mergedValues,
+      doc.placeholderMap as any
+    );
+  } else if (doc.placementMode === "MANUAL") {
+    const manualPlacements: FieldPlacement[] =
+      Array.isArray(doc.fieldConfig) ? (doc.fieldConfig as FieldPlacement[]) : [];
+    signedPdfBytes = await generateSignedPdf(
+      originalPdfBytes,
+      signatureData,
+      signedByName,
+      formatDate(signedAt),
+      manualPlacements.length > 0 ? manualPlacements : DEFAULT_FIELD_CONFIG
+    );
+  } else {
+    const fieldConfig: FieldPlacement[] =
+      Array.isArray(doc.fieldConfig) ? (doc.fieldConfig as FieldPlacement[]) : DEFAULT_FIELD_CONFIG;
+    signedPdfBytes = await generateSignedPdf(
+      originalPdfBytes,
+      signatureData,
+      signedByName,
+      formatDate(signedAt),
+      fieldConfig
+    );
+  }
+
+  const signedPath = `documents/${doc.trackingId}/signed_${Date.now()}_${doc.fileName}`;
+  await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
+  console.log(
+    `[renderAndUploadSignedPdf] generated in ${Date.now() - pdfStart}ms for doc ${doc.id}`
+  );
+  return signedPath;
+}
+
+/**
+ * Lazy regen for SIGNED documents whose signedFileUrl is null. Happens
+ * when the synchronous post-sign generation failed (timeout, OOM under
+ * burst, transient pdf-lib error). Race-safe: only one writer "wins"
+ * the update; concurrent callers re-read the canonical path.
+ *
+ * Returns the storage path. Throws if the doc isn't signed yet, has no
+ * signature data, or PDF rendering fails.
+ */
+async function ensureSignedPdf(documentId: string): Promise<string> {
+  const doc = await prisma.document.findUniqueOrThrow({
+    where: { id: documentId },
+    include: {
+      tracking: { select: { asset: { select: { fieldDefaults: true } } } },
+    },
+  });
+
+  if (doc.signedFileUrl) return doc.signedFileUrl;
+  if (doc.status !== "SIGNED" || !doc.signatureData || !doc.signedByName || !doc.signedAt) {
+    throw new Error("Document is not in a signed state — nothing to render.");
+  }
+  if (doc.mimeType === "text/html" || isHtmlNdaSentinel(doc.fileUrl)) {
+    throw new Error("HTML NDA — no PDF download available.");
+  }
+
+  // For PLACEHOLDER mode we persisted the merged field values into
+  // fieldConfig at sign time (see signDocument). For MANUAL/GRID modes
+  // fieldConfig stores FieldPlacement[]; values aren't needed because
+  // those modes don't render investor-typed fields.
+  const isPlaceholder =
+    (doc as any).placementMode === "PLACEHOLDER" && (doc as any).placeholderMap;
+  const persistedValues =
+    isPlaceholder && doc.fieldConfig && !Array.isArray(doc.fieldConfig)
+      ? (doc.fieldConfig as Record<string, string>)
+      : {};
+
+  const signedPath = await renderAndUploadSignedPdf({
+    doc: doc as any,
+    signatureData: doc.signatureData,
+    signedByName: doc.signedByName,
+    signedByEmail: doc.signedByEmail ?? "",
+    signedAt: doc.signedAt,
+    fieldValues: persistedValues,
+    assetFieldDefaults:
+      ((doc.tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {}),
+  });
+
+  // Race-safe: if another concurrent call already stored a path, this
+  // updateMany matches 0 rows, we re-read, and return the canonical one.
+  await prisma.document.updateMany({
+    where: { id: doc.id, signedFileUrl: null },
+    data: { signedFileUrl: signedPath },
+  });
+  const fresh = await prisma.document.findUniqueOrThrow({
+    where: { id: doc.id },
+    select: { signedFileUrl: true },
+  });
+  return fresh.signedFileUrl ?? signedPath;
+}
+
 export async function uploadDocument(formData: FormData) {
   const user = await requireRole("EDITOR");
 
@@ -337,8 +475,26 @@ export async function getSignedDocumentUrl(documentId: string) {
     throw new Error("HTML NDA documents are viewed via the portal — no download URL.");
   }
 
-  // Prefer signed version if available
-  const path = doc.signedFileUrl ?? doc.fileUrl;
+  // Lazy regen path: signing decouples PDF generation from the commit, so
+  // a doc can be SIGNED with signedFileUrl=null when a burst overran the
+  // post-commit render. Fill it in here on first download. Prefer the
+  // unsigned original as a final fallback so the page never 500s.
+  let path: string;
+  if (doc.signedFileUrl) {
+    path = doc.signedFileUrl;
+  } else if (doc.status === "SIGNED") {
+    try {
+      path = await ensureSignedPdf(doc.id);
+    } catch (e) {
+      console.error(
+        `[getSignedDocumentUrl] lazy regen failed for doc ${doc.id} — falling back to unsigned original:`,
+        e
+      );
+      path = doc.fileUrl;
+    }
+  } else {
+    path = doc.fileUrl;
+  }
   return getSignedUrl(path, 7200);
 }
 
@@ -599,79 +755,30 @@ export async function signDocument(data: {
     throw new Error("This NDA uses the HTML signing flow — wrong signing endpoint.");
   }
 
-  // ── Step 2: Generate + upload signed PDF BEFORE committing ──
-  // If PDF generation fails the investor sees a clear error and can
-  // retry — the document is NOT marked SIGNED with a missing file.
-  const pdfStart = Date.now();
-  let signedFileUrl: string;
-  try {
-    const originalPdfBytes = await downloadFile(document.fileUrl);
-
-    const docAny = document as any;
-    let signedPdfBytes;
-    if (docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap) {
-      const assetDefaults =
-        (document.tracking?.asset?.fieldDefaults as Record<string, string> | null) ??
-        {};
-
-      // Merge order (later overrides earlier):
-      //   1. investor-supplied values (lowest)
-      //   2. admin-set asset defaults
-      //   3. system-authoritative identity / date (highest)
-      const mergedValues: Record<string, string> = {
+  // ── Step 2: Atomic commit — claim token + persist signed state ──
+  // PDF generation is decoupled from the commit so a slow / failed pdf-lib
+  // run during a signing burst can't roll back the signature itself. The
+  // signedFileUrl is left null and filled in (a) by the post-commit
+  // generation below on the happy path, or (b) lazily by ensureSignedPdf
+  // the first time someone hits getSignedDocumentUrl. For PLACEHOLDER docs
+  // we persist the merged field values into fieldConfig — that's all the
+  // info ensureSignedPdf needs to reproduce the PDF later.
+  const signedAt = new Date();
+  const assetFieldDefaults =
+    (document.tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {};
+  const docAny = document as any;
+  const isPlaceholder =
+    docAny.placementMode === "PLACEHOLDER" && docAny.placeholderMap;
+  const mergedFieldValues: Record<string, string> = isPlaceholder
+    ? {
         ...validated.fieldValues,
-        ...assetDefaults,
+        ...assetFieldDefaults,
         NAME: validated.signedByName,
         EMAIL: validated.signedByEmail,
-        DATE: formatDate(new Date()),
-      };
-      signedPdfBytes = await generateSignedPdfFromPlaceholders(
-        originalPdfBytes,
-        validated.signatureData,
-        mergedValues,
-        docAny.placeholderMap as any
-      );
-    } else if (docAny.placementMode === "MANUAL") {
-      const manualPlacements: FieldPlacement[] =
-        (document.fieldConfig as FieldPlacement[] | null) ?? [];
+        DATE: formatDate(signedAt),
+      }
+    : {};
 
-      signedPdfBytes = await generateSignedPdf(
-        originalPdfBytes,
-        validated.signatureData,
-        validated.signedByName,
-        formatDate(new Date()),
-        manualPlacements.length > 0 ? manualPlacements : DEFAULT_FIELD_CONFIG
-      );
-    } else {
-      const fieldConfig: FieldPlacement[] =
-        (document.fieldConfig as FieldPlacement[] | null) ?? DEFAULT_FIELD_CONFIG;
-
-      signedPdfBytes = await generateSignedPdf(
-        originalPdfBytes,
-        validated.signatureData,
-        validated.signedByName,
-        formatDate(new Date()),
-        fieldConfig
-      );
-    }
-
-    const signedPath = `documents/${document.trackingId}/signed_${Date.now()}_${document.fileName}`;
-    signedFileUrl = await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
-
-    console.log(
-      `[signDocument] PDF generation completed in ${Date.now() - pdfStart}ms for doc ${document.id}`
-    );
-  } catch (e) {
-    console.error(
-      `[signDocument] PDF generation failed after ${Date.now() - pdfStart}ms for doc ${document.id}:`,
-      e
-    );
-    throw new Error(
-      "We couldn't finalize your signed document. Please try again — if this keeps happening, contact support."
-    );
-  }
-
-  // ── Step 3: Atomic commit — claim token + persist signed state ──
   try {
     await prisma.$transaction(async (tx) => {
     // Atomic re-claim with usedAt=null guard. Throws P2025 if another
@@ -686,11 +793,15 @@ export async function signDocument(data: {
       where: { id: document.id },
       data: {
         status: "SIGNED",
-        signedAt: new Date(),
+        signedAt,
         signedByName: validated.signedByName,
         signedByEmail: validated.signedByEmail,
         signatureData: validated.signatureData,
-        signedFileUrl,
+        // signedFileUrl filled by post-commit gen (or lazy regen)
+        // For PLACEHOLDER docs only: stash the merged values so lazy
+        // regen can reproduce the PDF. fieldConfig is unused for
+        // PLACEHOLDER mode at read-time so this overwrite is safe.
+        ...(isPlaceholder ? { fieldConfig: mergedFieldValues as any } : {}),
       },
     });
 
@@ -750,6 +861,33 @@ export async function signDocument(data: {
   // HTML NDA flow. Outside the transaction so a sync failure can't
   // roll back signing.
   await syncCurrentStageKeyAfterCommit(token.document.trackingId);
+
+  // POST-COMMIT: render the signed PDF best-effort. If this fails (timeout,
+  // pdf-lib OOM under burst, transient Supabase error) the signature is
+  // still permanent — ensureSignedPdf regenerates lazily on first download.
+  try {
+    const signedPath = await renderAndUploadSignedPdf({
+      doc: document as any,
+      signatureData: validated.signatureData,
+      signedByName: validated.signedByName,
+      signedByEmail: validated.signedByEmail,
+      signedAt,
+      fieldValues: validated.fieldValues ?? {},
+      assetFieldDefaults,
+    });
+    // Race-safe write — only fill in if still null (won't clobber a lazy
+    // regen that already raced ahead, although under normal circumstances
+    // no one's hit getSignedDocumentUrl this fast).
+    await prisma.document.updateMany({
+      where: { id: document.id, signedFileUrl: null },
+      data: { signedFileUrl: signedPath },
+    });
+  } catch (e) {
+    console.error(
+      `[signDocument] post-commit PDF render failed for doc ${document.id} — will regen on first download:`,
+      e
+    );
+  }
 
   return { success: true };
 }

@@ -29,16 +29,24 @@ export const authOptions: NextAuthOptions = {
 
         // Rate-limit failed credentials before the bcrypt cost. Vercel-
         // edge WAF blocks high-RPS bursts; this layer catches a paced
-        // attacker that stays under the WAF threshold. 15 attempts /
-        // 15 min per email + 60 / 15 min per IP — generous enough that
-        // legitimate testing-day mistypes don't lock the operator out,
-        // strict enough that a paced credential-stuffing attack still
-        // dies long before any meaningful coverage. Tune lower again
-        // post-rollout when usage is steadier.
+        // attacker that stays under the WAF threshold. Default 15
+        // attempts / 15 min per email + 60 / 15 min per IP — generous
+        // enough that legitimate testing-day mistypes don't lock the
+        // operator out, strict enough that a paced credential-stuffing
+        // attack dies long before any meaningful coverage.
+        //
+        // For launch windows where many investors hit the portal at once
+        // (especially behind shared corporate IPs), set the env var
+        // AUTH_LIMIT_BOOST=true on Vercel and redeploy — caps triple
+        // (45 email / 180 IP per 15min). Revert by removing the var.
+        // The /launch-mode skill scripts this end-to-end.
+        const boost = process.env.AUTH_LIMIT_BOOST === "true";
+        const emailCap = boost ? 45 : 15;
+        const ipCap = boost ? 180 : 60;
         const ip = await getClientIp();
         const [emailLimit, ipLimit] = await Promise.all([
-          checkRateLimit(`auth:email:${email}`, 15, 15 * 60),
-          checkRateLimit(`auth:ip:${ip}`, 60, 15 * 60),
+          checkRateLimit(`auth:email:${email}`, emailCap, 15 * 60),
+          checkRateLimit(`auth:ip:${ip}`, ipCap, 15 * 60),
         ]);
         if (!emailLimit.allowed || !ipLimit.allowed) {
           console.warn(
