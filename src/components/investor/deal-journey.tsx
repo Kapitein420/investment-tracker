@@ -629,11 +629,33 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         <p className="px-4 pt-3 text-xs text-muted-foreground">{content.description}</p>
                       )}
                       {content.contentType === "PDF" && content.fileUrl && !isRentRoll && (
-                        <embed
-                          src={content.fileUrl}
-                          type="application/pdf"
-                          className="h-[50vh] min-h-[320px] w-full md:h-[440px]"
-                        />
+                        <>
+                          {/* Desktop: inline preview. Mobile (esp. iOS Safari)
+                              can't render <embed type="application/pdf">, so we
+                              fall back to a tap-to-open card that hands the file
+                              to the device's native viewer. */}
+                          <embed
+                            src={content.fileUrl}
+                            type="application/pdf"
+                            className="hidden h-[440px] w-full md:block"
+                          />
+                          <a
+                            href={content.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex w-full items-center gap-3 border-t bg-white px-4 py-6 md:hidden"
+                          >
+                            <FileText className="h-9 w-9 shrink-0 text-dils-black" />
+                            <span className="flex flex-col">
+                              <span className="text-sm font-semibold text-foreground">
+                                Tap to open document
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Opens the PDF in your device&rsquo;s viewer
+                              </span>
+                            </span>
+                          </a>
+                        </>
                       )}
                       {content.contentType === "LANDING_PAGE" && content.htmlContent && (
                         <div className="prose prose-sm max-w-none px-4 py-4">

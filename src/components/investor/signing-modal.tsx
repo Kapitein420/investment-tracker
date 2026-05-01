@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -158,7 +158,7 @@ export function SigningModal({
             <div className="flex items-center gap-3 min-w-0 pr-8">
               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
-                <h2 className="truncate font-semibold text-sm sm:text-base">{doc.fileName}</h2>
+                <DialogTitle className="truncate font-semibold text-sm sm:text-base">{doc.fileName}</DialogTitle>
                 <p className="truncate text-xs text-muted-foreground">
                   {assetTitle} &middot; {companyName} &middot;
                   <Badge variant="outline" className="ml-1 text-[10px]">{doc.stage.label}</Badge>
@@ -221,12 +221,29 @@ export function SigningModal({
                 </div>
               ) : pdfUrl ? (
                 <>
+                  {/* Desktop / tablet: inline PDF viewer. Mobile (esp. iOS Safari)
+                      can't render <embed type="application/pdf"> reliably, so we
+                      fall back to a tap-to-open card that hands the PDF to the
+                      device's native viewer. */}
                   <embed
                     src={pdfUrl}
                     type="application/pdf"
-                    className="h-[50vh] min-h-[300px] w-full md:h-[500px]"
+                    className="hidden h-[500px] w-full md:block"
                   />
-                  <div className="border-t bg-white px-4 py-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => window.open(pdfUrl, "_blank")}
+                    className="flex w-full items-center justify-center gap-3 bg-white px-4 py-10 text-left md:hidden"
+                  >
+                    <FileText className="h-9 w-9 shrink-0 text-dils-black" />
+                    <span className="flex flex-col">
+                      <span className="text-sm font-semibold text-foreground">Tap to open document</span>
+                      <span className="text-xs text-muted-foreground">
+                        Opens the PDF in your device&rsquo;s viewer
+                      </span>
+                    </span>
+                  </button>
+                  <div className="hidden border-t bg-white px-4 py-2 text-center md:block">
                     <button
                       type="button"
                       onClick={() => window.open(pdfUrl, "_blank")}
@@ -252,25 +269,34 @@ export function SigningModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Your full name</Label>
+                    <Label htmlFor="signer-name">Your full name</Label>
                     <Input
+                      id="signer-name"
+                      autoComplete="name"
                       value={signerName}
                       onChange={(e) => setSignerName(e.target.value)}
                       placeholder="John Doe"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Your email</Label>
+                    <Label htmlFor="signer-email">Your email</Label>
                     <Input
+                      id="signer-email"
                       type="email"
+                      autoComplete="email"
                       value={signerEmail}
                       onChange={(e) => setSignerEmail(e.target.value)}
                       placeholder="john@example.com"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Signing date</Label>
-                    <Input value={new Date().toLocaleDateString("en-GB")} disabled className="bg-gray-50" />
+                    <Label htmlFor="signing-date">Signing date</Label>
+                    <Input
+                      id="signing-date"
+                      value={new Date().toLocaleDateString("en-GB")}
+                      disabled
+                      className="bg-gray-50"
+                    />
                   </div>
                 </div>
 
@@ -292,8 +318,12 @@ export function SigningModal({
                 )}
 
                 <div className="space-y-2">
-                  <Label>Your signature</Label>
-                  <SignaturePad onChange={setSignatureData} />
+                  <Label htmlFor="signer-signature">Your signature</Label>
+                  <SignaturePad
+                    id="signer-signature"
+                    typedNameFallback={signerName}
+                    onChange={setSignatureData}
+                  />
                 </div>
 
                 <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
@@ -339,10 +369,11 @@ export function SigningModal({
             {mode === "reject" && (
               <div className="space-y-4 rounded-lg border border-red-200 bg-red-50/50 p-4">
                 <h3 className="font-semibold text-destructive">Decline to Sign</h3>
-                <p className="text-sm text-muted-foreground">
+                <Label htmlFor="rejection-reason" className="text-sm text-muted-foreground font-normal">
                   Please provide a reason for declining (optional).
-                </p>
+                </Label>
                 <Textarea
+                  id="rejection-reason"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Reason for declining..."
