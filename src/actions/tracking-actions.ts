@@ -52,6 +52,39 @@ export async function syncCurrentStageKeyAfterCommit(
       }
     }
 
+    // Backfill: if the tracking has progressed to stage N (IN_PROGRESS or
+    // COMPLETED), every earlier stage must be COMPLETED. The journey UI
+    // can otherwise show a "?" or open badge on a teaser stage while the
+    // investor is already past NDA — visually misleading. We auto-fill
+    // these gaps with completedAt = now() so the timeline is coherent.
+    let highestActiveIdx = -1;
+    for (let i = 0; i < allStatuses.length; i++) {
+      const s = allStatuses[i];
+      if (s.status === "IN_PROGRESS" || s.status === "COMPLETED") {
+        highestActiveIdx = i;
+      }
+    }
+    if (highestActiveIdx > 0) {
+      const stale = allStatuses
+        .slice(0, highestActiveIdx)
+        .filter((s) => s.status !== "COMPLETED");
+      if (stale.length > 0) {
+        // No StageHistory entry — this is an automatic system backfill,
+        // not a user action. The triggering forward transition already
+        // has its own history row, which is the auditable source of
+        // truth. StageHistory.changedByUserId is non-nullable so we
+        // can't attribute these without an arbitrary admin id.
+        const now = new Date();
+        await prisma.stageStatus.updateMany({
+          where: { id: { in: stale.map((s) => s.id) } },
+          data: {
+            status: "COMPLETED",
+            completedAt: now,
+          },
+        });
+      }
+    }
+
     await prisma.assetCompanyTracking.update({
       where: { id: trackingId },
       data: { currentStageKey: derivedStageKey },
@@ -292,6 +325,10 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
     return { stageStatus, tracking };
   });
 
+  // Backfill any earlier NOT_STARTED stages so the journey timeline
+  // can't have gaps after a manual jump.
+  await syncCurrentStageKeyAfterCommit(result.tracking.id);
+
   revalidatePath(`/assets/${result.tracking.assetId}`);
   return result.stageStatus;
 }
@@ -398,6 +435,10 @@ export async function advanceToNextStage(trackingId: string) {
 
     return { tracking, advancedTo: nextStageStatus.stage };
   });
+
+  // Backfill any earlier NOT_STARTED stages so the journey timeline
+  // can't have gaps after a forward jump.
+  await syncCurrentStageKeyAfterCommit(result.tracking.id);
 
   revalidatePath(`/assets/${result.tracking.assetId}`);
   return result.advancedTo;

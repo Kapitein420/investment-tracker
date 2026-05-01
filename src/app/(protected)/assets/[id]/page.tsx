@@ -55,8 +55,11 @@ export default async function AssetDetailPage({ params }: { params: { id: string
     orderBy: { sequence: "asc" },
   });
 
+  // Owner picker: only internal team accounts (ADMIN/EDITOR/VIEWER) — never
+  // INVESTORs. The picker is reused by the tracking drawer and the bulk
+  // assign menu, so filtering at the data source covers both surfaces.
   const users = await prisma.user.findMany({
-    where: { isActive: true },
+    where: { isActive: true, role: { not: "INVESTOR" } },
     select: { id: true, name: true },
   });
 

@@ -108,7 +108,7 @@ export function PrintableSignedNda({ data }: Props) {
         subject: "Non-Disclosure Agreement",
         author: "DILS Group B.V.",
         keywords: "NDA, DILS, signed",
-        creator: "DILS Investment Tracker",
+        creator: "DILS Investment Portal",
       });
 
       // Pixels-per-mm of the captured canvas, derived from the content

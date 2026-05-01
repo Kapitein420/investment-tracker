@@ -50,7 +50,7 @@ function SidebarContent({
           className="h-7 w-auto object-contain"
         />
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Investment Tracker
+          Investment Portal
         </span>
       </div>
 
@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="h-[20px] w-auto object-contain"
           />
           <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-            Investment Tracker
+            Investment Portal
           </span>
         </div>
         <div className="flex items-center gap-2">

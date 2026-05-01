@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-soft-bg-surface-alt px-4">
       <div className="w-full max-w-md space-y-6 rounded-xl border border-dils-100 bg-white p-8 shadow-soft-card">
         <div className="flex items-start gap-3">
-          <Image src="/dils-logo.png" alt="DILS Investment Tracker" width={56} height={20} className="h-5 w-auto" />
+          <Image src="/dils-logo.png" alt="DILS Investment Portal" width={56} height={20} className="h-5 w-auto" />
           <div>
             <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
               Reset your password

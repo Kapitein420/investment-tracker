@@ -34,7 +34,7 @@ const nunitoSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Dils Investment Tracker",
+  title: "Dils Investment Portal",
   description: "Deal pipeline tracking for Dils Investment Sales",
 };
 
