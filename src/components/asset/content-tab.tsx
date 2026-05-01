@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  FileText, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
+  FileText, FileSpreadsheet, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
 import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
@@ -35,7 +35,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addType, setAddType] = useState<"nda" | "im">("im");
+  const [addType, setAddType] = useState<"nda" | "im" | "rentRoll">("im");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Separate NDA, Teaser, and IM content
@@ -47,7 +47,15 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       (c.keyMetrics as any)?.isHtmlNda === true
   );
   const teaserContent = contents.find((c) => c.stageKey === "teaser" && c.contentType === "LANDING_PAGE");
-  const imContents = contents.filter((c) => c.stageKey === "im");
+  // Rent roll is stored as an "im" stage AssetContent flagged via keyMetrics —
+  // unlocks alongside the IM after NDA approval but renders as a download-only
+  // attachment (no preview) since it's an xlsx, not a PDF.
+  const rentRollContent = contents.find(
+    (c) => c.stageKey === "im" && (c.keyMetrics as any)?.isRentRoll === true
+  );
+  const imContents = contents.filter(
+    (c) => c.stageKey === "im" && (c.keyMetrics as any)?.isRentRoll !== true
+  );
 
   // Teaser editor state
   const teaserImageInputRef = useRef<HTMLInputElement>(null);
@@ -186,7 +194,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teaserContent, teaserImageUrls]);
 
-  async function handleUploadContent(stageKey: string, title: string) {
+  async function handleUploadContent(kind: "nda" | "im" | "rentRoll", title: string) {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
 
@@ -196,10 +204,18 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       formData.append("file", file);
       const fileUrl = await uploadContentFile(formData);
 
-      // Master NDA is one-per-asset — replace in place instead of creating
-      // a duplicate row that would be hidden behind the existing one.
+      // Master NDA + rent roll are one-per-asset — replace in place instead
+      // of creating a duplicate row that would be hidden behind the existing.
       const existingMaster =
-        stageKey === "nda" ? ndaContent : null;
+        kind === "nda" ? ndaContent :
+        kind === "rentRoll" ? rentRollContent :
+        null;
+
+      // Rent roll lives under the "im" stage so it inherits the same
+      // post-NDA-approval gating; the isRentRoll flag distinguishes it
+      // from the actual IM PDFs in both the admin and investor views.
+      const stageKey = kind === "nda" ? "nda" : "im";
+      const keyMetrics = kind === "rentRoll" ? { isRentRoll: true } : undefined;
 
       if (existingMaster) {
         await updateAssetContent(existingMaster.id, {
@@ -207,8 +223,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
           fileName: file.name,
           title,
           isPublished: true,
+          ...(keyMetrics ? { keyMetrics } : {}),
         });
-        toast.success(`${stageKey.toUpperCase()} document replaced`);
+        toast.success(`${kind === "rentRoll" ? "Rent roll" : kind.toUpperCase()} document replaced`);
       } else {
         await createAssetContent({
           assetId,
@@ -218,8 +235,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
           fileUrl,
           fileName: file.name,
           isPublished: true,
+          ...(keyMetrics ? { keyMetrics } : {}),
         });
-        toast.success(`${stageKey.toUpperCase()} document uploaded`);
+        toast.success(`${kind === "rentRoll" ? "Rent roll" : kind.toUpperCase()} document uploaded`);
       }
 
       setAddDialogOpen(false);
@@ -663,6 +681,84 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         )}
       </section>
 
+      <Separator />
+
+      {/* Rent Roll Section — single xlsx, download-only, gated by NDA approval */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Rent Roll</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Excel attachment — unlocks for investors after NDA approval, alongside the IM
+            </p>
+          </div>
+          {!rentRollContent && editable && (
+            <Button
+              size="sm"
+              onClick={() => { setAddType("rentRoll"); setAddDialogOpen(true); }}
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Upload Rent Roll
+            </Button>
+          )}
+        </div>
+
+        {rentRollContent ? (
+          <div className="rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-soft-research-soft text-soft-research">
+                  <FileSpreadsheet className="h-5 w-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{rentRollContent.fileName || rentRollContent.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Uploaded {formatDate(rentRollContent.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => handleDownload(rentRollContent.fileUrl, rentRollContent.fileName)}
+                >
+                  <Download className="mr-1 h-3 w-3" />
+                  Download
+                </Button>
+                {editable && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => { setAddType("rentRoll"); setAddDialogOpen(true); }}
+                    >
+                      Replace
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs hover:border-status-danger/40 hover:text-status-danger"
+                      onClick={() => handleDelete(rentRollContent.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
+            <FileSpreadsheet className="mx-auto h-8 w-8 text-muted-foreground/40" />
+            <p className="mt-2 text-sm text-muted-foreground">No rent roll uploaded yet</p>
+            <p className="text-xs text-muted-foreground/60">Upload an Excel file (.xlsx) — investors download it after NDA approval</p>
+          </div>
+        )}
+      </section>
+
       {/* PDF Preview Modal */}
       {previewUrl && (
         <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
@@ -820,16 +916,20 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {addType === "nda" ? "Upload NDA Document" : "Add IM Material"}
+              {addType === "nda"
+                ? "Upload NDA Document"
+                : addType === "rentRoll"
+                  ? "Upload Rent Roll"
+                  : "Add IM Material"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>PDF File</Label>
+              <Label>{addType === "rentRoll" ? "Excel File (.xlsx)" : "PDF File"}</Label>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf"
+                accept={addType === "rentRoll" ? ".xlsx,.xls" : ".pdf"}
                 className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
               />
             </div>
@@ -839,7 +939,11 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             <Button
               onClick={() => handleUploadContent(
                 addType,
-                addType === "nda" ? "NDA" : "Information Memorandum"
+                addType === "nda"
+                  ? "NDA"
+                  : addType === "rentRoll"
+                    ? "Rent Roll"
+                    : "Information Memorandum"
               )}
               disabled={uploading}
             >
