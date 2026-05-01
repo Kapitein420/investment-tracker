@@ -81,11 +81,28 @@ export async function getViewerAccessibleAssetIds(
   if (role === "ADMIN" || role === "EDITOR") return null;
   if (role !== "VIEWER") return [];
 
-  const rows = await prisma.assetViewerAccess.findMany({
-    where: { userId },
-    select: { assetId: true },
-  });
-  return rows.map((r) => r.assetId);
+  // Defensive: if the AssetViewerAccess table doesn't exist yet (prod DB
+  // out of sync with the schema after a `db push` was missed), fail
+  // closed instead of 500-ing the entire homepage. Empty list ⇒ the
+  // dashboard renders the empty-state branch, which the operator can
+  // diagnose and unblock with one `prisma db push`.
+  try {
+    const rows = await prisma.assetViewerAccess.findMany({
+      where: { userId },
+      select: { assetId: true },
+    });
+    return rows.map((r) => r.assetId);
+  } catch (e: any) {
+    if (e?.code === "P2021") {
+      console.error(
+        "[getViewerAccessibleAssetIds] AssetViewerAccess table missing on this DB — " +
+          "run `prisma db push` to sync. Returning empty access list as fallback.",
+        e
+      );
+      return [];
+    }
+    throw e;
+  }
 }
 
 /**
