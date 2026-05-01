@@ -121,29 +121,14 @@ export function PrintableSignedNda({ data }: Props) {
       const pageCount = Math.max(1, Math.ceil(canvasHeightPx / contentHeightPx));
 
       const drawHeader = () => {
-        // Logo (PNG) — left-aligned. Aspect ratio of the brand kit asset
-        // is roughly 4:1, so 24mm wide → 6mm tall sits comfortably inside
-        // the 14mm header band.
-        if (logoDataUrl) {
-          try {
-            pdf.addImage(logoDataUrl, "PNG", MARGIN_MM, MARGIN_MM - 6, 24, 8);
-          } catch {
-            // Fall through to text fallback below.
-          }
-        } else {
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(12);
-          pdf.setTextColor(36, 92, 99);
-          pdf.text("DILS", MARGIN_MM, MARGIN_MM);
-        }
-
-        // Right side — document type + asset
+        // Header is now text-only — the previous brand-kit logo had a 4:1
+        // aspect that pdfkit's fixed 24x8 box stretched on output. Right-
+        // aligned doc-type label is enough to identify the page.
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
         pdf.setTextColor(31, 41, 55);
         const headerRight = `Non-Disclosure Agreement · ${data.assetTitle}`;
-        // Truncate if it's silly-long so it never collides with the logo
-        const maxRightWidth = PAGE_WIDTH_MM - MARGIN_MM - 30 - MARGIN_MM;
+        const maxRightWidth = PAGE_WIDTH_MM - MARGIN_MM * 2;
         let displayed = headerRight;
         let displayedWidth = pdf.getTextWidth(displayed);
         while (displayedWidth > maxRightWidth && displayed.length > 8) {
@@ -154,7 +139,7 @@ export function PrintableSignedNda({ data }: Props) {
         const rightX = PAGE_WIDTH_MM - MARGIN_MM - pdf.getTextWidth(displayed);
         pdf.text(displayed, rightX, MARGIN_MM);
 
-        // Underline
+        // Underline rule beneath header
         pdf.setDrawColor(229, 231, 235);
         pdf.setLineWidth(0.2);
         pdf.line(MARGIN_MM, MARGIN_MM + 4, PAGE_WIDTH_MM - MARGIN_MM, MARGIN_MM + 4);
@@ -180,14 +165,14 @@ export function PrintableSignedNda({ data }: Props) {
         const pageTextWidth = pdf.getTextWidth(pageText);
         pdf.text(pageText, PAGE_WIDTH_MM - MARGIN_MM - pageTextWidth, footerY + 5);
 
-        // Document ID — subtle, second line
+        // Document ID — subtle, second line. Kept for audit cross-reference
+        // even though the corporate footer was removed; CUIDs aren't
+        // guessable and the /portal/signed-nda/[id] route enforces
+        // per-tracking access control, so showing it here doesn't grant
+        // any extra reach.
         pdf.setFontSize(6);
         pdf.setTextColor(170, 174, 181);
         pdf.text(`Doc ID: ${data.documentId}`, MARGIN_MM, footerY + 9);
-
-        const corp = "DILS Group B.V. · dils.nl";
-        const corpWidth = pdf.getTextWidth(corp);
-        pdf.text(corp, PAGE_WIDTH_MM - MARGIN_MM - corpWidth, footerY + 9);
       };
 
       // Slice the captured canvas into per-page chunks. We composite each
@@ -369,6 +354,22 @@ export function PrintableSignedNda({ data }: Props) {
           hits Cmd/Ctrl+P or our Print button (browsers' "Save as PDF"
           option from this dialog gives text-selectable output). */}
       <style jsx global>{`
+        /* The HTML NDA template wraps every fillable value in
+           <span class="field"> with a border-bottom that visualises
+           the "____" line in the unsigned preview. In the signed
+           render the field IS filled, but inline-block baseline
+           alignment puts that border roughly at the surrounding text's
+           baseline — which html2canvas captures as a strikethrough
+           through the typed value. Strip the underline + minimum width
+           on the printable surface so signed values render cleanly in
+           both the on-screen view and the rasterised PDF download. */
+        .nda-print-surface .nda-doc .field,
+        .nda-print-surface .nda-doc .field-inline {
+          border-bottom: 0 !important;
+          padding-bottom: 0 !important;
+          min-width: 0 !important;
+        }
+
         @media print {
           @page {
             size: A4;

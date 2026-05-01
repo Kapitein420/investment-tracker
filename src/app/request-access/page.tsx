@@ -54,8 +54,7 @@ export default function RequestAccessPage() {
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     If <strong>{email}</strong> is on the access list for the DILS
                     Investment Portal, you&rsquo;ll receive an email with your login
-                    credentials shortly. Use those to sign in, then change your
-                    password once you&rsquo;re in.
+                    credentials shortly.
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed pt-1">
                     No email arrives within 5 minutes? Reply to the message your
