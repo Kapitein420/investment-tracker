@@ -135,9 +135,9 @@ export async function requestPasswordReset(
           ctaLabel: "Sign in to the portal",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-              You'll be asked to set your own password the first time you sign in. If you didn't
-              request access, you can safely ignore this email — no action is needed and your
-              account stays inactive. For questions, reply to your DILS broker directly.
+              If you didn't request access, you can safely ignore this email — no action is
+              needed and your account stays inactive. For questions, reply to your DILS broker
+              directly.
             </p>
           `,
         }
