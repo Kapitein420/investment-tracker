@@ -69,6 +69,31 @@ export async function createUser(data: CreateUserInput) {
     },
   });
 
+  // Seed VIEWER asset access if the admin pre-selected assets in the
+  // create dialog — saves them a second click into Manage access right
+  // after creating the account.
+  if (
+    validated.role === "VIEWER" &&
+    validated.accessibleAssetIds &&
+    validated.accessibleAssetIds.length > 0
+  ) {
+    const validAssets = await prisma.asset.findMany({
+      where: { id: { in: validated.accessibleAssetIds } },
+      select: { id: true },
+    });
+    if (validAssets.length > 0) {
+      const adminUser = await requireRole("ADMIN");
+      await prisma.assetViewerAccess.createMany({
+        data: validAssets.map((a) => ({
+          userId: user.id,
+          assetId: a.id,
+          grantedByUserId: adminUser.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   revalidatePath("/admin/users");
   return user;
 }
