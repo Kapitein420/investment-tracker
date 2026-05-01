@@ -10,7 +10,10 @@ export const authOptions: NextAuthOptions = {
     maxAge: 8 * 60 * 60, // 8 hours
     updateAge: 60 * 60, // refresh every hour
   },
-  pages: { signIn: "/login" },
+  // Route NextAuth's built-in error page (which 500s on
+  // ?error=Configuration in this deployment — see QC F-02) to /login,
+  // which renders a friendly message based on the `error` query param.
+  pages: { signIn: "/login", error: "/login" },
   providers: [
     CredentialsProvider({
       name: "credentials",

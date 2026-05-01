@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -8,12 +8,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// NextAuth redirects auth-flow errors to /login?error=<code> (we configure
+// pages.error in lib/auth.ts). Translate the codes to user-friendly text.
+// Read params via window.location to avoid the Suspense-boundary requirement
+// useSearchParams() carries in Next 14 — login is small enough that hooking
+// once on mount is cleaner than restructuring the page.
+function authErrorMessage(code: string | null): string {
+  if (!code) return "";
+  switch (code) {
+    case "Configuration":
+      return "Sign-in is temporarily unavailable. The team has been notified.";
+    case "AccessDenied":
+      return "Your account doesn't have access to this portal. Contact the deal team.";
+    case "Verification":
+      return "This sign-in link expired or was already used. Request a new one.";
+    case "CredentialsSignin":
+      return "Invalid email or password.";
+    default:
+      return "Couldn't sign you in. Please try again or contact the deal team.";
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code) setError(authErrorMessage(code));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
