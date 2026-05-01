@@ -12,9 +12,21 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
  * number so the worst case is `concurrent_functions × connection_limit`
  * connections — predictable instead of runaway.
  *
+ * `connection_limit=1` is the official PgBouncer-with-Prisma recommendation
+ * for serverless: each function instance owns a single shared connection,
+ * Prisma internally queues parallel queries onto it. With Vercel Fluid
+ * Compute reusing instances, this is plenty fast. We had connection_limit=3
+ * before and were still hitting the 15-client session-mode cap during
+ * normal traffic; lowering to 1 multiplies headroom by 3×.
+ *
  * `pool_timeout` makes Prisma fail fast (20s) instead of hanging on a
  * starved pool, so the request returns a 500 with a clear log entry
  * rather than timing out the whole serverless invocation.
+ *
+ * IMPORTANT — full fix requires switching DATABASE_URL on Vercel to
+ * Supabase's Transaction-mode pooler (port 6543) with ?pgbouncer=true.
+ * Session mode (port 5432) hard-caps at ~15 concurrent clients regardless
+ * of what we set here; transaction mode handles thousands. See .env.example.
  *
  * If the env URL already specifies these, we leave it alone — admin can
  * still tune it on Vercel.
@@ -24,7 +36,7 @@ function buildDatabaseUrl(): string | undefined {
   if (!raw) return raw;
   let url = raw;
   if (!/[?&]connection_limit=/i.test(url)) {
-    url += (url.includes("?") ? "&" : "?") + "connection_limit=3";
+    url += (url.includes("?") ? "&" : "?") + "connection_limit=1";
   }
   if (!/[?&]pool_timeout=/i.test(url)) {
     url += "&pool_timeout=20";
