@@ -1,6 +1,29 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+// Routes that require an authenticated session. Anything else flowing
+// through this middleware (e.g. /login, /sign/[token], /forgot-password)
+// runs purely for header-stripping side-effects.
+function isProtected(path: string): boolean {
+  if (path === "/") return true;
+  return (
+    path.startsWith("/assets") ||
+    path.startsWith("/admin") ||
+    path.startsWith("/portal")
+  );
+}
+
+// Vercel's edge layer attaches `X-Matched-Path` to every response, leaking
+// the file-system route shape (e.g. `/sign/[token]`, `/api/auth/[...nextauth]`)
+// to anyone running curl. Stripping it from the middleware response covers
+// the routes the matcher hits; Vercel may re-add it on bypassed paths, so
+// this is best-effort defence-in-depth rather than a full guarantee.
+// (QC finding F-06.)
+function strip(res: NextResponse): NextResponse {
+  res.headers.delete("x-matched-path");
+  return res;
+}
+
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
@@ -24,14 +47,14 @@ export default withAuth(
         !path.startsWith("/portal/change-password") &&
         !path.startsWith("/api/auth")
       ) {
-        return NextResponse.redirect(new URL("/portal/change-password", req.url));
+        return strip(NextResponse.redirect(new URL("/portal/change-password", req.url)));
       }
     }
 
     // INVESTOR role: redirect away from admin routes to portal
     if (token?.role === "INVESTOR") {
       if (path === "/" || path.startsWith("/assets") || path.startsWith("/admin")) {
-        return NextResponse.redirect(new URL("/portal", req.url));
+        return strip(NextResponse.redirect(new URL("/portal", req.url)));
       }
     }
 
@@ -47,28 +70,33 @@ export default withAuth(
       token?.role !== "INVESTOR" &&
       token?.role !== "ADMIN"
     ) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return strip(NextResponse.redirect(new URL("/", req.url)));
     }
 
     // Admin routes require ADMIN role
     if (path.startsWith("/admin") && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
+      return strip(NextResponse.redirect(new URL("/", req.url)));
     }
 
-    return NextResponse.next();
+    return strip(NextResponse.next());
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      // Public paths still flow through the middleware function so the
+      // X-Matched-Path strip applies; only protected paths fail closed
+      // when the session cookie is missing.
+      authorized: ({ req, token }) =>
+        !isProtected(req.nextUrl.pathname) || !!token,
     },
   }
 );
 
 export const config = {
   matcher: [
-    "/",
-    "/assets/:path*",
-    "/admin/:path*",
-    "/portal/:path*",
+    // Match everything except Next.js internals + the NextAuth handler
+    // (which manages its own response shape). Auth enforcement is gated
+    // inside `authorized()` so public routes still benefit from the
+    // header strip without being blocked.
+    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
   ],
 };
