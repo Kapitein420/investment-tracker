@@ -181,6 +181,11 @@ model Company {
   legalName    String?
   type         CompanyType @default(INVESTOR)
   website      String?
+  // contactName/contactEmail are kept as the "primary contact" pointer
+  // for backwards compatibility. The full list of contacts (which can
+  // grow when an admin imports more rows for an existing company) lives
+  // in CompanyContact below — that's the source of truth for "who do
+  // we know at this firm".
   contactName  String?
   contactEmail String?
   contactPhone String?
@@ -192,6 +197,32 @@ model Company {
   users       User[]
   memberships UserCompanyMembership[]
   invites     InvestorInvite[]
+  contacts    CompanyContact[]
+}
+
+// ─── 3b. CompanyContact ─────────────────────────────────────────────────────
+// Lightweight address-book entry. Captures a person at a Company without
+// creating a User account or sending an email — useful for CSV imports
+// where the same firm appears across multiple rows with different people,
+// long before anyone is ready to actually invite them.
+//
+// Once an admin chooses to invite a CompanyContact, the Bulk Invite flow
+// promotes it into a User + UserCompanyMembership (and only then does an
+// email go out).
+model CompanyContact {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String?
+  email     String
+  role      String?  // optional free-text label e.g. "Investment Manager"
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, email])
+  @@index([companyId])
 }
 
 // ─── 4. PipelineStage ───────────────────────────────────────────────────────

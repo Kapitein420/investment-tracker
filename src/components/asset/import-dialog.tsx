@@ -139,6 +139,9 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
     imported: number;
     skipped: number;
     total: number;
+    contactsAdded?: number;
+    contactsExisted?: number;
+    contactsSkipped?: number;
     errors: Array<{ row: number; companyName: string; message: string }>;
   } | null>(null);
 
@@ -178,6 +181,9 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
         imported: res.imported,
         skipped: res.skipped ?? 0,
         total: res.total,
+        contactsAdded: (res as any).contactsAdded ?? 0,
+        contactsExisted: (res as any).contactsExisted ?? 0,
+        contactsSkipped: (res as any).contactsSkipped ?? 0,
         errors: res.errors ?? [],
       });
       if (res.errors && res.errors.length > 0) {
@@ -186,7 +192,14 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
           { duration: 12000 }
         );
       } else {
-        toast.success(`Imported ${res.imported} compan${res.imported === 1 ? "y" : "ies"}${res.skipped ? ` (${res.skipped} already existed)` : ""}.`);
+        const added = (res as any).contactsAdded ?? 0;
+        const existed = res.skipped ?? 0;
+        const parts = [
+          `Imported ${res.imported} new compan${res.imported === 1 ? "y" : "ies"}`,
+          existed ? `${existed} already on this asset` : null,
+          added ? `${added} new contact${added === 1 ? "" : "s"} added` : null,
+        ].filter(Boolean);
+        toast.success(parts.join(" · ") + ".");
       }
       router.refresh();
     } catch (error: any) {
@@ -228,11 +241,24 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
               </div>
               <div className="text-center">
                 <p className="text-lg font-semibold">
-                  {result.imported} of {result.total} companies imported
+                  {result.imported} new compan{result.imported === 1 ? "y" : "ies"} added
                 </p>
                 {result.skipped > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    {result.skipped} already existed (skipped)
+                    {result.skipped} already on this asset (no duplicate row created)
+                  </p>
+                )}
+                {(result.contactsAdded ?? 0) > 0 && (
+                  <p className="text-sm text-emerald-700 mt-1">
+                    +{result.contactsAdded} new contact{result.contactsAdded === 1 ? "" : "s"} captured
+                    {(result.contactsExisted ?? 0) > 0 && (
+                      <span className="text-muted-foreground"> · {result.contactsExisted} contact{result.contactsExisted === 1 ? " was" : "s were"} already known</span>
+                    )}
+                  </p>
+                )}
+                {(result.contactsSkipped ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {result.contactsSkipped} row{result.contactsSkipped === 1 ? "" : "s"} had no email — contact not stored
                   </p>
                 )}
                 {result.errors.length > 0 && (

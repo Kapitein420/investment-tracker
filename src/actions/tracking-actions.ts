@@ -450,7 +450,14 @@ export async function getTrackingDetail(id: string) {
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id },
     include: {
-      company: true,
+      company: {
+        include: {
+          contacts: {
+            orderBy: { createdAt: "asc" },
+            select: { id: true, name: true, email: true, role: true, createdAt: true },
+          },
+        },
+      },
       stageStatuses: {
         include: { stage: true },
         orderBy: { stage: { sequence: "asc" } },
@@ -513,6 +520,9 @@ export async function getTrackingDetail(id: string) {
     if (tracking.company) {
       (tracking.company as any).contactName = null;
       (tracking.company as any).contactEmail = null;
+      // Strip the address-book contact list too — same PII reasoning as
+      // the primary contact pointer above.
+      (tracking.company as any).contacts = [];
     }
     if (tracking.ownerUser) {
       (tracking.ownerUser as any).name = REDACTED_NAME;
@@ -677,8 +687,17 @@ export async function bulkImportTrackings(
   });
 
   const validTypes = ["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"];
+  // imported = (asset, company) tracking pairs newly created
+  // trackingsExisted = rows where the tracking already existed (still might
+  // add a new contact; not a "skip" anymore in the user-visible sense)
+  // contactsAdded = CompanyContact rows newly created
+  // contactsExisted = (companyId, email) already known — skipped silently
+  // contactsSkipped = CSV rows with no email — nothing to dedupe on
   let imported = 0;
-  let skipped = 0;
+  let trackingsExisted = 0;
+  let contactsAdded = 0;
+  let contactsExisted = 0;
+  let contactsSkipped = 0;
   const errors: Array<{ row: number; companyName: string; message: string }> = [];
 
   // Per-row processing with no enclosing $transaction. The previous version
@@ -688,12 +707,18 @@ export async function bulkImportTrackings(
   // Trade-off: a row that fails halfway through (e.g. tracking created but
   // stageStatus.createMany rejects) leaves a partial tracking. Acceptable
   // because the bulk import is admin-driven and re-running is idempotent
-  // (existing assetId+companyId pairs are skipped).
+  // (existing (assetId, companyId) and (companyId, email) pairs are skipped).
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+    const companyName = (row.companyName ?? "").trim();
+    const contactName = (row.contactName ?? "").trim() || null;
+    // Lowercase + trim email so case differences ("John@X.com" vs "john@x.com")
+    // collapse to one CompanyContact row under the unique index.
+    const contactEmail = (row.contactEmail ?? "").trim().toLowerCase() || null;
+
     try {
       let company = await prisma.company.findFirst({
-        where: { name: { equals: row.companyName, mode: "insensitive" } },
+        where: { name: { equals: companyName, mode: "insensitive" } },
       });
 
       if (!company) {
@@ -703,46 +728,78 @@ export async function bulkImportTrackings(
 
         company = await prisma.company.create({
           data: {
-            name: row.companyName,
+            name: companyName,
             type: companyType as any,
-            contactName: row.contactName || null,
-            contactEmail: row.contactEmail || null,
+            // Keep populating the legacy "primary contact" pointer fields
+            // for backwards compat with code that still reads them.
+            contactName,
+            contactEmail,
           },
         });
       }
 
-      const existing = await prisma.assetCompanyTracking.findUnique({
+      const existingTracking = await prisma.assetCompanyTracking.findUnique({
         where: { assetId_companyId: { assetId, companyId: company.id } },
       });
 
-      if (existing) {
-        skipped++;
-        continue;
-      }
-
-      const tracking = await prisma.assetCompanyTracking.create({
-        data: {
-          assetId,
-          companyId: company.id,
-          relationshipType: row.companyType || "Investor",
-          interestLevel:
-            row.interestLevel && ["HOT", "WARM", "COLD", "NONE"].includes(row.interestLevel.toUpperCase())
-              ? (row.interestLevel.toUpperCase() as any)
-              : null,
-        },
-      });
-
-      if (stages.length > 0) {
-        await prisma.stageStatus.createMany({
-          data: stages.map((stage) => ({
-            trackingId: tracking.id,
-            stageId: stage.id,
-            status: "NOT_STARTED" as const,
-          })),
+      if (existingTracking) {
+        trackingsExisted++;
+      } else {
+        const tracking = await prisma.assetCompanyTracking.create({
+          data: {
+            assetId,
+            companyId: company.id,
+            relationshipType: row.companyType || "Investor",
+            interestLevel:
+              row.interestLevel && ["HOT", "WARM", "COLD", "NONE"].includes(row.interestLevel.toUpperCase())
+                ? (row.interestLevel.toUpperCase() as any)
+                : null,
+          },
         });
+
+        if (stages.length > 0) {
+          await prisma.stageStatus.createMany({
+            data: stages.map((stage) => ({
+              trackingId: tracking.id,
+              stageId: stage.id,
+              status: "NOT_STARTED" as const,
+            })),
+          });
+        }
+
+        imported++;
       }
 
-      imported++;
+      // Always try to add the contact, regardless of whether the tracking
+      // is new — this is the whole point of the multi-contact-per-company
+      // story. Dedup is handled by the CompanyContact (companyId, email)
+      // unique index.
+      if (!contactEmail) {
+        contactsSkipped++;
+      } else {
+        const existingContact = await prisma.companyContact.findUnique({
+          where: { companyId_email: { companyId: company.id, email: contactEmail } },
+        });
+        if (existingContact) {
+          contactsExisted++;
+          // Backfill name if we have one and the existing row didn't
+          if (!existingContact.name && contactName) {
+            await prisma.companyContact.update({
+              where: { id: existingContact.id },
+              data: { name: contactName },
+            });
+          }
+        } else {
+          await prisma.companyContact.create({
+            data: {
+              companyId: company.id,
+              name: contactName,
+              email: contactEmail,
+            },
+          });
+          contactsAdded++;
+        }
+      }
     } catch (e: any) {
       errors.push({
         row: i + 1,
@@ -754,5 +811,15 @@ export async function bulkImportTrackings(
   }
 
   revalidatePath(`/assets/${assetId}`);
-  return { imported, skipped, errors, total: rows.length };
+  return {
+    imported,
+    // legacy field kept for backwards compat with the dialog's old result UI
+    skipped: trackingsExisted,
+    trackingsExisted,
+    contactsAdded,
+    contactsExisted,
+    contactsSkipped,
+    errors,
+    total: rows.length,
+  };
 }

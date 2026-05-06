@@ -416,9 +416,45 @@ export function TrackingDetailDrawer({
               {/* Company info */}
               <div className="rounded-md bg-gray-50 p-3 text-xs space-y-1">
                 <p className="font-medium">{detail.company.name}</p>
-                {showPII && detail.company.contactName && <p>Contact: {detail.company.contactName}</p>}
-                {showPII && detail.company.contactEmail && <p>Email: {detail.company.contactEmail}</p>}
                 {detail.company.website && <p>Web: {detail.company.website}</p>}
+                {showPII && (() => {
+                  // Prefer the CompanyContact list (multi-contact, source of
+                  // truth). Fall back to legacy contactName/contactEmail when
+                  // no CompanyContacts have been recorded yet.
+                  const contacts: Array<{ id: string; name: string | null; email: string }> =
+                    detail.company.contacts ?? [];
+                  if (contacts.length > 0) {
+                    return (
+                      <div className="pt-1">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Contacts ({contacts.length})
+                        </p>
+                        <ul className="mt-0.5 space-y-0.5">
+                          {contacts.map((c) => (
+                            <li key={c.id}>
+                              {c.name ? `${c.name} — ` : ""}
+                              <a
+                                href={`mailto:${c.email}`}
+                                className="text-dils-700 hover:underline"
+                              >
+                                {c.email}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  }
+                  if (detail.company.contactName || detail.company.contactEmail) {
+                    return (
+                      <>
+                        {detail.company.contactName && <p>Contact: {detail.company.contactName}</p>}
+                        {detail.company.contactEmail && <p>Email: {detail.company.contactEmail}</p>}
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
                 {!showPII && (
                   <p className="inline-flex items-center gap-1 pt-1 text-[11px] text-muted-foreground italic">
                     <Lock className="h-3 w-3" strokeWidth={2.2} />
