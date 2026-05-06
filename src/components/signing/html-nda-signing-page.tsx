@@ -277,7 +277,12 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
             </div>
           </div>
 
-          {investorFields.length > 0 && (
+          {/* Document fields + signature pad belong to the in-portal sign
+              flow only. Hidden when the investor opts to upload a pre-signed
+              PDF instead, so the page doesn't ask for the same data twice
+              and the disabled "Sign and submit" button doesn't make the
+              page look stuck. */}
+          {investorFields.length > 0 && !uploadOpen && (
             <div>
               <h2 className="text-sm font-semibold">Document fields</h2>
               <div className="mt-3 space-y-3">
@@ -338,27 +343,31 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
             </div>
           )}
 
-          <div>
-            <h2 className="text-sm font-semibold">Signature</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Draw with your mouse or finger. By signing you agree to the NDA above.
-            </p>
-            <div className="mt-3">
-              <SignaturePad onChange={setSignature} width={320} height={140} />
-            </div>
-          </div>
+          {!uploadOpen && (
+            <>
+              <div>
+                <h2 className="text-sm font-semibold">Signature</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Draw with your mouse or finger. By signing you agree to the NDA above.
+                </p>
+                <div className="mt-3">
+                  <SignaturePad onChange={setSignature} width={320} height={140} />
+                </div>
+              </div>
 
-          <Button
-            className="w-full"
-            disabled={!canSubmit() || submitting || uploading}
-            onClick={handleSubmit}
-          >
-            {submitting ? "Submitting…" : "Sign and submit"}
-          </Button>
+              <Button
+                className="w-full"
+                disabled={!canSubmit() || submitting || uploading}
+                onClick={handleSubmit}
+              >
+                {submitting ? "Submitting…" : "Sign and submit"}
+              </Button>
 
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            By submitting, you confirm the values above are accurate and you have authority to bind {data.companyName}.
-          </p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                By submitting, you confirm the values above are accurate and you have authority to bind {data.companyName}.
+              </p>
+            </>
+          )}
 
           {/* Investor-uploaded NDA — alternative to the signature pad above.
               Same approval gate (admin still has to approve). The uploaded
