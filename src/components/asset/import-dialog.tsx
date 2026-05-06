@@ -68,27 +68,56 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-function parseCSV(text: string): ParsedRow[] {
-  const lines = text.split(/\r?\n/);
+function findColumn(header: string[], candidates: string[]): number {
+  for (const c of candidates) {
+    const idx = header.indexOf(c);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+// Header-aware parser. Required: a "company" column. Everything else
+// is optional and resolved by name (not position) so a CSV authored
+// for the bulk-invite flow (company_name,contact_name,email) doesn't
+// silently drop "contact_name" into the Type field.
+function parseCSV(text: string): { rows: ParsedRow[]; errors: string[] } {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { rows: [], errors: ["CSV is empty."] };
+
+  const errors: string[] = [];
+  const header = parseCSVLine(lines[0]).map((h) =>
+    h.toLowerCase().replace(/\s+/g, "_").replace(/^"|"$/g, "")
+  );
+
+  const colCompany = findColumn(header, ["company", "company_name", "name"]);
+  const colType = findColumn(header, ["type", "company_type", "relationship", "relationship_type"]);
+  const colContactName = findColumn(header, ["contact_name", "contact", "contact_person", "first_name"]);
+  const colContactEmail = findColumn(header, ["contact_email", "email", "e-mail"]);
+  const colInterest = findColumn(header, ["interest_level", "interest"]);
+
+  if (colCompany === -1) {
+    errors.push(
+      "Header row must include a 'Company' (or 'company_name'/'name') column. Expected headers: Company, Type, Contact Name, Contact Email, Interest Level."
+    );
+    return { rows: [], errors };
+  }
+
   const rows: ParsedRow[] = [];
-
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const parts = parseCSVLine(line);
-    if (!parts[0]) continue;
+    const parts = parseCSVLine(lines[i]);
+    const companyName = parts[colCompany] ?? "";
+    if (!companyName) continue;
 
     rows.push({
-      companyName: parts[0] || "",
-      companyType: parts[1] || "Investor",
-      contactName: parts[2] || "",
-      contactEmail: parts[3] || "",
-      interestLevel: parts[4] || "NONE",
+      companyName,
+      companyType: (colType >= 0 ? parts[colType] : "") || "Investor",
+      contactName: (colContactName >= 0 ? parts[colContactName] : "") || "",
+      contactEmail: (colContactEmail >= 0 ? parts[colContactEmail] : "") || "",
+      interestLevel: (colInterest >= 0 ? parts[colInterest] : "") || "NONE",
     });
   }
 
-  return rows;
+  return { rows, errors };
 }
 
 const INTEREST_COLORS: Record<string, string> = {
@@ -103,6 +132,7 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>("");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{
@@ -122,8 +152,9 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const rows = parseCSV(text);
+      const { rows, errors } = parseCSV(text);
       setParsedRows(rows);
+      setParseErrors(errors);
     };
     reader.readAsText(file);
   }
@@ -168,6 +199,7 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
   function handleClose(open: boolean) {
     if (!open) {
       setParsedRows([]);
+      setParseErrors([]);
       setFileName("");
       setResult(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -272,6 +304,24 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
                 />
               </div>
 
+              {/* Header / parse errors — surface header mismatches (e.g. a
+                  CSV authored for the bulk-invite flow) before the user can
+                  click Import and silently corrupt the data. */}
+              {parseErrors.length > 0 && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                  <p className="font-medium text-destructive">CSV header mismatch</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[12px] text-destructive/90">
+                    {parseErrors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Tip: download the template above and copy your data into it, or rename
+                    your headers to match.
+                  </p>
+                </div>
+              )}
+
               {/* Preview table */}
               {parsedRows.length > 0 && (
                 <div className="space-y-2">
@@ -321,7 +371,7 @@ export function ImportDialog({ open, onOpenChange, assetId }: ImportDialogProps)
               </Button>
               <Button
                 onClick={handleImport}
-                disabled={parsedRows.length === 0 || importing}
+                disabled={parsedRows.length === 0 || importing || parseErrors.length > 0}
               >
                 {importing ? "Importing..." : "Confirm Import"}
               </Button>
