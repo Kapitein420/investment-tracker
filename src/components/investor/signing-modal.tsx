@@ -40,6 +40,10 @@ interface SigningModalProps {
   assetTitle: string;
   defaultName?: string;
   defaultEmail?: string;
+  // When true, the "Or upload a pre-signed PDF" section is expanded as
+  // soon as the modal opens — used when the investor clicked the Upload
+  // PDF button on the journey card and shouldn't have to find the link.
+  initialUploadOpen?: boolean;
 }
 
 export function SigningModal({
@@ -51,6 +55,7 @@ export function SigningModal({
   assetTitle,
   defaultName,
   defaultEmail,
+  initialUploadOpen,
 }: SigningModalProps) {
   const router = useRouter();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -69,7 +74,7 @@ export function SigningModal({
     (k) => (fieldValues[k] ?? "").trim().length > 0
   );
 
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(!!initialUploadOpen);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -109,7 +114,7 @@ export function SigningModal({
       setSubmitting(false);
       setFieldValues({});
       setCustomFieldKeys([]);
-      setUploadOpen(false);
+      setUploadOpen(!!initialUploadOpen);
       setUploadFile(null);
       setUploading(false);
       if (completed) {
@@ -117,7 +122,7 @@ export function SigningModal({
         router.refresh();
       }
     }
-  }, [open, completed, router, defaultName, defaultEmail]);
+  }, [open, completed, router, defaultName, defaultEmail, initialUploadOpen]);
 
   async function handleSign() {
     if (!signerName) return toast.error("Please enter your full name.");

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface SigningPageProps {
 }
 
 export function SigningPage({ document: doc, token }: SigningPageProps) {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"sign" | "reject" | null>(null);
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
@@ -64,6 +66,14 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Auto-open the upload section when arriving from the journey card's
+  // "Or upload pre-signed PDF" link (?upload=1).
+  useEffect(() => {
+    if (searchParams.get("upload") === "1") {
+      setUploadOpen(true);
+    }
+  }, [searchParams]);
 
   function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
