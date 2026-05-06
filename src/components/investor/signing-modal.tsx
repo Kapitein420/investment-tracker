@@ -12,15 +12,18 @@ import { Separator } from "@/components/ui/separator";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { DynamicFieldInputs, extractCustomFields } from "@/components/signing/dynamic-fields";
 import {
-  FileText, Check, X, AlertTriangle, Pen, Download, Loader2,
+  FileText, Check, X, AlertTriangle, Pen, Download, Loader2, Upload,
 } from "lucide-react";
 import {
   signDocument,
   rejectDocument,
+  uploadInvestorNda,
   getSignedDocumentUrl,
   getDocumentPlaceholderInfo,
 } from "@/actions/document-actions";
 import { toast } from "sonner";
+
+const INVESTOR_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
 interface SigningModalProps {
   open: boolean;
@@ -66,6 +69,10 @@ export function SigningModal({
     (k) => (fieldValues[k] ?? "").trim().length > 0
   );
 
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   // Fetch signed URL + placeholder map when modal opens
   useEffect(() => {
     if (open && !pdfUrl) {
@@ -102,6 +109,9 @@ export function SigningModal({
       setSubmitting(false);
       setFieldValues({});
       setCustomFieldKeys([]);
+      setUploadOpen(false);
+      setUploadFile(null);
+      setUploading(false);
       if (completed) {
         setCompleted(null);
         router.refresh();
@@ -129,6 +139,48 @@ export function SigningModal({
       toast.error(e?.message || "Couldn't submit the signature. Please try again or contact the deal team.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) {
+      setUploadFile(null);
+      return;
+    }
+    if (file.type !== "application/pdf" && file.type !== "application/x-pdf") {
+      toast.error("Only PDF files are allowed.");
+      e.target.value = "";
+      setUploadFile(null);
+      return;
+    }
+    if (file.size > INVESTOR_UPLOAD_MAX_BYTES) {
+      toast.error("File too large. Maximum size is 5MB.");
+      e.target.value = "";
+      setUploadFile(null);
+      return;
+    }
+    setUploadFile(file);
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) return toast.error("Please choose a PDF to upload.");
+    if (!signerName) return toast.error("Please enter your full name.");
+    if (!signerEmail) return toast.error("Please enter your email address.");
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", uploadFile);
+      fd.set("token", token);
+      fd.set("signedByName", signerName);
+      fd.set("signedByEmail", signerEmail);
+      await uploadInvestorNda(fd);
+      setCompleted("signed");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't upload your NDA. Please try again or contact the deal team.");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -314,6 +366,7 @@ export function SigningModal({
                     onClick={handleSign}
                     disabled={
                       submitting ||
+                      uploading ||
                       !signerName ||
                       !signerEmail ||
                       !signatureData ||
@@ -327,10 +380,82 @@ export function SigningModal({
                       <><Pen className="mr-1.5 h-4 w-4" />Sign Document</>
                     )}
                   </Button>
-                  <Button variant="outline" className="w-full text-destructive sm:w-auto" onClick={() => setMode("reject")}>
+                  <Button
+                    variant="outline"
+                    className="w-full text-destructive sm:w-auto"
+                    onClick={() => setMode("reject")}
+                    disabled={submitting || uploading}
+                  >
                     <AlertTriangle className="mr-1.5 h-4 w-4" />
                     Decline
                   </Button>
+                </div>
+
+                {/* Investor-uploaded NDA — alternative to the signature pad above.
+                    Same approval gate (admin still has to approve in the drawer)
+                    but signature & field merging are skipped because the file
+                    is already a finished, signed PDF. */}
+                <div className="rounded-md border border-dashed bg-gray-50/60 p-3">
+                  {!uploadOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setUploadOpen(true)}
+                      disabled={submitting || uploading}
+                      className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+                    >
+                      Or upload a pre-signed PDF instead
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">Upload a pre-signed PDF</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            PDF only · max 5 MB. The deal team will review and approve before granting IM access.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setUploadOpen(false); setUploadFile(null); }}
+                          disabled={uploading}
+                          className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleUploadFileChange}
+                        disabled={uploading}
+                        className="text-xs"
+                      />
+                      {uploadFile && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {uploadFile.name} · {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleUpload}
+                        disabled={
+                          uploading ||
+                          submitting ||
+                          !uploadFile ||
+                          !signerName ||
+                          !signerEmail
+                        }
+                        className="w-full sm:w-auto"
+                      >
+                        {uploading ? (
+                          <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Uploading...</>
+                        ) : (
+                          <><Upload className="mr-1.5 h-3.5 w-3.5" />Upload signed NDA</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -20,9 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock } from "lucide-react";
+import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
 import { approveStage } from "@/actions/approval-actions";
+import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import { canSeeContactDetails } from "@/lib/permissions";
 import {
@@ -279,47 +280,109 @@ export function TrackingDetailDrawer({
               {/* NDA Approval section */}
               {editable && detail.stageStatuses
                 .filter((ss: any) => ss.status === "COMPLETED" && !ss.approvedAt && ss.stage.key === "nda")
-                .map((ss: any) => (
+                .map((ss: any) => {
+                  // Most-recent SIGNED NDA doc on this tracking — that's the
+                  // one the admin needs to download to vet before approving.
+                  const ndaDoc = (detail.documents ?? []).find(
+                    (d: any) => d.stage?.key === "nda" && d.status === "SIGNED"
+                  );
+                  const isInvestorUpload = ndaDoc?.signatureData === "INVESTOR_UPLOAD";
+                  // HTML NDA without an investor-uploaded PDF override has no
+                  // direct download — admin views it via the portal route.
+                  const hasDownloadableFile =
+                    ndaDoc &&
+                    (ndaDoc.mimeType !== "text/html" ||
+                      (ndaDoc.signedFileUrl && !ndaDoc.signedFileUrl.startsWith("html:")));
+
+                  async function handleDownloadNda() {
+                    if (!ndaDoc) return;
+                    try {
+                      const url = await getSignedDocumentUrl(ndaDoc.id);
+                      window.open(url, "_blank");
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Failed to get download link");
+                    }
+                  }
+
+                  return (
                   <div key={`approve-${ss.id}`} className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">NDA Signed — Awaiting Approval</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-amber-800">NDA Signed — Awaiting Approval</p>
+                          {ndaDoc && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] font-semibold",
+                                isInvestorUpload
+                                  ? "border-amber-400 bg-amber-100 text-amber-800"
+                                  : "border-amber-200 bg-white text-amber-700"
+                              )}
+                            >
+                              {isInvestorUpload ? (
+                                <><Upload className="mr-1 h-2.5 w-2.5" />Uploaded by investor</>
+                              ) : (
+                                "Signed via portal"
+                              )}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-amber-600 mt-0.5">
-                          Approve to unlock IM access for this investor
+                          {isInvestorUpload
+                            ? "Review the uploaded PDF before approving — IM access unlocks on approval."
+                            : "Approve to unlock IM access for this investor"}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs"
-                        onClick={async () => {
-                          // Approving an NDA fires a notification email AND
-                          // unlocks IM access. Both are user-visible actions
-                          // worth a confirmation step (consistent with the
-                          // other invite/email guard rails added in PR #25).
-                          const company = detail?.company?.name ?? "this investor";
-                          if (
-                            !confirm(
-                              `Approve NDA for ${company}?\n\nThis will:\n  • Send an "NDA approved" email to the investor\n  • Unlock IM access for them\n\nContinue?`
-                            )
-                          ) {
-                            return;
-                          }
-                          try {
-                            await approveStage(trackingId, "nda");
-                            toast.success("NDA approved — IM access unlocked");
-                            loadDetail();
-                            router.refresh();
-                          } catch {
-                            toast.error("Failed to approve");
-                          }
-                        }}
-                      >
-                        <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-                        Approve NDA
-                      </Button>
+                      <div className="flex gap-2">
+                        {hasDownloadableFile && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-amber-300 bg-white text-xs text-amber-800 hover:bg-amber-100"
+                            onClick={handleDownloadNda}
+                          >
+                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                            Download
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs"
+                          onClick={async () => {
+                            // Approving an NDA fires a notification email AND
+                            // unlocks IM access. Both are user-visible actions
+                            // worth a confirmation step (consistent with the
+                            // other invite/email guard rails added in PR #25).
+                            const company = detail?.company?.name ?? "this investor";
+                            const sourceNote = isInvestorUpload
+                              ? "\n\n  ⚠ The NDA was UPLOADED by the investor — make sure you've reviewed the file."
+                              : "";
+                            if (
+                              !confirm(
+                                `Approve NDA for ${company}?\n\nThis will:\n  • Send an "NDA approved" email to the investor\n  • Unlock IM access for them${sourceNote}\n\nContinue?`
+                              )
+                            ) {
+                              return;
+                            }
+                            try {
+                              await approveStage(trackingId, "nda");
+                              toast.success("NDA approved — IM access unlocked");
+                              loadDetail();
+                              router.refresh();
+                            } catch {
+                              toast.error("Failed to approve");
+                            }
+                          }}
+                        >
+                          <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                          Approve NDA
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
               {/* Editable fields */}
               {editable && (

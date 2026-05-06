@@ -471,7 +471,12 @@ export async function getSignedDocumentUrl(documentId: string) {
 
   // HTML NDAs are rendered server-side at /portal/signed-nda/[id]; they don't
   // have a downloadable file. Refuse rather than 500ing inside Supabase.
-  if (doc.mimeType === "text/html" || isHtmlNdaSentinel(doc.fileUrl)) {
+  // Exception: if the investor uploaded their own pre-signed PDF for an
+  // HTML-template NDA, signedFileUrl points to a real Supabase path —
+  // honour that and allow download.
+  const hasRealSignedFile =
+    !!doc.signedFileUrl && !isHtmlNdaSentinel(doc.signedFileUrl);
+  if (!hasRealSignedFile && (doc.mimeType === "text/html" || isHtmlNdaSentinel(doc.fileUrl))) {
     throw new Error("HTML NDA documents are viewed via the portal — no download URL.");
   }
 
@@ -888,6 +893,153 @@ export async function signDocument(data: {
       e
     );
   }
+
+  return { success: true };
+}
+
+/**
+ * Investor-uploaded NDA flow: investor provides a pre-signed PDF (signed
+ * offline / by their counsel) instead of the in-portal signature pad. Same
+ * approval gate as signDocument — admin still has to review and approve via
+ * the tracking drawer banner before IM access unlocks.
+ *
+ * signatureData is set to the literal sentinel "INVESTOR_UPLOAD" so the
+ * admin UI can flag the source. signedFileUrl points directly to the
+ * uploaded path — no PDF re-render is needed (the file IS the signed copy).
+ */
+export async function uploadInvestorNda(formData: FormData) {
+  const file = formData.get("file") as File | null;
+  const token = formData.get("token") as string | null;
+  const signedByName = ((formData.get("signedByName") as string | null) ?? "").trim();
+  const signedByEmail = ((formData.get("signedByEmail") as string | null) ?? "").trim();
+
+  if (!file) throw new Error("No file provided");
+  if (!token) throw new Error("Missing signing token");
+  if (!signedByName) throw new Error("Your full name is required");
+  z.string().email("Valid email is required").parse(signedByEmail);
+
+  // 5 MB cap — tighter than the 10 MB admin upload limit; this is a one-off
+  // NDA, not a marketing PDF.
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File too large. Maximum size is 5MB.");
+  }
+  if (file.type !== "application/pdf" && file.type !== "application/x-pdf") {
+    throw new Error("Only PDF files are allowed");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (!buffer.slice(0, 4).toString().startsWith("%PDF")) {
+    throw new Error("Invalid PDF file (failed magic byte check)");
+  }
+
+  // ── Step 1: Read-only token validation ──
+  const signingToken = await prisma.signingToken.findUnique({
+    where: { token },
+    include: { document: true },
+  });
+  if (!signingToken) throw new Error("Invalid signing token");
+  if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
+  if (signingToken.usedAt !== null) throw new Error("Token already used");
+
+  const document = signingToken.document;
+  const signedAt = new Date();
+
+  // Upload BEFORE the transaction — Supabase isn't transactional with
+  // Postgres, and a long upload inside the txn would hold the row lock
+  // longer than necessary. Worst case if the txn fails: an orphan PDF in
+  // storage (cleaned up below), no DB record.
+  const safeName = (file.name || "investor-nda.pdf").replace(/[^\w.\-]/g, "_");
+  const uploadedPath = `documents/${document.trackingId}/investor_${Date.now()}_${safeName}`;
+  await uploadBytes(buffer, uploadedPath, "application/pdf");
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Atomic re-claim — see signDocument for rationale.
+      await tx.signingToken.update({
+        where: { id: signingToken.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      await tx.document.update({
+        where: { id: document.id },
+        data: {
+          status: "SIGNED",
+          signedAt,
+          signedByName,
+          signedByEmail,
+          signatureData: "INVESTOR_UPLOAD",
+          signedFileUrl: uploadedPath,
+          // For HTML-template NDAs the investor uploaded a real PDF — flip
+          // mimeType so download/view code paths treat it like a PDF doc.
+          // fileUrl is left as the original "html:..." sentinel for audit.
+          ...(document.mimeType === "text/html"
+            ? { mimeType: "application/pdf" }
+            : {}),
+        },
+      });
+
+      const currentStageStatus = await tx.stageStatus.findUnique({
+        where: {
+          trackingId_stageId: {
+            trackingId: document.trackingId,
+            stageId: document.stageId,
+          },
+        },
+      });
+      const oldStatus = currentStageStatus?.status ?? "NOT_STARTED";
+
+      await tx.stageStatus.update({
+        where: {
+          trackingId_stageId: {
+            trackingId: document.trackingId,
+            stageId: document.stageId,
+          },
+        },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+
+      await tx.stageHistory.create({
+        data: {
+          trackingId: document.trackingId,
+          stageId: document.stageId,
+          fieldName: "status",
+          oldValue: oldStatus,
+          newValue: "COMPLETED",
+          changedByUserId: document.uploadedByUserId,
+        },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          entityType: "Document",
+          entityId: document.id,
+          action: "DOCUMENT_INVESTOR_UPLOADED",
+          metadata: {
+            trackingId: document.trackingId,
+            signedByName,
+            originalFileName: file.name,
+            fileSize: file.size,
+          },
+          userId: document.uploadedByUserId,
+        },
+      });
+    });
+  } catch (e: any) {
+    // Best-effort cleanup of the orphan upload — log only, never shadow
+    // the original error.
+    try {
+      await deleteFile(uploadedPath);
+    } catch (cleanupErr) {
+      console.error("[uploadInvestorNda] orphan cleanup failed:", cleanupErr);
+    }
+    if (e?.code === "P2025") {
+      throw new Error("This signing link has already been used. Please contact your broker for a new link.");
+    }
+    throw e;
+  }
+
+  await syncCurrentStageKeyAfterCommit(document.trackingId);
 
   return { success: true };
 }
