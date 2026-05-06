@@ -301,7 +301,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
             </div>
 
-            {customFieldKeys.length > 0 && (
+            {customFieldKeys.length > 0 && !uploadOpen && (
               <div className="space-y-3 rounded-md border border-dils-200 bg-dils-50/40 p-4">
                 <div>
                   <p className="font-heading text-sm font-semibold text-dils-black">Document fields</p>
@@ -318,10 +318,12 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label>Your signature</Label>
-              <SignaturePad onChange={setSignatureData} />
-            </div>
+            {!uploadOpen && (
+              <div className="space-y-2">
+                <Label>Your signature</Label>
+                <SignaturePad onChange={setSignatureData} />
+              </div>
+            )}
 
             <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
               <p className="font-medium text-foreground">Data Privacy Notice</p>
@@ -336,31 +338,33 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </p>
             </div>
 
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
-              <Button
-                onClick={handleSign}
-                disabled={
-                  submitting ||
-                  uploading ||
-                  !signerName ||
-                  !signerEmail ||
-                  !signatureData ||
-                  !allCustomFieldsFilled
-                }
-                className="w-full sm:flex-1"
-              >
-                {submitting ? "Signing..." : "Sign Document"}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full text-destructive sm:w-auto"
-                onClick={() => setMode("reject")}
-                disabled={submitting || uploading}
-              >
-                <AlertTriangle className="mr-1.5 h-4 w-4" />
-                Decline
-              </Button>
-            </div>
+            {!uploadOpen && (
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
+                <Button
+                  onClick={handleSign}
+                  disabled={
+                    submitting ||
+                    uploading ||
+                    !signerName ||
+                    !signerEmail ||
+                    !signatureData ||
+                    !allCustomFieldsFilled
+                  }
+                  className="w-full sm:flex-1"
+                >
+                  {submitting ? "Signing..." : "Sign Document"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-destructive sm:w-auto"
+                  onClick={() => setMode("reject")}
+                  disabled={submitting || uploading}
+                >
+                  <AlertTriangle className="mr-1.5 h-4 w-4" />
+                  Decline
+                </Button>
+              </div>
+            )}
 
             {/* Investor-uploaded NDA — alternative to the signature pad above.
                 Same approval gate (admin still has to approve in the drawer)
