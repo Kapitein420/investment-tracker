@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { signHtmlNda } from "@/actions/html-nda-actions";
+import { uploadInvestorNda } from "@/actions/document-actions";
 import { renderTemplate, injectSignature } from "@/lib/html-nda-template";
 import type { TemplateField } from "@/lib/html-nda-template";
 import { toast } from "sonner";
-import { Building2, Check, FileText } from "lucide-react";
+import { Building2, Check, FileText, Upload, Loader2 } from "lucide-react";
+
+const INVESTOR_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
 interface Props {
   data: {
@@ -26,12 +29,69 @@ interface Props {
 
 export function HtmlNdaSigningPage({ data, token }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [signature, setSignature] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
+
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Auto-open the upload section when arriving from the journey card's
+  // "Or upload pre-signed PDF" link (?upload=1).
+  useEffect(() => {
+    if (searchParams.get("upload") === "1") {
+      setUploadOpen(true);
+    }
+  }, [searchParams]);
+
+  function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) {
+      setUploadFile(null);
+      return;
+    }
+    if (file.type !== "application/pdf" && file.type !== "application/x-pdf") {
+      toast.error("Only PDF files are allowed.");
+      e.target.value = "";
+      setUploadFile(null);
+      return;
+    }
+    if (file.size > INVESTOR_UPLOAD_MAX_BYTES) {
+      toast.error("File too large. Maximum size is 5MB.");
+      e.target.value = "";
+      setUploadFile(null);
+      return;
+    }
+    setUploadFile(file);
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) return toast.error("Please choose a PDF to upload.");
+    if (!name.trim()) return toast.error("Please enter your full name.");
+    if (!email.trim()) return toast.error("Please enter your email address.");
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", uploadFile);
+      fd.set("token", token);
+      fd.set("signedByName", name);
+      fd.set("signedByEmail", email);
+      await uploadInvestorNda(fd);
+      setCompleted(true);
+      toast.success("NDA uploaded — thanks!");
+      setTimeout(() => router.push("/portal"), 1500);
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't upload your NDA. Please try again or contact the deal team.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // Investor-fillable fields = template fields not marked adminOnly and not
   // already present in adminFieldDefaults. NAME / FIRST_NAMES / SURNAME /
@@ -290,7 +350,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
 
           <Button
             className="w-full"
-            disabled={!canSubmit() || submitting}
+            disabled={!canSubmit() || submitting || uploading}
             onClick={handleSubmit}
           >
             {submitting ? "Submitting…" : "Sign and submit"}
@@ -299,6 +359,72 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             By submitting, you confirm the values above are accurate and you have authority to bind {data.companyName}.
           </p>
+
+          {/* Investor-uploaded NDA — alternative to the signature pad above.
+              Same approval gate (admin still has to approve). The uploaded
+              PDF replaces the HTML-rendered NDA as the signed copy. */}
+          <div className="rounded-md border border-dashed bg-gray-50/60 p-3">
+            {!uploadOpen ? (
+              <button
+                type="button"
+                onClick={() => setUploadOpen(true)}
+                disabled={submitting || uploading}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+              >
+                Or upload a pre-signed PDF instead
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Upload a pre-signed PDF</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      PDF only · max 5 MB. The deal team will review and approve before granting IM access.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setUploadOpen(false); setUploadFile(null); }}
+                    disabled={uploading}
+                    className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleUploadFileChange}
+                  disabled={uploading}
+                  className="text-xs"
+                />
+                {uploadFile && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {uploadFile.name} · {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleUpload}
+                  disabled={
+                    uploading ||
+                    submitting ||
+                    !uploadFile ||
+                    !name.trim() ||
+                    !email.trim()
+                  }
+                  className="w-full"
+                >
+                  {uploading ? (
+                    <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Uploading...</>
+                  ) : (
+                    <><Upload className="mr-1.5 h-3.5 w-3.5" />Upload signed NDA</>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </aside>
       </main>
     </div>

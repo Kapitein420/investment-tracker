@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, Building, MapPin, Calendar, Check, Clock, Lock, Pen, FileText, FileSpreadsheet,
-  Download, Eye, ChevronRight, Mail,
+  Download, Eye, ChevronRight, Mail, Upload,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { assetTypeToUnit } from "@/lib/stages";
@@ -149,6 +149,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
   const [signingDoc, setSigningDoc] = useState<any>(null);
   const [signingToken, setSigningToken] = useState<string>("");
+  const [signingInitialUpload, setSigningInitialUpload] = useState(false);
   const [requestingViewing, startRequestViewing] = useTransition();
 
   function handleRequestViewing() {
@@ -488,21 +489,46 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
                         <div className="flex flex-wrap items-center gap-2">
                           {canSign && (
-                            <Button
-                              size="sm"
-                              className="w-full sm:w-auto"
-                              onClick={() => {
-                                if (doc.mimeType === "text/html") {
-                                  window.location.href = `/sign/${activeToken}`;
-                                } else {
-                                  setSigningDoc(doc);
-                                  setSigningToken(activeToken);
-                                }
-                              }}
-                            >
-                              <Pen className="mr-1.5 h-3.5 w-3.5" />
-                              Sign Now
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  if (doc.mimeType === "text/html") {
+                                    window.location.href = `/sign/${activeToken}`;
+                                  } else {
+                                    setSigningInitialUpload(false);
+                                    setSigningDoc(doc);
+                                    setSigningToken(activeToken);
+                                  }
+                                }}
+                              >
+                                <Pen className="mr-1.5 h-3.5 w-3.5" />
+                                Sign Now
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  // Same destination as Sign Now, but the
+                                  // upload section is pre-expanded so the
+                                  // file picker is the first thing the
+                                  // investor sees.
+                                  if (doc.mimeType === "text/html") {
+                                    window.location.href = `/sign/${activeToken}?upload=1`;
+                                  } else {
+                                    setSigningInitialUpload(true);
+                                    setSigningDoc(doc);
+                                    setSigningToken(activeToken);
+                                  }
+                                }}
+                                title="Upload a PDF you've already signed offline"
+                              >
+                                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                Upload PDF
+                              </Button>
+                            </>
                           )}
                           {doc.status === "SIGNED" && (
                             <>
@@ -816,6 +842,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           assetTitle={tracking.asset.title}
           defaultName={tracking.company.contactName || tracking.company.name}
           defaultEmail={tracking.company.contactEmail || ""}
+          initialUploadOpen={signingInitialUpload}
         />
       )}
     </div>
