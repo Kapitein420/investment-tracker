@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2, MousePointer, Trash2, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Copy, Check, RefreshCw, ExternalLink, Settings2, MousePointer, Trash2, AlertTriangle, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { uploadDocument, deleteDocument } from "@/actions/document-actions";
+import { uploadDocument, deleteDocument, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -279,20 +279,64 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
 
                 {doc.status === "SIGNED" && (
                   <div className="rounded bg-logistics-soft px-2 py-1.5 text-xs text-status-success">
-                    <div>
-                      Signed by {doc.signedByName} ({doc.signedByEmail}) on {formatDate(doc.signedAt)}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        Signed by {doc.signedByName} ({doc.signedByEmail}) on {formatDate(doc.signedAt)}
+                        {doc.signatureData === "INVESTOR_UPLOAD" && (
+                          <Badge
+                            variant="outline"
+                            className="ml-2 border-amber-300 bg-amber-50 px-1 py-0 text-[9px] font-semibold text-amber-800"
+                          >
+                            <Upload className="mr-0.5 h-2 w-2" />Uploaded
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {/* HTML NDAs render server-side at /portal/signed-nda/[id]
+                            unless the investor uploaded a real PDF (which flips
+                            mimeType to application/pdf in uploadInvestorNda) —
+                            in that case we fall through to the regular signed-
+                            URL download. */}
+                        {doc.mimeType === "text/html" ? (
+                          <>
+                            <a
+                              href={`/portal/signed-nda/${doc.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View
+                            </a>
+                            <a
+                              href={`/portal/signed-nda/${doc.id}?download=1`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
+                            >
+                              <Download className="h-3 w-3" />
+                              Download
+                            </a>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const url = await getSignedDocumentUrl(doc.id);
+                                window.open(url, "_blank");
+                              } catch (e: any) {
+                                toast.error(e?.message ?? "Failed to get download link");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {doc.mimeType === "text/html" && (
-                      <a
-                        href={`/portal/signed-nda/${doc.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View signed NDA
-                      </a>
-                    )}
                   </div>
                 )}
 
