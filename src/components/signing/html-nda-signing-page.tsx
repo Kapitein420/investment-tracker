@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ interface Props {
 export function HtmlNdaSigningPage({ data, token }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -393,7 +394,15 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setUploadOpen(false); setUploadFile(null); }}
+                    onClick={() => {
+                      setUploadOpen(false);
+                      setUploadFile(null);
+                      // Strip ?upload=1 so a refresh doesn't reopen the
+                      // upload section.
+                      if (searchParams.get("upload") === "1") {
+                        router.replace(pathname);
+                      }
+                    }}
                     disabled={uploading}
                     className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
                   >
