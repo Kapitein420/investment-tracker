@@ -461,12 +461,26 @@ export async function getSignedDocumentUrl(documentId: string) {
   const user = await requireUser();
   const doc = await prisma.document.findUniqueOrThrow({
     where: { id: documentId },
-    include: { tracking: { select: { companyId: true } } },
+    include: { tracking: { select: { companyId: true, assetId: true } } },
   });
 
-  // Investors can only access their own company's documents
+  // Investors can only access their own company's documents.
   if (user.role === "INVESTOR" && doc.tracking.companyId !== user.companyId) {
     throw new Error("Forbidden");
+  }
+
+  // VIEWER (opdrachtgever / client) can download signed docs only on
+  // assets they've been granted access to — the same gate
+  // getSignedHtmlNda uses, kept consistent so the two doc types behave
+  // identically for the client role.
+  if (user.role === "VIEWER") {
+    const access = await prisma.assetViewerAccess.findUnique({
+      where: {
+        userId_assetId: { userId: user.id, assetId: doc.tracking.assetId },
+      },
+      select: { id: true },
+    });
+    if (!access) throw new Error("Forbidden");
   }
 
   // HTML NDAs are rendered server-side at /portal/signed-nda/[id]; they don't
