@@ -150,6 +150,29 @@ export async function bulkInviteInvestors({
         }
       }
 
+      // Mirror the bulk-import flow: capture every invited person as a
+      // CompanyContact too, so the drawer's contacts list stays complete
+      // when an admin invites someone who wasn't previously imported.
+      // Idempotent — the (companyId, email) unique index dedupes if this
+      // person was already captured via Bulk Import.
+      const existingContact = await prisma.companyContact.findUnique({
+        where: { companyId_email: { companyId: company.id, email } },
+      });
+      if (!existingContact) {
+        await prisma.companyContact.create({
+          data: {
+            companyId: company.id,
+            name: contactName,
+            email,
+          },
+        });
+      } else if (!existingContact.name && contactName) {
+        await prisma.companyContact.update({
+          where: { id: existingContact.id },
+          data: { name: contactName },
+        });
+      }
+
       // Detect re-invite vs first invite for this (asset, company) pair —
       // purely informational so the admin sees in the results table whose
       // password got regenerated and whose didn't.
