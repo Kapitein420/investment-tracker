@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,8 @@ interface SigningPageProps {
 
 export function SigningPage({ document: doc, token }: SigningPageProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [mode, setMode] = useState<"sign" | "reject" | null>(null);
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
@@ -391,7 +393,15 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setUploadOpen(false); setUploadFile(null); }}
+                      onClick={() => {
+                        setUploadOpen(false);
+                        setUploadFile(null);
+                        // Strip ?upload=1 so a refresh doesn't reopen the
+                        // upload section.
+                        if (searchParams.get("upload") === "1") {
+                          router.replace(pathname);
+                        }
+                      }}
                       disabled={uploading}
                       className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
