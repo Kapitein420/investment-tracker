@@ -93,7 +93,7 @@ export function DashboardContent({
           accent="bg-banner-info-foreground"
         />
         <KpiTile
-          label="Companies in pipeline"
+          label="Investors in pipeline"
           value={stats.totalPipeline}
           accent="bg-soft-accent"
         />
