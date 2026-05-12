@@ -7,6 +7,23 @@ const nextConfig = {
       // serverless function body is 4.5MB on Hobby and 50MB on Pro/Enterprise,
       // so 25MB is safe across plans and gives headroom for property decks.
       bodySizeLimit: "25mb",
+      // Next.js 14 rejects any server-action POST where the Origin header
+      // doesn't match an allow-listed host. Without this, custom domains
+      // silently break every upload / save / sign action — the request
+      // returns a generic "Invalid Server Action request" before it ever
+      // reaches the action body.
+      //
+      // Include:
+      //   - the bare apex (dils-investorportal.nl) for users who drop www
+      //   - the canonical www host (production)
+      //   - the legacy Vercel URL until DNS + bookmarks settle
+      //   - *.vercel.app so preview deployments keep working
+      allowedOrigins: [
+        "www.dils-investorportal.nl",
+        "dils-investorportal.nl",
+        "investment-tracker-wd1b.vercel.app",
+        "*.vercel.app",
+      ],
     },
     // pdfjs-dist resolves its "fake worker" by dynamic-requiring
     // pdf.worker.mjs at runtime; @napi-rs/canvas is loaded the same
