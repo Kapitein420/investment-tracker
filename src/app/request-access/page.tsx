@@ -32,7 +32,7 @@ export default function RequestAccessPage() {
     <div className="min-h-screen flex items-center justify-center bg-soft-bg-surface-alt px-4">
       <div className="w-full max-w-md space-y-6 rounded-xl border border-dils-100 bg-white p-8 shadow-soft-card">
         <div className="flex items-start gap-3">
-          <Image src="/dils-logo.png" alt="DILS Investment Portal" width={56} height={20} className="h-5 w-auto" />
+          <Image src="/dils-logo.png" alt="DILS Investor Portal" width={56} height={20} className="h-5 w-auto" />
           <div>
             <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
               Get your DILS Investor Portal login
@@ -53,7 +53,7 @@ export default function RequestAccessPage() {
                   <p className="text-sm font-semibold text-foreground">Check your inbox</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     If <strong>{email}</strong> is on the access list for the DILS
-                    Investment Portal, you&rsquo;ll receive an email with your login
+                    Investor Portal, you&rsquo;ll receive an email with your login
                     credentials shortly.
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed pt-1">

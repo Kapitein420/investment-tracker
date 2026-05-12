@@ -376,7 +376,7 @@ export async function sendInvestorInvite({
   try {
     const result = await sendEmail({
       to: email,
-      subject: `Your access to ${asset.title} — DILS Investment Portal`,
+      subject: `Your access to ${asset.title} — DILS Investor Portal`,
       html: renderEmail({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
