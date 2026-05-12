@@ -391,7 +391,7 @@ export async function requestViewing(
           <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Asset</td><td>${escapeHtml(tracking.asset.title)}</td></tr>
         </table>
         <p style="font-size:13px; line-height:1.55; margin:0;">
-          Please reach out to schedule a date. The deal page in Investment Portal now shows
+          Please reach out to schedule a date. The deal page in Investor Portal now shows
           this row with the Viewing stage marked <em>In progress</em>.
         </p>
       </div>

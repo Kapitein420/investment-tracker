@@ -27,7 +27,7 @@ function renderHeader() {
   return `
     <div style="background: ${COLORS.ink}; padding: 28px 32px; text-align: left;">
       <img src="${logoUrl}" alt="DILS" style="height:32px;width:auto;display:block;border:0;" />
-      <div style="color: ${COLORS.paper}; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; font-weight: 400;">Investment Portal</div>
+      <div style="color: ${COLORS.paper}; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; font-weight: 400;">Investor Portal</div>
     </div>
     <div style="background: ${COLORS.red}; height: 2px; line-height: 2px; font-size: 0;">&nbsp;</div>
   `;
@@ -37,7 +37,7 @@ function renderFooter(meta?: string) {
   return `
     <div style="background: ${COLORS.surface}; padding: 24px 32px; border-top: 1px solid ${COLORS.border};">
       <p style="color: ${COLORS.muted}; font-size: 11px; line-height: 1.6; margin: 0 0 12px 0;">
-        You're receiving this email because you have access to the DILS Investment Portal.
+        You're receiving this email because you have access to the DILS Investor Portal.
         Read our <a href="${PRIVACY_URL}" style="color: ${COLORS.ink}; text-decoration: underline;">privacy statement</a>
         for details on how we handle your personal data.
       </p>
