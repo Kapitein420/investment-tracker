@@ -2,11 +2,12 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      // IMs and large NDAs are commonly 5-10MB; the 2MB default rejected
-      // them with FUNCTION_PAYLOAD_TOO_LARGE. Vercel's hard ceiling for a
-      // serverless function body is 4.5MB on Hobby and 50MB on Pro/Enterprise,
-      // so 25MB is safe across plans and gives headroom for property decks.
-      bodySizeLimit: "25mb",
+      // IMs, decks, and full-res property photos can run well past 10MB.
+      // Vercel's hard ceiling for a serverless function body is 4.5MB on
+      // Hobby and 50MB on Pro/Enterprise. We're on Pro, so 45MB leaves
+      // ~5MB headroom for the multipart envelope (cookies, headers, form
+      // boundaries) without risking a gateway-level 413.
+      bodySizeLimit: "45mb",
       // Next.js 14 rejects any server-action POST where the Origin header
       // doesn't match an allow-listed host. Without this, custom domains
       // silently break every upload / save / sign action — the request

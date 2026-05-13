@@ -322,10 +322,17 @@ export async function upsertTeaserContent(data: {
     },
   });
 
+  // Strip any non-string / empty entries before persisting. A previous
+  // version could leave undefined slots in the array after a partial
+  // upload, which then crashed the asset page render on path.startsWith.
+  const cleanImageUrls = Array.isArray(data.imageUrls)
+    ? data.imageUrls.filter((p): p is string => typeof p === "string" && p.length > 0)
+    : [];
+
   const payload = {
     title: "Property Overview",
     description: data.description ?? null,
-    imageUrls: data.imageUrls ? JSON.parse(JSON.stringify(data.imageUrls)) : [],
+    imageUrls: cleanImageUrls,
     keyMetrics: data.keyMetrics ? JSON.parse(JSON.stringify(data.keyMetrics)) : undefined,
     isPublished: true,
   };
@@ -371,9 +378,12 @@ export async function uploadContentFile(formData: FormData) {
     throw new Error("File type not allowed");
   }
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  // Matches next.config.js serverActions.bodySizeLimit ("45mb"). Vercel's
+  // hard ceiling on Pro is 50MB; 45MB leaves room for the multipart
+  // envelope so any file that passes this check also clears the gateway.
+  const MAX_FILE_SIZE = 45 * 1024 * 1024;
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error("File too large. Maximum 10MB.");
+    throw new Error("File too large. Maximum 45MB.");
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
