@@ -193,8 +193,20 @@ export async function getSignedContentUrl(storagePath: string) {
     select: { id: true, assetId: true },
   });
 
-  let doc = null;
+  // Teaser images live inside AssetContent.imageUrls (a JSON array), not in
+  // fileUrl. Without this lookup the preview thumbnails silently 403 in the
+  // UI because the empty catch in resolveTeaserImageSigned swallows the
+  // "Forbidden: file not found" thrown below.
+  let teaser: { id: string; assetId: string } | null = null;
   if (!content) {
+    teaser = await prisma.assetContent.findFirst({
+      where: { imageUrls: { array_contains: storagePath } },
+      select: { id: true, assetId: true },
+    });
+  }
+
+  let doc = null;
+  if (!content && !teaser) {
     doc = await prisma.document.findFirst({
       where: { OR: [{ fileUrl: storagePath }, { signedFileUrl: storagePath }] },
       include: { tracking: { select: { assetId: true, companyId: true } } },
@@ -202,14 +214,14 @@ export async function getSignedContentUrl(storagePath: string) {
   }
 
   // Must exist in one of the tables
-  if (!content && !doc) throw new Error("Forbidden: file not found");
+  if (!content && !teaser && !doc) throw new Error("Forbidden: file not found");
 
   // INVESTOR check: must have access to the asset
   let investorTrackingId: string | null = null;
   let investorContentStageKey: string | null = null;
   if (user.role === "INVESTOR") {
     if (!user.companyId) throw new Error("Forbidden");
-    const assetId = content?.assetId ?? doc?.tracking.assetId;
+    const assetId = content?.assetId ?? teaser?.assetId ?? doc?.tracking.assetId;
     if (!assetId) throw new Error("Forbidden");
 
     const tracking = await prisma.assetCompanyTracking.findFirst({
