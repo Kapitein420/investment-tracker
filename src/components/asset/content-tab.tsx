@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   FileText, FileSpreadsheet, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
@@ -129,7 +129,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         const fd = new FormData();
         fd.append("file", file);
         const path = await uploadContentFile(fd);
-        paths.push(path);
+        if (typeof path === "string" && path) paths.push(path);
       }
       setTeaserImageUrls((prev) => [...prev, ...paths]);
     } catch (err: any) {
@@ -537,9 +537,11 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
 
         {teaserContent ? (
           <div className="rounded-lg border bg-white p-5 space-y-4">
-            {Array.isArray(teaserContent.imageUrls) && (teaserContent.imageUrls as string[]).length > 0 && (
+            {Array.isArray(teaserContent.imageUrls) && (teaserContent.imageUrls as unknown[]).some((p) => typeof p === "string" && p.length > 0) && (
               <div className="flex flex-wrap gap-2">
-                {(teaserContent.imageUrls as string[]).map((path, i) => {
+                {(teaserContent.imageUrls as unknown[])
+                  .filter((p): p is string => typeof p === "string" && p.length > 0)
+                  .map((path, i) => {
                   const src = path.startsWith("http") ? path : teaserImageSigned[path];
                   return (
                     <div key={i} className="h-20 w-20 rounded-md border overflow-hidden bg-muted">
@@ -781,6 +783,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{teaserContent ? "Edit Teaser" : "Add Teaser Content"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Edit the teaser shown to investors before they sign the NDA — description, images, and key metrics.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
             {/* Description */}
@@ -798,7 +803,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
             <div className="space-y-2">
               <Label>Images ({teaserImageUrls.length}/5)</Label>
               <div className="flex flex-wrap gap-2">
-                {teaserImageUrls.map((path, i) => {
+                {teaserImageUrls
+                  .filter((p): p is string => typeof p === "string" && p.length > 0)
+                  .map((path, i) => {
                   const src = path.startsWith("http") ? path : teaserImageSigned[path];
                   return (
                     <div key={i} className="relative h-[100px] w-[100px] rounded-md border overflow-hidden bg-muted">
@@ -922,6 +929,13 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                   ? "Upload Rent Roll"
                   : "Add IM Material"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {addType === "rentRoll"
+                ? "Upload the rent roll spreadsheet shown to investors after NDA approval."
+                : addType === "nda"
+                  ? "Upload the NDA document that invited investors will sign."
+                  : "Upload an Information Memorandum document for this asset."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
