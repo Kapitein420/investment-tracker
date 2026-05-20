@@ -41,6 +41,19 @@ export async function uploadFile(file: Buffer, path: string, contentType: string
 }
 
 /**
+ * Create a one-shot signed URL that lets the browser PUT a file straight
+ * into the bucket — bypassing the Vercel Function gateway (4.5 MB body
+ * limit on every plan). Used for IM PDFs and other large attachments.
+ */
+export async function createSignedUploadUrl(
+  path: string
+): Promise<{ signedUrl: string; token: string; path: string }> {
+  const { data, error } = await getSupabase().storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error) throw new Error(`Signed upload URL failed: ${error.message}`);
+  return { signedUrl: data.signedUrl, token: data.token, path: data.path };
+}
+
+/**
  * Generate a signed URL for temporary access to a private file.
  * Default expiry: 2 hours (7200 seconds).
  */

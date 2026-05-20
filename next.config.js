@@ -2,12 +2,17 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      // IMs, decks, and full-res property photos can run well past 10MB.
-      // Vercel's hard ceiling for a serverless function body is 4.5MB on
-      // Hobby and 50MB on Pro/Enterprise. We're on Pro, so 45MB leaves
-      // ~5MB headroom for the multipart envelope (cookies, headers, form
-      // boundaries) without risking a gateway-level 413.
-      bodySizeLimit: "45mb",
+      // NOTE: this only raises Next.js's own request-body check. Vercel's
+      // platform gateway hard-caps Function request bodies at 4.5MB on
+      // every plan (Hobby/Pro/Enterprise) — see
+      // https://vercel.com/docs/functions/limitations#request-body-size.
+      // Anything bigger gets a 413 before our code runs, regardless of
+      // this setting. Large attachments (IMs, full-res property photos)
+      // upload direct-to-Supabase via createContentUploadUrl instead, so
+      // the bytes never traverse a Vercel Function. This limit only
+      // matters for the legacy uploadContentFile fallback path and small
+      // server-action form posts.
+      bodySizeLimit: "10mb",
       // Next.js 14 rejects any server-action POST where the Origin header
       // doesn't match an allow-listed host. Without this, custom domains
       // silently break every upload / save / sign action — the request

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import {
   FileText, FileSpreadsheet, Upload, Download, Eye, Trash2, Plus, Check, Globe, X, Image as ImageIcon, Pencil,
 } from "lucide-react";
-import { createAssetContent, updateAssetContent, deleteAssetContent, uploadContentFile, getSignedContentUrl, upsertTeaserContent } from "@/actions/content-actions";
+import { createAssetContent, updateAssetContent, deleteAssetContent, getSignedContentUrl, upsertTeaserContent, createContentUploadUrl } from "@/actions/content-actions";
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
 import { enableHtmlNdaForAsset, disableHtmlNdaForAsset, issueHtmlNdaToAllTrackings } from "@/actions/html-nda-actions";
 import { HtmlNdaEditor } from "@/components/asset/html-nda-editor";
@@ -104,6 +104,29 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
     setTeaserDialogOpen(true);
   }
 
+  // Upload a file straight to Supabase Storage via a server-issued signed
+  // URL. Bypasses Vercel's 4.5MB Function body limit, which the legacy
+  // server-action upload path tripped on for anything bigger than a small
+  // NDA / thumbnail. Returns the storage path used by the rest of the app
+  // (signed via getSignedContentUrl on read).
+  async function uploadDirectToStorage(file: File): Promise<string> {
+    const { uploadUrl, path } = await createContentUploadUrl({
+      filename: file.name,
+      contentType: file.type,
+      size: file.size,
+    });
+    const res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type, "x-upsert": "false" },
+      body: file,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Upload failed (${res.status} ${res.statusText})${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+    }
+    return path;
+  }
+
   async function resolveTeaserImageSigned(path: string) {
     if (!path || path.startsWith("http") || teaserImageSigned[path]) return;
     try {
@@ -127,10 +150,8 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       const toUpload = Array.from(files).slice(0, remaining);
       const paths: string[] = [];
       for (const file of toUpload) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const path = await uploadContentFile(fd);
-        if (typeof path === "string" && path) paths.push(path);
+        const path = await uploadDirectToStorage(file);
+        if (path) paths.push(path);
       }
       setTeaserImageUrls((prev) => [...prev, ...paths]);
     } catch (err: any) {
@@ -201,9 +222,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const fileUrl = await uploadContentFile(formData);
+      const fileUrl = await uploadDirectToStorage(file);
 
       // Master NDA + rent roll are one-per-asset — replace in place instead
       // of creating a duplicate row that would be hidden behind the existing.
