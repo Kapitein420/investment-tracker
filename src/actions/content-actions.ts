@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
-import { uploadFile, getSignedUrl, deleteFile, downloadFile } from "@/lib/supabase-storage";
+import { uploadFile, getSignedUrl, deleteFile, downloadFile, createSignedUploadUrl } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 
 export async function createAssetContent(data: {
@@ -372,36 +372,90 @@ export async function upsertTeaserContent(data: {
   return content;
 }
 
+const CONTENT_UPLOAD_ALLOWED_MIMES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
+  "application/vnd.ms-excel", // xls (legacy)
+];
+
+// Sanity ceiling for direct-to-Supabase uploads. We're no longer constrained
+// by Vercel's 4.5MB Function body limit since the bytes never touch our
+// function, but a per-file cap still protects against a runaway upload
+// filling the bucket. Supabase's own per-object limit is 5GB.
+const DIRECT_UPLOAD_MAX_BYTES = 200 * 1024 * 1024;
+
+function buildContentObjectPath(filename: string): string {
+  // Strip path separators an attacker might smuggle into the filename, and
+  // cap the length so we don't blow Supabase's 1024-char object-name limit.
+  const safeName = filename.replace(/[\\/]+/g, "_").slice(0, 200) || "file";
+  return `content/${Date.now()}-${safeName}`;
+}
+
 export async function uploadContentFile(formData: FormData) {
   await requireRole("EDITOR");
 
   const file = formData.get("file") as File | null;
   if (!file) throw new Error("No file provided");
 
-  const ALLOWED_MIMES = [
-    "application/pdf",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
-    "application/vnd.ms-excel", // xls (legacy)
-  ];
-  if (!ALLOWED_MIMES.includes(file.type)) {
+  if (!CONTENT_UPLOAD_ALLOWED_MIMES.includes(file.type)) {
     throw new Error("File type not allowed");
   }
 
-  // Matches next.config.js serverActions.bodySizeLimit ("45mb"). Vercel's
-  // hard ceiling on Pro is 50MB; 45MB leaves room for the multipart
-  // envelope so any file that passes this check also clears the gateway.
-  const MAX_FILE_SIZE = 45 * 1024 * 1024;
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error("File too large. Maximum 45MB.");
+  // Vercel's gateway hard-caps Function request bodies at 4.5MB on every
+  // plan (https://vercel.com/docs/functions/limitations#request-body-size).
+  // This fallback path still works for small files (avatars, small NDAs)
+  // but is bypassed by the direct-to-Supabase flow below for anything
+  // bigger. Keep the Next.js bodySizeLimit roomier so the multipart envelope
+  // around a ~4MB file doesn't trip its own check before reaching us.
+  const FALLBACK_MAX_BYTES = 4 * 1024 * 1024;
+  if (file.size > FALLBACK_MAX_BYTES) {
+    throw new Error(
+      "File too large for the legacy upload path (Vercel's 4.5MB function limit). " +
+        "Use the direct-upload flow (createContentUploadUrl)."
+    );
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const path = `content/${Date.now()}-${file.name}`;
+  const path = buildContentObjectPath(file.name);
 
   const publicUrl = await uploadFile(buffer, path, file.type);
 
   return publicUrl;
+}
+
+/**
+ * Issues a short-lived signed URL the browser can PUT a file to directly,
+ * bypassing the Vercel Function (and therefore Vercel's 4.5MB body limit).
+ * Pair with `createAssetContent({ fileUrl: path, ... })` to persist the
+ * metadata afterwards.
+ */
+export async function createContentUploadUrl(input: {
+  filename: string;
+  contentType: string;
+  size: number;
+}) {
+  await requireRole("EDITOR");
+
+  if (!input.filename || !input.contentType) {
+    throw new Error("filename and contentType are required");
+  }
+  if (!CONTENT_UPLOAD_ALLOWED_MIMES.includes(input.contentType)) {
+    throw new Error("File type not allowed");
+  }
+  if (!Number.isFinite(input.size) || input.size <= 0) {
+    throw new Error("Invalid file size");
+  }
+  if (input.size > DIRECT_UPLOAD_MAX_BYTES) {
+    throw new Error(
+      `File too large. Maximum ${Math.round(DIRECT_UPLOAD_MAX_BYTES / 1024 / 1024)}MB.`
+    );
+  }
+
+  const path = buildContentObjectPath(input.filename);
+  const { signedUrl, token } = await createSignedUploadUrl(path);
+
+  return { uploadUrl: signedUrl, token, path };
 }
