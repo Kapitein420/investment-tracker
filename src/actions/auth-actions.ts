@@ -1,11 +1,13 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { ensureUserCompanyMembership } from "@/lib/user-companies";
 
 /**
  * Self-serve password reset.
@@ -71,11 +73,65 @@ export async function requestPasswordReset(
     return { ok: true };
   }
 
-  const user = await prisma.user.findFirst({
+  let user = await prisma.user.findFirst({
     where: opts?.restrictToInvestor
       ? { email: { equals: email, mode: "insensitive" }, role: "INVESTOR" }
       : { email: { equals: email, mode: "insensitive" } },
   });
+
+  // JIT-bootstrap from CompanyContact. The "Add tracking / Bulk Import"
+  // flow seeds CompanyContact rows without creating User accounts (intent:
+  // track relationships without blasting invites). When such a contact
+  // later hits /request-access from the broker's marketing email, the
+  // User lookup above returns null and the function silently no-ops —
+  // they never get their credentials. Promote them now so the welcome
+  // flow works end-to-end without requiring the admin to click "Send
+  // invite" first.
+  //
+  // Only fires for the public /request-access entry (welcome flavor +
+  // restrictToInvestor). The /forgot-password path is unchanged.
+  if (!user && opts?.restrictToInvestor && flavor === "welcome") {
+    // Don't shadow an existing admin/editor/viewer that shares this email.
+    const anyExistingUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!anyExistingUser) {
+      const contacts = await prisma.companyContact.findMany({
+        where: { email: { equals: email, mode: "insensitive" } },
+        include: {
+          company: { select: { id: true, name: true, contactName: true } },
+        },
+      });
+      if (contacts.length > 0) {
+        const primary = contacts[0];
+        // Throwaway hash — gets overwritten by the regen step below.
+        const placeholderHash = await bcrypt.hash(randomUUID(), 10);
+        user = await prisma.user.create({
+          data: {
+            email: email,
+            name:
+              primary.name ||
+              primary.company.contactName ||
+              primary.company.name,
+            passwordHash: placeholderHash,
+            role: "INVESTOR",
+            companyId: primary.companyId,
+            // passwordChangedAt left NULL — matches sendInvestorInvite so
+            // the first-login force-change gate (when enabled) still works.
+          },
+        });
+        // Mirror sendInvestorInvite: 1 User, N memberships if the same
+        // email is tracked across multiple companies.
+        for (const c of contacts) {
+          await ensureUserCompanyMembership(user.id, c.companyId);
+        }
+        console.info(
+          `[requestPasswordReset] JIT-created User from CompanyContact email="${email}" (${contacts.length} membership${contacts.length === 1 ? "" : "s"})`
+        );
+      }
+    }
+  }
 
   if (!user) {
     // Don't reveal that this email isn't registered. ActivityLog rows
