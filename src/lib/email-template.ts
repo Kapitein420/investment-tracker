@@ -26,7 +26,7 @@ function renderHeader() {
 
   return `
     <div style="background: ${COLORS.ink}; padding: 28px 32px; text-align: left;">
-      <img src="${logoUrl}" alt="DILS" style="height:32px;width:auto;display:block;border:0;" />
+      <img src="${logoUrl}" alt="DILS" width="76" height="32" style="height:32px;width:76px;display:block;border:0;outline:none;text-decoration:none;" />
       <div style="color: ${COLORS.paper}; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; font-weight: 400;">Investor Portal</div>
     </div>
     <div style="background: ${COLORS.red}; height: 2px; line-height: 2px; font-size: 0;">&nbsp;</div>
