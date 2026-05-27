@@ -26,8 +26,8 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, ArrowUpDown, ChevronRight, MessageSquare, AlertCircle } from "lucide-react";
-import { cn, truncate, isStaleDate, formatDate, formatBid } from "@/lib/utils";
+import { MoreHorizontal, ArrowUpDown, ChevronRight, MessageSquare } from "lucide-react";
+import { cn, truncate, formatDate, formatBid } from "@/lib/utils";
 import {
   STAGE_STATUS_LABELS,
   STAGE_DOT_COLORS,
@@ -92,14 +92,6 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">{row.original.company.name}</span>
-                {isStaleDate(row.original.updatedAt) && (
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <AlertCircle className="h-3 w-3 text-status-warning" />
-                    </TooltipTrigger>
-                    <TooltipContent>Not updated in 14+ days</TooltipContent>
-                  </Tooltip>
-                )}
               </div>
               {imAccess && (
                 <span
