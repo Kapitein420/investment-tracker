@@ -13,6 +13,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { assetTypeToUnit } from "@/lib/stages";
 import { orderedHighlightEntries } from "@/lib/highlights";
 import { SigningModal } from "@/components/investor/signing-modal";
+import { InvestorNdaDownload } from "@/components/investor/investor-nda-download";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { recordInvestorStageEvent, requestViewing } from "@/actions/portal-actions";
 import { toast } from "sonner";
@@ -506,6 +507,12 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 <Pen className="mr-1.5 h-3.5 w-3.5" />
                                 Sign Now
                               </Button>
+                              {/* Download is HTML-only: legacy PDF NDAs open
+                                  the actual PDF on Sign Now and the investor
+                                  can save from the browser viewer. */}
+                              {doc.mimeType === "text/html" && (
+                                <InvestorNdaDownload token={activeToken} />
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
