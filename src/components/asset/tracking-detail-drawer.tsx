@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload } from "lucide-react";
+import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload, Pencil, Trash2 } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
 import { approveStage } from "@/actions/approval-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
@@ -35,7 +35,7 @@ import {
   INTEREST_COLORS,
 } from "@/lib/stages";
 import { getTrackingDetail, updateTracking, advanceToNextStage, finalizeTracking } from "@/actions/tracking-actions";
-import { createComment } from "@/actions/comment-actions";
+import { createComment, updateComment, deleteComment } from "@/actions/comment-actions";
 import { toast } from "sonner";
 
 interface TrackingDetailDrawerProps {
@@ -65,6 +65,9 @@ export function TrackingDetailDrawer({
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   async function loadDetail() {
     setLoading(true);
@@ -93,6 +96,49 @@ export function TrackingDetailDrawer({
       router.refresh();
     } catch {
       toast.error("Failed to add comment");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function startEditComment(c: { id: string; body: string }) {
+    setEditingCommentId(c.id);
+    setEditCommentText(c.body);
+  }
+
+  function cancelEditComment() {
+    setEditingCommentId(null);
+    setEditCommentText("");
+  }
+
+  async function saveEditComment() {
+    if (!editingCommentId || !editCommentText.trim()) return;
+    setSubmitting(true);
+    try {
+      await updateComment(editingCommentId, editCommentText.trim());
+      setEditingCommentId(null);
+      setEditCommentText("");
+      toast.success("Comment updated");
+      loadDetail();
+      router.refresh();
+    } catch {
+      toast.error("Failed to update comment");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function confirmDeleteComment() {
+    if (!deletingCommentId) return;
+    setSubmitting(true);
+    try {
+      await deleteComment(deletingCommentId);
+      setDeletingCommentId(null);
+      toast.success("Comment deleted");
+      loadDetail();
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete comment");
     } finally {
       setSubmitting(false);
     }
@@ -512,17 +558,93 @@ export function TrackingDetailDrawer({
                   <p className="text-xs text-muted-foreground text-center py-4">No comments yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {detail.comments?.map((c: any) => (
-                      <div key={c.id} className="rounded-md border p-3 text-sm">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">
-                            {showPII ? c.author.name : "Team member"}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">{formatDateTime(c.createdAt)}</span>
+                    {detail.comments?.map((c: any) => {
+                      const canModify =
+                        editable && (c.author?.id === currentUserId || userRole === "ADMIN");
+                      const isEditing = editingCommentId === c.id;
+                      // updatedAt is bumped on every Comment.update; if it
+                      // sits more than ~1s after createdAt we treat the row
+                      // as edited. Sub-second drift between create and the
+                      // initial updatedAt would otherwise show "(edited)"
+                      // on brand-new comments.
+                      const wasEdited =
+                        new Date(c.updatedAt).getTime() -
+                          new Date(c.createdAt).getTime() >
+                        1000;
+                      return (
+                        <div key={c.id} className="rounded-md border p-3 text-sm">
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <span className="text-xs font-medium">
+                              {showPII ? c.author.name : "Team member"}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatDateTime(c.createdAt)}
+                                {wasEdited && (
+                                  <span className="ml-1 italic">(edited)</span>
+                                )}
+                              </span>
+                              {canModify && !isEditing && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => startEditComment(c)}
+                                    title="Edit comment"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingCommentId(c.id)}
+                                    title="Delete comment"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={editCommentText}
+                                onChange={(e) => setEditCommentText(e.target.value)}
+                                className="min-h-[60px] text-sm"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey))
+                                    saveEditComment();
+                                  if (e.key === "Escape") cancelEditComment();
+                                }}
+                              />
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={cancelEditComment}
+                                  disabled={submitting}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={saveEditComment}
+                                  disabled={submitting || !editCommentText.trim()}
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">{c.body}</p>
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{c.body}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
@@ -596,6 +718,42 @@ export function TrackingDetailDrawer({
             >
               <CheckCircle2 className="mr-1.5 h-4 w-4" strokeWidth={2.4} />
               {finalizing ? "Finalizing…" : "Yes, finalize"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deletingCommentId !== null}
+        onOpenChange={(open) => {
+          if (!submitting && !open) setDeletingCommentId(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="inline-flex items-center gap-2 font-heading">
+              <Trash2 className="h-5 w-5 text-destructive" strokeWidth={2.4} />
+              Delete this comment?
+            </DialogTitle>
+            <DialogDescription>
+              This permanently removes the comment from the timeline. This action can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingCommentId(null)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteComment}
+              disabled={submitting}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" strokeWidth={2.4} />
+              {submitting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
