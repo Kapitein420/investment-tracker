@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
+import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import {
   createTrackingSchema,
   updateTrackingSchema,
@@ -159,6 +160,28 @@ export async function createTracking(data: CreateTrackingInput) {
 
     return newTracking;
   });
+
+  // Auto-attach the asset's master HTML NDA so investors added via the
+  // Add-tracking dialog get the same Sign-Now button as those added via
+  // the invite flow. Mirrors invite-actions.ts. Outside the transaction
+  // so a missing/disabled NDA doesn't roll back tracking creation, and
+  // cloneHtmlNdaForInvestor is idempotent if one already exists.
+  try {
+    const masterHtmlNda = await prisma.assetContent.findFirst({
+      where: {
+        assetId: validated.assetId,
+        contentType: "LANDING_PAGE",
+        stageKey: { equals: "nda", mode: "insensitive" },
+        keyMetrics: { path: ["isHtmlNda"], equals: true },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (masterHtmlNda) {
+      await cloneHtmlNdaForInvestor(tracking.id, masterHtmlNda.id, user.id);
+    }
+  } catch (e) {
+    console.error("[createTracking] auto-attach NDA failed:", e);
+  }
 
   revalidatePath(`/assets/${validated.assetId}`);
   return tracking;
@@ -686,6 +709,20 @@ export async function bulkImportTrackings(
     orderBy: { sequence: "asc" },
   });
 
+  // Look up the master HTML NDA once — it's keyed by assetId and doesn't
+  // change between rows. Each new tracking in the loop gets cloned from
+  // this same template so the import lands with the latest version
+  // attached, matching the invite flow.
+  const masterHtmlNda = await prisma.assetContent.findFirst({
+    where: {
+      assetId,
+      contentType: "LANDING_PAGE",
+      stageKey: { equals: "nda", mode: "insensitive" },
+      keyMetrics: { path: ["isHtmlNda"], equals: true },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   const validTypes = ["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"];
   // imported = (asset, company) tracking pairs newly created
   // trackingsExisted = rows where the tracking already existed (still might
@@ -765,6 +802,17 @@ export async function bulkImportTrackings(
               status: "NOT_STARTED" as const,
             })),
           });
+        }
+
+        if (masterHtmlNda) {
+          try {
+            await cloneHtmlNdaForInvestor(tracking.id, masterHtmlNda.id, user.id);
+          } catch (e) {
+            console.error(
+              `[bulkImportTrackings] auto-attach NDA failed for tracking ${tracking.id}:`,
+              e,
+            );
+          }
         }
 
         imported++;
