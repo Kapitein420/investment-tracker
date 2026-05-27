@@ -62,7 +62,11 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
 
 export function DealCard({ tracking }: DealCardProps) {
   const nextAction = getNextAction(tracking.stageStatuses, tracking.documents);
-  const pendingDocs = tracking.documents?.filter((d: any) => d.status === "PENDING").length ?? 0;
+  // Exclude OFFER-kind docs — those are admin-uploaded reference PDFs
+  // surfaced to the seller, not "awaiting your signature" for the investor.
+  const pendingDocs = tracking.documents?.filter(
+    (d: any) => d.status === "PENDING" && d.kind !== "OFFER"
+  ).length ?? 0;
   const unit = assetTypeToUnit(tracking.asset.assetType);
 
   const sortedStages = [...tracking.stageStatuses].sort(

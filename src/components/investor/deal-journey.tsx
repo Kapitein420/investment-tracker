@@ -370,7 +370,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           const config = STATE_CONFIG[state];
           const Icon = config.icon;
 
-          const stageDocs = tracking.documents.filter((d: any) => d.stage.key === ss.stage.key);
+          // OFFER-kind docs are seller-facing reference PDFs; the investor's
+          // deal-journey only shows signing-flow docs.
+          const stageDocs = tracking.documents.filter(
+            (d: any) => d.stage.key === ss.stage.key && d.kind !== "OFFER"
+          );
           const stageContent = stageDocs.length > 0
             ? []
             : contents.filter((c: any) => {

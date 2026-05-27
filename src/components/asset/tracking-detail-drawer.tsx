@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload, Pencil, Trash2, Undo2 } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
+import { OfferSection } from "@/components/asset/offer-section";
 import { approveStage } from "@/actions/approval-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
@@ -576,6 +577,25 @@ export function TrackingDetailDrawer({
                   </p>
                 )}
               </div>
+              {/* NBO offer (bid amount + offer PDF). Visible to admins, the
+                  selling-side VIEWER, and the INVESTOR themselves — the
+                  parent page already gates which trackings a viewer/investor
+                  can open. */}
+              <OfferSection
+                trackingId={trackingId}
+                bidAmount={detail.bidAmount ?? null}
+                bidCurrency={detail.bidCurrency ?? "EUR"}
+                offerDocument={
+                  (detail.documents ?? []).find((d: any) => d.kind === "OFFER")
+                    ? {
+                        id: (detail.documents ?? []).find((d: any) => d.kind === "OFFER")!.id,
+                        fileName: (detail.documents ?? []).find((d: any) => d.kind === "OFFER")!.fileName,
+                      }
+                    : null
+                }
+                editable={editable}
+                onChange={loadDetail}
+              />
             </div>
 
             <Separator />
@@ -747,7 +767,9 @@ export function TrackingDetailDrawer({
                 <DocumentUpload
                   trackingId={trackingId}
                   stages={stages}
-                  documents={detail.documents ?? []}
+                  documents={(detail.documents ?? []).filter(
+                    (d: any) => d.kind !== "OFFER"
+                  )}
                   editable={editable}
                 />
               </TabsContent>

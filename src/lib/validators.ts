@@ -53,6 +53,11 @@ export const updateTrackingSchema = z.object({
   currentStageManualOverride: z.boolean().optional(),
   currentStageKey: z.string().nullable().optional(),
   priority: z.number().nullable().optional(),
+  // Bid amount in bidCurrency. Capped at 999,999,999,999.99 to match
+  // the column's DECIMAL(14, 2) precision; nullable to support clearing.
+  bidAmount: z.number().min(0).max(999_999_999_999.99).nullable().optional(),
+  bidCurrency: z.string().length(3).regex(/^[A-Z]{3}$/, "3-letter ISO code").optional(),
+  bidSubmittedAt: z.coerce.date().nullable().optional(),
 });
 
 // ─── Stage Status ───────────────────────────────────────────────────────────

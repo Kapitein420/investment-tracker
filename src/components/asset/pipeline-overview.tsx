@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { type PipelineStage } from "@prisma/client";
-import { cn } from "@/lib/utils";
+import { cn, formatBid } from "@/lib/utils";
 import { LIFECYCLE_LABELS } from "@/lib/stages";
 
 interface PipelineOverviewProps {
@@ -68,6 +68,37 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
     return counts;
   }, [trackings]);
 
+  // Bid stats — Prisma Decimals arrive as strings over the wire; coerce
+  // to numbers for math, fall back gracefully when nothing's set. DROPPED
+  // trackings are excluded so a stale offer from a passed-on investor
+  // doesn't skew the highest/average.
+  const bidStats = useMemo(() => {
+    const amounts: number[] = [];
+    // Use the modal currency across the live bids; the seller typically
+    // only cares about a single denomination per deal, and mixing
+    // currencies in a single "highest" number would be misleading.
+    const currencyCounts: Record<string, number> = {};
+    for (const t of activeTrackings) {
+      if (t.bidAmount == null || t.bidAmount === "") continue;
+      const n = Number(t.bidAmount);
+      if (!Number.isFinite(n)) continue;
+      amounts.push(n);
+      const cur = t.bidCurrency ?? "EUR";
+      currencyCounts[cur] = (currencyCounts[cur] ?? 0) + 1;
+    }
+    if (amounts.length === 0) {
+      return { count: 0, highest: null, average: null, currency: "EUR" };
+    }
+    const currency =
+      Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "EUR";
+    return {
+      count: amounts.length,
+      highest: Math.max(...amounts),
+      average: amounts.reduce((s, n) => s + n, 0) / amounts.length,
+      currency,
+    };
+  }, [activeTrackings]);
+
   return (
     <div className="space-y-8">
       {/* Combined Pipeline Stages — replaces the prior "Pipeline Funnel"
@@ -115,11 +146,25 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
                     <p className="text-[12px] italic text-muted-foreground">—</p>
                   ) : (
                     <div className="space-y-0.5">
-                      {bucket.companies.map((c: any) => (
-                        <p key={c.id} className="text-[12px] text-muted-foreground truncate">
-                          {c.company.name}
-                        </p>
-                      ))}
+                      {bucket.companies.map((c: any) => {
+                        const hasBid =
+                          c.bidAmount != null && String(c.bidAmount).trim() !== "";
+                        return (
+                          <p
+                            key={c.id}
+                            className="text-[12px] text-muted-foreground truncate"
+                            title={c.company.name}
+                          >
+                            <span>{c.company.name}</span>
+                            {hasBid && (
+                              <span className="font-semibold text-foreground/80">
+                                {" · "}
+                                {formatBid(c.bidAmount, c.bidCurrency ?? "EUR", { compact: true })}
+                              </span>
+                            )}
+                          </p>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -128,6 +173,61 @@ export function PipelineOverview({ trackings, stages }: PipelineOverviewProps) {
           })}
         </div>
       </section>
+
+      {/* Bids summary — only rendered once at least one offer has been
+          recorded. Pre-NBO assets stay visually uncluttered. */}
+      {bidStats.count > 0 && (
+        <section>
+          <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">Bids</h2>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
+            Offers recorded on active companies
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-dils-200 bg-white p-5 text-center shadow-soft-card">
+              <p className="font-heading text-3xl font-semibold leading-none text-foreground tabular-nums">
+                {bidStats.count}
+              </p>
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
+                Offers received
+              </p>
+            </div>
+            <div className="rounded-lg border border-dils-200 bg-white p-5 text-center shadow-soft-card">
+              <p
+                className="font-heading text-3xl font-semibold leading-none text-foreground tabular-nums"
+                title={
+                  bidStats.highest != null
+                    ? formatBid(bidStats.highest, bidStats.currency)
+                    : undefined
+                }
+              >
+                {bidStats.highest != null
+                  ? formatBid(bidStats.highest, bidStats.currency, { compact: true })
+                  : "—"}
+              </p>
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
+                Highest bid
+              </p>
+            </div>
+            <div className="rounded-lg border border-dils-200 bg-white p-5 text-center shadow-soft-card">
+              <p
+                className="font-heading text-3xl font-semibold leading-none text-foreground tabular-nums"
+                title={
+                  bidStats.average != null
+                    ? formatBid(bidStats.average, bidStats.currency)
+                    : undefined
+                }
+              >
+                {bidStats.average != null
+                  ? formatBid(bidStats.average, bidStats.currency, { compact: true })
+                  : "—"}
+              </p>
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
+                Average bid
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Lifecycle summary */}
       <section>

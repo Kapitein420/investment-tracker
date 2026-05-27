@@ -27,7 +27,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { MoreHorizontal, ArrowUpDown, ChevronRight, MessageSquare, AlertCircle } from "lucide-react";
-import { cn, truncate, isStaleDate, formatDate } from "@/lib/utils";
+import { cn, truncate, isStaleDate, formatDate, formatBid } from "@/lib/utils";
 import {
   STAGE_STATUS_LABELS,
   STAGE_DOT_COLORS,
@@ -38,6 +38,8 @@ import { StageCell } from "@/components/asset/stage-cell";
 import { StageSelectCell } from "@/components/asset/stage-select-cell";
 import { updateTracking, deleteTracking } from "@/actions/tracking-actions";
 import { sendInvestorInvite } from "@/actions/invite-actions";
+import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -129,6 +131,72 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">{preview}</TooltipContent>
             </Tooltip>
+          );
+        },
+      },
+      {
+        // NBO/MBO bid — formatted compact (€11.3M) with a download icon
+        // for the offer PDF when one is attached. Sortable by numeric
+        // amount; rows with no bid sort to the bottom on ascending.
+        accessorFn: (row) =>
+          row.bidAmount == null || row.bidAmount === "" ? null : Number(row.bidAmount),
+        id: "bidAmount",
+        header: ({ column }) => (
+          <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs" onClick={() => column.toggleSorting()}>
+            Bid
+            <ArrowUpDown className="ml-1 h-3 w-3" />
+          </Button>
+        ),
+        size: 110,
+        sortUndefined: "last",
+        cell: ({ row }) => {
+          const amount = row.original.bidAmount;
+          const offerDoc = (row.original.documents ?? []).find(
+            (d: any) => d.kind === "OFFER"
+          );
+          if (amount == null && !offerDoc) {
+            return <span className="text-xs text-muted-foreground">-</span>;
+          }
+          return (
+            <div className="flex items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs font-semibold text-foreground">
+                    {amount != null
+                      ? formatBid(amount, row.original.bidCurrency ?? "EUR", { compact: true })
+                      : "—"}
+                  </span>
+                </TooltipTrigger>
+                {amount != null && (
+                  <TooltipContent>
+                    {formatBid(amount, row.original.bidCurrency ?? "EUR")}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              {offerDoc && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const url = await getSignedDocumentUrl(offerDoc.id);
+                          window.open(url, "_blank");
+                        } catch (err: any) {
+                          toast.error(err?.message ?? "Failed to download offer");
+                        }
+                      }}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Download offer PDF"
+                    >
+                      <Download className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{offerDoc.fileName}</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           );
         },
       },

@@ -86,7 +86,14 @@ export default async function InvestorPortalPage() {
       ) : (
         <div className="grid gap-4">
           {trackings.map((tracking) => (
-            <DealCard key={tracking.id} tracking={tracking} />
+            <DealCard
+              key={tracking.id}
+              tracking={{
+                ...tracking,
+                // Prisma Decimal → string for client-component serialization.
+                bidAmount: tracking.bidAmount == null ? null : tracking.bidAmount.toString(),
+              }}
+            />
           ))}
         </div>
       )}
