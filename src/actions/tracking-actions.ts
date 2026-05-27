@@ -692,6 +692,14 @@ export async function finalizeTracking(trackingId: string) {
   });
 }
 
+// Same ceiling as bulkInviteInvestors — each row does roughly 5–8 DB ops
+// (company find/create, tracking, stage statuses, optional NDA clone) so
+// 200 rows is the size that comfortably finishes inside Vercel Pro's 60s
+// function default. Splitting beyond this keeps us off connection-pool
+// exhaustion and timeout cliffs. If the underlying function budget grows
+// we can bump this in lockstep with bulk-invite-actions.ts.
+const BULK_IMPORT_MAX_ROWS = 200;
+
 export async function bulkImportTrackings(
   assetId: string,
   rows: Array<{
@@ -703,6 +711,15 @@ export async function bulkImportTrackings(
   }>
 ) {
   const user = await requireRole("EDITOR");
+
+  if (rows.length === 0) {
+    throw new Error("No rows to import.");
+  }
+  if (rows.length > BULK_IMPORT_MAX_ROWS) {
+    throw new Error(
+      `Too many rows (${rows.length}). Maximum is ${BULK_IMPORT_MAX_ROWS} per batch — split the file and retry.`,
+    );
+  }
 
   const stages = await prisma.pipelineStage.findMany({
     where: { isActive: true },

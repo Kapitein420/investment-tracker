@@ -63,13 +63,25 @@ export const updateStageStatusSchema = z.object({
 });
 
 // ─── Comment ────────────────────────────────────────────────────────────────
+// Cap at 10k chars. Plenty for any reasonable comment; protects against a
+// malicious or fat-fingered paste (whole PDF text, 100MB blob, etc.) that
+// would otherwise bloat the row and slow every subsequent loadDetail()
+// since the drawer refetches the full comment list on every mutation.
+const COMMENT_MAX = 10_000;
+
 export const createCommentSchema = z.object({
   trackingId: z.string().min(1),
-  body: z.string().min(1, "Comment cannot be empty"),
+  body: z
+    .string()
+    .min(1, "Comment cannot be empty")
+    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`),
 });
 
 export const updateCommentSchema = z.object({
-  body: z.string().min(1, "Comment cannot be empty"),
+  body: z
+    .string()
+    .min(1, "Comment cannot be empty")
+    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`),
 });
 
 // ─── User management ────────────────────────────────────────────────────────

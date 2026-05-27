@@ -67,7 +67,7 @@ export async function updateComment(id: string, body: string) {
 
   const comment = await prisma.comment.findUniqueOrThrow({
     where: { id },
-    include: { tracking: { select: { assetId: true } } },
+    include: { tracking: { select: { id: true, assetId: true } } },
   });
 
   // Only the author or an admin can update
@@ -79,9 +79,35 @@ export async function updateComment(id: string, body: string) {
   const sanitizedBody = validated.body.replace(/<[^>]*>/g, '').trim();
   if (!sanitizedBody) throw new Error("Comment cannot be empty");
 
-  const updated = await prisma.comment.update({
-    where: { id },
-    data: { body: sanitizedBody },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.comment.update({
+      where: { id },
+      data: { body: sanitizedBody },
+    });
+
+    // Audit edits the same way creates are logged. We store previews
+    // (matching createComment) rather than the full bodies — enough to
+    // answer "who changed this and roughly to what" without bloating
+    // the activity log when an admin iterates on a long comment.
+    const preview = (s: string) =>
+      s.length > 120 ? s.slice(0, 120) + "..." : s;
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "Comment",
+        entityId: id,
+        action: "UPDATED",
+        metadata: {
+          trackingId: comment.tracking.id,
+          oldPreview: preview(comment.body),
+          newPreview: preview(sanitizedBody),
+          actorIsAuthor: comment.authorUserId === user.id,
+        },
+        userId: user.id,
+      },
+    });
+
+    return u;
   });
 
   revalidatePath(`/assets/${comment.tracking.assetId}`);
@@ -118,6 +144,24 @@ export async function deleteComment(id: string) {
             ? latestComment.body.slice(0, 120) + "..."
             : latestComment.body
           : null,
+      },
+    });
+
+    // Audit deletes — the comment row is gone, so we stash the full body
+    // here as the only forensic copy. Capped at 10k chars upstream so the
+    // metadata JSON stays bounded.
+    await tx.activityLog.create({
+      data: {
+        entityType: "Comment",
+        entityId: id,
+        action: "DELETED",
+        metadata: {
+          trackingId: comment.tracking.id,
+          deletedBody: comment.body,
+          originalAuthorUserId: comment.authorUserId,
+          actorIsAuthor: comment.authorUserId === user.id,
+        },
+        userId: user.id,
       },
     });
   });
