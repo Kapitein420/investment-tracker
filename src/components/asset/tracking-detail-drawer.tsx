@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload, Pencil, Trash2 } from "lucide-react";
+import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload, Pencil, Trash2, Undo2 } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
 import { approveStage } from "@/actions/approval-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
@@ -34,7 +34,7 @@ import {
   INTEREST_LABELS,
   INTEREST_COLORS,
 } from "@/lib/stages";
-import { getTrackingDetail, updateTracking, advanceToNextStage, finalizeTracking } from "@/actions/tracking-actions";
+import { getTrackingDetail, updateTracking, advanceToNextStage, finalizeTracking, revertToStage } from "@/actions/tracking-actions";
 import { createComment, updateComment, deleteComment } from "@/actions/comment-actions";
 import { toast } from "sonner";
 
@@ -68,6 +68,9 @@ export function TrackingDetailDrawer({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState("");
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [revertOpen, setRevertOpen] = useState(false);
+  const [reverting, setReverting] = useState(false);
+  const [revertTargetStageKey, setRevertTargetStageKey] = useState<string>("");
 
   async function loadDetail() {
     setLoading(true);
@@ -213,6 +216,56 @@ export function TrackingDetailDrawer({
     }
   }
 
+  // Build the list of stages earlier than the tracking's current position.
+  // "Current" here means the highest-sequence COMPLETED or IN_PROGRESS
+  // stage — moving back to a stage equal or later than that would be a
+  // no-op or a forward jump, neither of which belongs in this picker.
+  function earlierStages(): Array<{ key: string; label: string; sequence: number }> {
+    if (!detail?.stageStatuses?.length) return [];
+    const sorted = [...detail.stageStatuses].sort(
+      (a: any, b: any) => a.stage.sequence - b.stage.sequence,
+    );
+    const highestActive = [...sorted]
+      .reverse()
+      .find((s: any) => s.status === "COMPLETED" || s.status === "IN_PROGRESS");
+    if (!highestActive) return [];
+    return sorted
+      .filter((s: any) => s.stage.sequence < highestActive.stage.sequence)
+      .map((s: any) => ({
+        key: s.stage.key,
+        label: s.stage.label,
+        sequence: s.stage.sequence,
+      }));
+  }
+
+  function openRevertDialog() {
+    const earlier = earlierStages();
+    if (earlier.length === 0) {
+      toast.error("No earlier stage to move back to");
+      return;
+    }
+    // Default to the most-recent earlier stage so the common "undo one
+    // step" case is a single click after opening.
+    setRevertTargetStageKey(earlier[earlier.length - 1].key);
+    setRevertOpen(true);
+  }
+
+  async function handleRevert() {
+    if (!revertTargetStageKey) return;
+    setReverting(true);
+    try {
+      const res = await revertToStage(trackingId, revertTargetStageKey);
+      toast.success(`Moved back to ${res.target.label}`);
+      setRevertOpen(false);
+      loadDetail();
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to move back");
+    } finally {
+      setReverting(false);
+    }
+  }
+
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex">
       {/* Overlay */}
@@ -263,6 +316,21 @@ export function TrackingDetailDrawer({
                         Timeline
                       </Button>
                     </Link>
+                    {/* Move back is ADMIN-only since it rewrites historical
+                        state. Hidden when there's no earlier stage to revert
+                        to (e.g. fresh tracking still on the first stage). */}
+                    {editable && userRole === "ADMIN" && earlierStages().length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={openRevertDialog}
+                        title="Move this investor back to an earlier pipeline stage"
+                      >
+                        <Undo2 className="mr-1 h-3 w-3" />
+                        Move back
+                      </Button>
+                    )}
                     {editable && (
                       detail && isOnFinalStage() ? (
                         <Button
@@ -718,6 +786,67 @@ export function TrackingDetailDrawer({
             >
               <CheckCircle2 className="mr-1.5 h-4 w-4" strokeWidth={2.4} />
               {finalizing ? "Finalizing…" : "Yes, finalize"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={revertOpen}
+        onOpenChange={(open) => {
+          if (!reverting) setRevertOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="inline-flex items-center gap-2 font-heading">
+              <Undo2 className="h-5 w-5 text-status-current" strokeWidth={2.4} />
+              Move back to earlier stage
+            </DialogTitle>
+            <DialogDescription>
+              Pick the stage you want this investor to land on. The target
+              stage will be marked "action needed"; everything after it
+              resets to "not started". Documents, signed NDAs, and prior
+              approvals are kept — you won't need to re-approve.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label className="text-xs text-muted-foreground">Move to</Label>
+            <Select
+              value={revertTargetStageKey}
+              onValueChange={setRevertTargetStageKey}
+              disabled={reverting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {earlierStages().map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              The investor is not notified — this is an admin-side state
+              correction.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRevertOpen(false)}
+              disabled={reverting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRevert}
+              disabled={reverting || !revertTargetStageKey}
+            >
+              <Undo2 className="mr-1.5 h-4 w-4" strokeWidth={2.4} />
+              {reverting ? "Moving back…" : "Move back"}
             </Button>
           </DialogFooter>
         </DialogContent>

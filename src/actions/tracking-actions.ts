@@ -467,6 +467,139 @@ export async function advanceToNextStage(trackingId: string) {
   return result.advancedTo;
 }
 
+/**
+ * Move a tracking back to an earlier pipeline stage. ADMIN-only because
+ * this rewrites historical state. Mirrors the revert behaviour that
+ * document-actions.ts already does on signed-doc delete:
+ *
+ *  - Target stage flips to IN_PROGRESS (action needed), completedAt cleared.
+ *  - Every stage AFTER the target resets to NOT_STARTED, completedAt cleared.
+ *  - approvedAt / approvedByUserId are PRESERVED on the reset stages so
+ *    an admin who already vetted this investor on (say) NDA doesn't have
+ *    to re-approve when they advance forward again.
+ *  - currentStageKey pinned to target, currentStageManualOverride=true so
+ *    the post-commit sync doesn't bounce forward.
+ *  - lifecycleStatus flips back from COMPLETED to ACTIVE if it was set
+ *    by an earlier finalize.
+ *  - Documents (signed NDAs, uploaded IMs, etc.) and signing tokens are
+ *    untouched — this is a state correction, not a wipe.
+ */
+export async function revertToStage(trackingId: string, targetStageKey: string) {
+  const user = await requireRole("ADMIN");
+  if (!trackingId) throw new Error("trackingId is required");
+  if (!targetStageKey) throw new Error("targetStageKey is required");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const tracking = await tx.assetCompanyTracking.findUniqueOrThrow({
+      where: { id: trackingId },
+    });
+
+    const allStatuses = await tx.stageStatus.findMany({
+      where: { trackingId },
+      include: { stage: true },
+      orderBy: { stage: { sequence: "asc" } },
+    });
+
+    const targetIndex = allStatuses.findIndex(
+      (s) => s.stage.key === targetStageKey,
+    );
+    if (targetIndex === -1) {
+      throw new Error(
+        `Stage "${targetStageKey}" not found on this tracking`,
+      );
+    }
+
+    const target = allStatuses[targetIndex];
+    const historyEntries: Array<{
+      trackingId: string;
+      stageId: string;
+      fieldName: string;
+      oldValue: string;
+      newValue: string;
+      changedByUserId: string;
+    }> = [];
+
+    // Target → IN_PROGRESS, clear completedAt.
+    if (target.status !== "IN_PROGRESS") {
+      historyEntries.push({
+        trackingId,
+        stageId: target.stageId,
+        fieldName: "status",
+        oldValue: target.status,
+        newValue: "IN_PROGRESS",
+        changedByUserId: user.id,
+      });
+    }
+    await tx.stageStatus.update({
+      where: { id: target.id },
+      data: {
+        status: "IN_PROGRESS",
+        completedAt: null,
+        updatedByUserId: user.id,
+      },
+    });
+
+    // Everything after target → NOT_STARTED, clear completedAt. Approval
+    // fields left untouched on purpose (see comment on the function).
+    const laterStages = allStatuses.slice(targetIndex + 1);
+    for (const ss of laterStages) {
+      if (ss.status !== "NOT_STARTED") {
+        historyEntries.push({
+          trackingId,
+          stageId: ss.stageId,
+          fieldName: "status",
+          oldValue: ss.status,
+          newValue: "NOT_STARTED",
+          changedByUserId: user.id,
+        });
+      }
+      await tx.stageStatus.update({
+        where: { id: ss.id },
+        data: {
+          status: "NOT_STARTED",
+          completedAt: null,
+          updatedByUserId: user.id,
+        },
+      });
+    }
+
+    if (historyEntries.length > 0) {
+      await tx.stageHistory.createMany({ data: historyEntries });
+    }
+
+    const lifecycleWasCompleted = tracking.lifecycleStatus === "COMPLETED";
+
+    const updated = await tx.assetCompanyTracking.update({
+      where: { id: trackingId },
+      data: {
+        currentStageKey: target.stage.key,
+        currentStageManualOverride: true,
+        ...(lifecycleWasCompleted ? { lifecycleStatus: "ACTIVE" as const } : {}),
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "AssetCompanyTracking",
+        entityId: trackingId,
+        action: "STAGE_REVERTED",
+        metadata: {
+          targetStageKey: target.stage.key,
+          targetStageLabel: target.stage.label,
+          stagesReset: laterStages.map((s) => s.stage.key),
+          lifecycleReactivated: lifecycleWasCompleted,
+        },
+        userId: user.id,
+      },
+    });
+
+    return { tracking: updated, target: target.stage, resetCount: laterStages.length };
+  });
+
+  revalidatePath(`/assets/${result.tracking.assetId}`);
+  return result;
+}
+
 export async function getTrackingDetail(id: string) {
   const user = await requireUser();
 
