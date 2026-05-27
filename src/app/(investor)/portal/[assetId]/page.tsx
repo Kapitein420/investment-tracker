@@ -100,9 +100,16 @@ export default async function InvestorDealPage({ params }: { params: { assetId: 
 
   const filteredContents = contents.filter((c: any) => unlockedStageKeys.has(c.stageKey));
 
+  // Prisma Decimal doesn't cross the Server→Client Component boundary
+  // cleanly — flatten to a string for serialization.
+  const trackingForClient = {
+    ...tracking,
+    bidAmount: tracking.bidAmount == null ? null : tracking.bidAmount.toString(),
+  };
+
   return (
     <DealJourney
-      tracking={tracking}
+      tracking={trackingForClient}
       contents={filteredContents}
     />
   );

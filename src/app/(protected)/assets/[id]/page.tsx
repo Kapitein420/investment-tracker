@@ -42,6 +42,13 @@ export default async function AssetDetailPage({ params }: { params: { id: string
             take: 1,
             include: { author: { select: { name: true } } },
           },
+          // Fetch only the OFFER doc (if any) so the Bid column can render
+          // a download icon without pulling the full signing-doc history.
+          documents: {
+            where: { kind: "OFFER" },
+            select: { id: true, fileName: true, kind: true },
+            take: 1,
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -49,6 +56,13 @@ export default async function AssetDetailPage({ params }: { params: { id: string
   });
 
   if (!asset) notFound();
+
+  // Prisma's Decimal is a class instance; Next.js can't pass it across the
+  // Server→Client Component boundary as-is. Flatten to a string so the
+  // pipeline table and drawer (both client components) receive a primitive.
+  for (const t of asset.trackings) {
+    (t as any).bidAmount = t.bidAmount == null ? null : t.bidAmount.toString();
+  }
 
   const stages = await prisma.pipelineStage.findMany({
     where: { isActive: true },

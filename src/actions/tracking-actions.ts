@@ -728,7 +728,12 @@ export async function getTrackingDetail(id: string) {
     if (!firstAccessByStage[m.stageKey]) firstAccessByStage[m.stageKey] = log.createdAt;
   }
 
-  return { ...tracking, firstAccessByStage };
+  // Prisma's Decimal class doesn't survive the server-action serialization
+  // boundary cleanly — convert to a string before returning to the client.
+  const bidAmount =
+    tracking.bidAmount == null ? null : tracking.bidAmount.toString();
+
+  return { ...tracking, bidAmount, firstAccessByStage };
 }
 
 /**

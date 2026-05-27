@@ -254,6 +254,13 @@ model AssetCompanyTracking {
   priority                 Int?
   latestCommentPreview     String?
   sortOrder                Int?
+  // Bid recorded for this investor on this deal. Surfaced to the
+  // selling-side VIEWER and to admins in the trackings table. The
+  // accompanying offer PDF lives in Document with kind="OFFER".
+  // Single value (edit-in-place); StageHistory captures every change.
+  bidAmount                Decimal?        @db.Decimal(14, 2)
+  bidCurrency              String          @default("EUR")
+  bidSubmittedAt           DateTime?
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
 
@@ -368,6 +375,11 @@ model Document {
   mimeType         String         @default("application/pdf")
   uploadedByUserId String
   status           DocumentStatus @default(PENDING)
+  // "SIGNING" (default) — goes through the signing-token + placeholder
+  // pipeline. "OFFER" — admin-uploaded reference PDF (e.g. NBO offer letter)
+  // that's downloadable by the seller/VIEWER and the investor whose deal it
+  // belongs to; never signed, no token issued.
+  kind             String         @default("SIGNING")
   signedAt         DateTime?
   signedByName     String?
   signedByEmail    String?
