@@ -36,6 +36,7 @@ import {
 } from "@/lib/stages";
 import { StageCell } from "@/components/asset/stage-cell";
 import { StageSelectCell } from "@/components/asset/stage-select-cell";
+import { RelationshipTypeCell } from "@/components/asset/relationship-type-cell";
 import { updateTracking, deleteTracking } from "@/actions/tracking-actions";
 import { sendInvestorInvite } from "@/actions/invite-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
@@ -70,10 +71,14 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
             <ArrowUpDown className="ml-1 h-3 w-3" />
           </Button>
         ),
-        size: 80,
+        size: 100,
         meta: { cellClass: "hidden md:table-cell" },
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">{row.original.relationshipType}</span>
+          <RelationshipTypeCell
+            trackingId={row.original.id}
+            relationshipType={row.original.relationshipType}
+            editable={editable}
+          />
         ),
       },
       {
@@ -470,8 +475,9 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
                       key={cell.id}
                       className={cn("px-3 py-2", cellClass)}
                       onClick={(e) => {
-                        // prevent row click when clicking stage cells, stage dropdown, or actions
+                        // prevent row click when clicking the type dropdown, stage cells, stage dropdown, or actions
                         if (
+                          cell.column.id === "relationshipType" ||
                           cell.column.id.startsWith("stage_") ||
                           cell.column.id === "currentStageKey" ||
                           cell.column.id === "actions"
