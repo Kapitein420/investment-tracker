@@ -251,7 +251,22 @@
     <p class="sub" style="margin-top:22px">Investors live behind their own gate — they can never reach the internal pipeline or admin routes.</p>
   </section>
 
-  <!-- 9. CLOSING -->
+  <!-- 9. KEY FINDINGS / WAR STORIES -->
+  <section class="slide">
+    <div class="kicker">Things We Hit Along The Way</div>
+    <h2>Interesting findings</h2>
+    <div class="divider"></div>
+    <p class="lead">The platform limits and gotchas that shaped real edits — useful for anyone building on the same stack.</p>
+    <div class="grid g2" style="margin-top:24px">
+      <div class="card"><h3><span class="ico">📤</span>Vercel's 4.5&nbsp;MB upload cap</h3><p>Large IM &amp; NDA PDFs failed silently. <b style="color:var(--white)">Fix:</b> upload <span class="tag">direct to Supabase storage</span>, bypassing the serverless body limit — now handles 45&nbsp;MB files.</p></div>
+      <div class="card"><h3><span class="ico">🔌</span>Postgres "max clients reached"</h3><p>Supabase Session-mode pooler hard-caps at 15 connections. <b style="color:var(--white)">Fix:</b> switch to the <span class="tag">Transaction pooler</span> (port 6543) + lower per-instance limit.</p></div>
+      <div class="card"><h3><span class="ico">📧</span>Outlook blew up the logo</h3><p>Email clients ignored CSS sizing and rendered the logo huge. <b style="color:var(--white)">Fix:</b> shrink the PNG + <span class="tag">force width/height as HTML attributes</span>.</p></div>
+      <div class="card"><h3><span class="ico">🛡️</span>CVE audit, scoped not panicked</h3><p>npm flagged 5 Next.js advisories — checked each against actual usage. Only <span class="tag">2 DoS</span> applied; patched the rest, deferred Next 16 as planned work.</p></div>
+    </div>
+    <p class="sub" style="margin-top:22px">Plus deliberate <b style="color:var(--white)">fail-closed defaults</b> — a missing access table denies access rather than opening it, and investors use system-issued passwords by design.</p>
+  </section>
+
+  <!-- 10. CLOSING -->
   <section class="slide">
     <div class="kicker">In Short</div>
     <h2>The takeaway</h2>
@@ -272,7 +287,7 @@
   <div class="dots" id="dots"></div>
   <div class="ctrl">
     <button onclick="go(-1)">‹ Prev</button>
-    <span class="count" id="count">1 / 9</span>
+    <span class="count" id="count">1 / 10</span>
     <button onclick="go(1)">Next ›</button>
   </div>
 </div>
