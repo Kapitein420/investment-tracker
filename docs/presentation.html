@@ -99,6 +99,17 @@
     letter-spacing:1px;padding:8px 12px;border-bottom:1px solid var(--bg4)}
   table.k td{padding:11px 12px;border-bottom:1px solid var(--bg3);color:var(--gray)}
   table.k td b{color:var(--white);font-weight:600}
+  /* STAT TILES */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px}
+  .stat{background:var(--bg2);border:1px solid var(--bg3);border-radius:10px;padding:18px 16px;text-align:center}
+  .stat .num{font-size:34px;font-weight:700;color:var(--gold);letter-spacing:-1px;line-height:1}
+  .stat .lab{font-size:12.5px;color:var(--gray);margin-top:8px;line-height:1.3}
+  .splitcard{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;margin-top:18px}
+  .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .bar{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--gray)}
+  .bar .lbl{width:64px;flex-shrink:0;color:var(--white);font-weight:600}
+  .bar .track{flex:1;height:9px;background:var(--bg4);border-radius:5px;overflow:hidden}
+  .bar .fill{height:100%;border-radius:5px}
   .pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600}
   .p-admin{background:rgba(232,69,60,.12);color:#ff8b84}
   .p-edit{background:rgba(74,158,255,.12);color:var(--blue)}
@@ -266,7 +277,43 @@
     <p class="sub" style="margin-top:22px">Plus deliberate <b style="color:var(--white)">fail-closed defaults</b> — a missing access table denies access rather than opening it, and investors use system-issued passwords by design.</p>
   </section>
 
-  <!-- 10. CLOSING -->
+  <!-- 10. BY THE NUMBERS -->
+  <section class="slide">
+    <div class="kicker">Progress Tracker</div>
+    <h2>The build by the numbers</h2>
+    <div class="divider"></div>
+    <div class="stats">
+      <div class="stat"><div class="num">~14h</div><div class="lab">Focused dev time</div></div>
+      <div class="stat"><div class="num">17K+</div><div class="lab">Lines of code</div></div>
+      <div class="stat"><div class="num">130+</div><div class="lab">Files created</div></div>
+      <div class="stat"><div class="num">104</div><div class="lab">Pull requests merged</div></div>
+      <div class="stat"><div class="num">25+</div><div class="lab">Vercel deployments</div></div>
+      <div class="stat"><div class="num">36</div><div class="lab">Features, 5 phases</div></div>
+      <div class="stat"><div class="num">14</div><div class="lab">Database tables</div></div>
+      <div class="stat"><div class="num">30+</div><div class="lab">Server actions</div></div>
+    </div>
+    <div class="splitcard">
+      <div class="card">
+        <h3><span class="ico">🐞</span>Bugs found &amp; fixed</h3>
+        <p style="margin-bottom:12px"><b style="color:var(--white);font-size:22px">40</b> logged · <b style="color:var(--green);font-size:22px">36</b> fixed · <span class="tag">90% resolution rate</span></p>
+        <div class="bars">
+          <div class="bar"><span class="lbl">Critical</span><div class="track"><div class="fill" style="width:43%;background:var(--red)"></div></div><span>6</span></div>
+          <div class="bar"><span class="lbl">High</span><div class="track"><div class="fill" style="width:93%;background:var(--amber)"></div></div><span>13</span></div>
+          <div class="bar"><span class="lbl">Medium</span><div class="track"><div class="fill" style="width:100%;background:var(--blue)"></div></div><span>14</span></div>
+          <div class="bar"><span class="lbl">Low</span><div class="track"><div class="fill" style="width:50%;background:var(--gray)"></div></div><span>7</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="ico">⏱️</span>Effort &amp; cost</h3>
+        <p style="margin-bottom:10px"><b style="color:var(--white)">~14 hours</b> AI-assisted, on free-tier infrastructure (<span class="tag">$0</span>).</p>
+        <p>Traditional estimate: <b style="color:var(--white)">200–300 h</b> over 5–8 weeks.</p>
+        <p style="margin-top:12px;color:var(--gold);font-weight:700;font-size:18px">≈ 95% time reduction</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:16px;font-size:13px">Figures from the project KPI &amp; bug trackers; PR count is git-verified.</p>
+  </section>
+
+  <!-- 11. CLOSING -->
   <section class="slide">
     <div class="kicker">In Short</div>
     <h2>The takeaway</h2>
@@ -287,7 +334,7 @@
   <div class="dots" id="dots"></div>
   <div class="ctrl">
     <button onclick="go(-1)">‹ Prev</button>
-    <span class="count" id="count">1 / 10</span>
+    <span class="count" id="count">1 / 11</span>
     <button onclick="go(1)">Next ›</button>
   </div>
 </div>
