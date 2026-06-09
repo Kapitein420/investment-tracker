@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Tracker — How It Was Built</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1117;--bg2:#161921;--bg3:#1c1f2b;--bg4:#252838;
+    --gold:#d4a843;--gold-dim:#a8852f;--gold-light:#f0d080;
+    --white:#f0f0f4;--gray:#8b8fa3;--gray-dim:#555a6e;
+    --blue:#4a9eff;--green:#3ecf6e;--amber:#f0a030;--red:#e8453c;
+    --radius:12px;
+  }
+  html,body{height:100%}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--white);line-height:1.6;
+    -webkit-font-smoothing:antialiased;overflow:hidden;
+  }
+
+  /* SLIDE FRAME */
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;
+    display:none;flex-direction:column;justify-content:center;
+    max-width:1000px;margin:0 auto;padding:48px 56px 96px;
+    animation:fade .35s ease;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .kicker{
+    font-size:12px;font-weight:700;text-transform:uppercase;
+    letter-spacing:3px;color:var(--gold);margin-bottom:14px;
+  }
+  h1{font-size:52px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+  h1 span{color:var(--gold)}
+  h2{font-size:34px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
+  .divider{width:54px;height:3px;background:var(--gold);border-radius:2px;margin:14px 0 28px}
+  .lead{font-size:19px;color:var(--gray);max-width:760px}
+  .sub{color:var(--gray);font-size:16px;margin-top:18px}
+
+  /* TITLE SLIDE */
+  .title-meta{margin-top:32px;color:var(--gray);font-size:15px}
+  .title-meta b{color:var(--white);font-weight:600}
+  .badge{
+    display:inline-block;font-size:12px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:var(--green);
+    border:1px solid rgba(62,207,110,.4);background:rgba(62,207,110,.08);
+    padding:5px 12px;border-radius:20px;margin-top:28px;
+  }
+
+  /* GRID CARDS */
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .card{
+    background:var(--bg2);border:1px solid var(--bg3);
+    border-radius:var(--radius);padding:20px 22px;
+  }
+  .card h3{font-size:16px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+  .card p{font-size:14px;color:var(--gray);line-height:1.55}
+  .ico{font-size:18px;line-height:1}
+  .tag{color:var(--gold);font-weight:600}
+
+  /* BULLETS */
+  ul.clean{list-style:none;display:flex;flex-direction:column;gap:14px;margin-top:8px}
+  ul.clean li{display:flex;gap:14px;align-items:flex-start;font-size:17px}
+  ul.clean li .b{color:var(--gold);font-weight:700;flex-shrink:0}
+  ul.clean li small{display:block;color:var(--gray);font-size:14px;margin-top:2px;font-weight:400}
+  ul.clean li b{font-weight:600}
+
+  /* FLOW */
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-top:10px}
+  .fbox{
+    background:var(--bg2);border:1px solid var(--bg3);border-radius:10px;
+    padding:16px 18px;min-width:150px;flex:1;
+  }
+  .fbox.gold{border-color:var(--gold-dim);background:rgba(212,168,67,.06)}
+  .fbox .ft{font-weight:700;font-size:15px}
+  .fbox .fs{color:var(--gray);font-size:13px;margin-top:4px}
+  .farrow{display:flex;align-items:center;color:var(--gold);font-size:22px;padding:0 10px}
+
+  /* SECURITY LAYERS */
+  .layer{
+    display:flex;align-items:center;gap:16px;
+    background:var(--bg2);border:1px solid var(--bg3);
+    border-left:3px solid var(--gold);
+    border-radius:8px;padding:13px 18px;
+  }
+  .layer .n{color:var(--gold);font-weight:700;font-size:14px;width:18px;flex-shrink:0}
+  .layer .t{font-weight:600;font-size:15px;flex-shrink:0;width:230px}
+  .layer .d{color:var(--gray);font-size:14px}
+
+  table.k{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+  table.k th{text-align:left;color:var(--gold);font-size:11px;text-transform:uppercase;
+    letter-spacing:1px;padding:8px 12px;border-bottom:1px solid var(--bg4)}
+  table.k td{padding:11px 12px;border-bottom:1px solid var(--bg3);color:var(--gray)}
+  table.k td b{color:var(--white);font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600}
+  .p-admin{background:rgba(232,69,60,.12);color:#ff8b84}
+  .p-edit{background:rgba(74,158,255,.12);color:var(--blue)}
+  .p-view{background:rgba(139,143,163,.15);color:var(--gray)}
+  .p-inv{background:rgba(62,207,110,.12);color:var(--green)}
+
+  /* NAV */
+  .nav{
+    position:fixed;bottom:0;left:0;right:0;height:56px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 28px;background:rgba(15,17,23,.85);
+    backdrop-filter:blur(10px);border-top:1px solid var(--bg3);z-index:50;
+  }
+  .nav .who{font-size:13px;color:var(--gray-dim)}
+  .nav .who b{color:var(--gold)}
+  .dots{display:flex;gap:7px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--bg4);cursor:pointer;transition:.2s}
+  .dot.on{background:var(--gold);transform:scale(1.25)}
+  .ctrl{display:flex;gap:8px;align-items:center}
+  .ctrl button{
+    background:var(--bg3);color:var(--white);border:1px solid var(--bg4);
+    border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer;transition:.2s;font-weight:600;
+  }
+  .ctrl button:hover{border-color:var(--gold-dim);color:var(--gold)}
+  .count{font-size:13px;color:var(--gray);min-width:46px;text-align:center}
+  .hint{position:fixed;top:16px;right:20px;font-size:12px;color:var(--gray-dim);z-index:50}
+</style>
+</head>
+<body>
+<div class="hint">← → arrow keys to navigate</div>
+<div class="deck" id="deck">
+
+  <!-- 1. TITLE -->
+  <section class="slide active">
+    <div class="kicker">Internal Build Review</div>
+    <h1>Investment <span>Tracker</span></h1>
+    <p class="lead" style="margin-top:18px">How the deal-pipeline dashboard was built — the tools, the connections, and how it's secured.</p>
+    <div class="title-meta">
+      Prepared for the <b>CTO &amp; Development Team</b><br>
+      A short walk-through · ~5 minutes
+    </div>
+    <div class="badge">● Live in production on Vercel</div>
+  </section>
+
+  <!-- 2. WHAT IT IS -->
+  <section class="slide">
+    <div class="kicker">The What</div>
+    <h2>What we built</h2>
+    <div class="divider"></div>
+    <p class="lead">An internal web app that tracks commercial real-estate deals through their pipeline — replacing static Power BI dashboards with a <b style="color:var(--white)">fully editable, live operational tool</b>.</p>
+    <div class="grid g3" style="margin-top:30px">
+      <div class="card"><h3><span class="ico">📊</span>Live pipeline</h3><p>Companies move through stages — Teaser, NDA, IM, Viewing, NBO — editable inline from the table.</p></div>
+      <div class="card"><h3><span class="ico">🔁</span>Always current</h3><p>Comments, audit history, stale-row highlighting and KPI cards keep the team aligned in real time.</p></div>
+      <div class="card"><h3><span class="ico">🔐</span>Role-based</h3><p>Admin, Editor, Viewer and Investor each see only what they should. Investors get a separate portal.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. HOW IT'S BUILT -->
+  <section class="slide">
+    <div class="kicker">The How</div>
+    <h2>How it's built</h2>
+    <div class="divider"></div>
+    <p class="lead">One modern, type-safe stack — front-end and back-end in the same codebase.</p>
+    <div class="grid g2" style="margin-top:26px">
+      <div class="card"><h3><span class="ico">⚛️</span>Front-end</h3><p><span class="tag">Next.js 14</span> (App Router) · <span class="tag">TypeScript</span> · <span class="tag">Tailwind CSS</span> + shadcn/ui · TanStack Table · React Hook Form + Zod validation.</p></div>
+      <div class="card"><h3><span class="ico">🗄️</span>Back-end &amp; data</h3><p><span class="tag">Server Actions</span> (no separate API layer) · <span class="tag">Prisma ORM</span> · <span class="tag">PostgreSQL</span> on Supabase · NextAuth for sessions.</p></div>
+      <div class="card"><h3><span class="ico">📄</span>Documents</h3><p>In-app <span class="tag">NDA generation &amp; e-signing</span> — pdf-lib, jsPDF and pdf.js build and sign PDFs server-side.</p></div>
+      <div class="card"><h3><span class="ico">✉️</span>Communication</h3><p><span class="tag">Mailgun</span> sends investor invites, NDA approvals and password resets via transactional email.</p></div>
+    </div>
+  </section>
+
+  <!-- 4. ARCHITECTURE FLOW -->
+  <section class="slide">
+    <div class="kicker">The Shape</div>
+    <h2>How a request flows</h2>
+    <div class="divider"></div>
+    <div class="flow">
+      <div class="fbox"><div class="ft">Browser</div><div class="fs">React UI on Vercel's edge</div></div>
+      <div class="farrow">→</div>
+      <div class="fbox gold"><div class="ft">Middleware</div><div class="fs">Checks session + role on every request</div></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><div class="ft">Server Action</div><div class="fs">Server-only logic, validated with Zod</div></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><div class="ft">Prisma → Postgres</div><div class="fs">Supabase, parameterized queries</div></div>
+    </div>
+    <p class="sub" style="margin-top:30px">Everything sensitive — auth, secrets, database access — runs <b style="color:var(--white)">server-side only</b>. The browser never talks to the database directly and never sees an API key.</p>
+  </section>
+
+  <!-- 5. CONNECTIONS -->
+  <section class="slide">
+    <div class="kicker">The Connections</div>
+    <h2>External services</h2>
+    <div class="divider"></div>
+    <p class="lead">Three managed services, each with a single clear job.</p>
+    <div class="grid g3" style="margin-top:28px">
+      <div class="card"><h3><span class="ico" style="color:var(--white)">▲</span>Vercel</h3><p><b style="color:var(--white)">Hosting &amp; deploys.</b> Builds from GitHub on every push, serves the app globally, holds all production secrets as env vars.</p></div>
+      <div class="card"><h3><span class="ico" style="color:var(--green)">⬡</span>Supabase</h3><p><b style="color:var(--white)">Database &amp; storage.</b> Managed PostgreSQL (pooled connections) plus file storage for signed NDA documents.</p></div>
+      <div class="card"><h3><span class="ico" style="color:var(--red)">✉</span>Mailgun</h3><p><b style="color:var(--white)">Email delivery.</b> EU region. Sends every transactional email the workflow needs, from invites to resets.</p></div>
+    </div>
+    <p class="sub" style="margin-top:26px">Source lives in <b style="color:var(--white)">GitHub</b> → auto-deployed by <b style="color:var(--white)">Vercel</b>. No manual servers to manage.</p>
+  </section>
+
+  <!-- 6. SECURITY LAYERS -->
+  <section class="slide">
+    <div class="kicker">The Security</div>
+    <h2>Secured in layers</h2>
+    <div class="divider"></div>
+    <div class="grid" style="gap:11px;margin-top:6px">
+      <div class="layer"><span class="n">1</span><span class="t">Authentication</span><span class="d">NextAuth signs a session JWT with a server-only secret · passwords hashed with bcrypt · CSRF + login rate-limiting built in.</span></div>
+      <div class="layer"><span class="n">2</span><span class="t">Authorization</span><span class="d">Middleware checks the role on <i>every</i> request — Admin / Editor / Viewer / Investor routes are gated and isolated.</span></div>
+      <div class="layer"><span class="n">3</span><span class="t">Database</span><span class="d">Prisma parameterized queries (no SQL injection) · Supabase Row-Level Security, deny-all-to-anon on 14 tables as defense in depth.</span></div>
+      <div class="layer"><span class="n">4</span><span class="t">Transport &amp; browser</span><span class="d">HSTS, X-Frame-Options DENY, nosniff, strict referrer &amp; permissions policy — set on every response.</span></div>
+      <div class="layer"><span class="n">5</span><span class="t">Secrets</span><span class="d">Every key read from Vercel env vars at runtime — never in git, never in the browser bundle, never hardcoded.</span></div>
+    </div>
+  </section>
+
+  <!-- 7. SECRETS / INCIDENT DEFENSE -->
+  <section class="slide">
+    <div class="kicker">The Security</div>
+    <h2>Keys can't leak</h2>
+    <div class="divider"></div>
+    <p class="lead">Five independent layers stop a secret ever reaching a public commit.</p>
+    <table class="k">
+      <thead><tr><th>Layer</th><th>What it blocks</th></tr></thead>
+      <tbody>
+        <tr><td><b>.gitignore</b> covers all <code>.env</code> files</td><td>Staging a secret file locally</td></tr>
+        <tr><td><b>Zero hardcoded secrets</b> in source</td><td>Accidental check-in via code</td></tr>
+        <tr><td><b>GitHub Push Protection</b></td><td>A push that contains a known key shape</td></tr>
+        <tr><td><b>GitHub Secret Scanning</b></td><td>Alerts instantly if anything slips through</td></tr>
+        <tr><td><b>Provider scanning</b> (Vercel / Supabase / Mailgun)</td><td>Auto-disables a leaked key upstream</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:20px">Git history audited — only <code>.env.example</code> (a template) was ever committed. Clean.</p>
+  </section>
+
+  <!-- 8. ROLES -->
+  <section class="slide">
+    <div class="kicker">Access Model</div>
+    <h2>Who can do what</h2>
+    <div class="divider"></div>
+    <table class="k">
+      <thead><tr><th>Role</th><th>Sees</th><th>Can</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill p-admin">Admin</span></td><td>Everything + admin panel</td><td>Manage users, stages, all deals</td></tr>
+        <tr><td><span class="pill p-edit">Editor</span></td><td>Full pipeline</td><td>Create &amp; edit assets, move stages, comment</td></tr>
+        <tr><td><span class="pill p-view">Viewer</span></td><td>Full pipeline</td><td>Read-only — follow deals, export CSV</td></tr>
+        <tr><td><span class="pill p-inv">Investor</span></td><td>Separate portal only</td><td>View shared deals, sign NDAs — fully isolated</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:22px">Investors live behind their own gate — they can never reach the internal pipeline or admin routes.</p>
+  </section>
+
+  <!-- 9. CLOSING -->
+  <section class="slide">
+    <div class="kicker">In Short</div>
+    <h2>The takeaway</h2>
+    <div class="divider"></div>
+    <ul class="clean">
+      <li><span class="b">→</span><div><b>One modern stack.</b><small>Next.js + TypeScript + Prisma/Postgres — front and back in one type-safe codebase.</small></div></li>
+      <li><span class="b">→</span><div><b>Three managed services.</b><small>Vercel hosts, Supabase stores, Mailgun emails. Nothing to babysit.</small></div></li>
+      <li><span class="b">→</span><div><b>Secure by default.</b><small>Auth, role-gating, RLS, security headers and a 5-layer secret guard — all live.</small></div></li>
+      <li><span class="b">→</span><div><b>Production-ready.</b><small>Running on Vercel today, with a documented CTO security brief on file.</small></div></li>
+    </ul>
+    <p class="sub" style="margin-top:30px;font-size:17px">Grazie — questions welcome. 🙌</p>
+  </section>
+
+</div>
+
+<div class="nav">
+  <div class="who">Investment Tracker · <b>Build &amp; Security Review</b></div>
+  <div class="dots" id="dots"></div>
+  <div class="ctrl">
+    <button onclick="go(-1)">‹ Prev</button>
+    <span class="count" id="count">1 / 9</span>
+    <button onclick="go(1)">Next ›</button>
+  </div>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsEl=document.getElementById('dots');
+  const countEl=document.getElementById('count');
+  let i=0;
+  slides.forEach((_,n)=>{
+    const d=document.createElement('div');d.className='dot'+(n===0?' on':'');
+    d.onclick=()=>set(n);dotsEl.appendChild(d);
+  });
+  const dots=[...document.querySelectorAll('.dot')];
+  function set(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+    countEl.textContent=(i+1)+' / '+slides.length;
+  }
+  function go(step){set(i+step)}
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' ')go(1);
+    if(e.key==='ArrowLeft')go(-1);
+    if(e.key==='Home')set(0);
+    if(e.key==='End')set(slides.length-1);
+  });
+</script>
+</body>
+</html>
