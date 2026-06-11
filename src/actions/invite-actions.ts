@@ -13,10 +13,11 @@ import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
+import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
 
-function generatePassword(length = 12): string {
-  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+// CSPRNG-backed; the issued string is the investor's whole login secret.
+function generatePassword(length = 16): string {
+  return generateSecurePassword(length);
 }
 
 export async function sendInvestorInvite({
@@ -52,7 +53,7 @@ export async function sendInvestorInvite({
     // company as the "primary" so existing single-company code paths keep
     // working until PR-5 drops the column.
     plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
 
     investorUser = await prisma.user.create({
       data: {
@@ -87,7 +88,7 @@ export async function sendInvestorInvite({
     if (!hasLoggedIn) {
       // Never logged in anywhere — safe to reset password.
       plainPassword = generatePassword();
-      const passwordHash = await bcrypt.hash(plainPassword, 10);
+      const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
       await prisma.user.update({
         where: { id: investorUser.id },
         data: { passwordHash, passwordChangedAt: null },

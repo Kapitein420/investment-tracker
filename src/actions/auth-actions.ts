@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
+import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
 import { sendEmail } from "@/lib/email";
 import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
@@ -106,7 +107,7 @@ export async function requestPasswordReset(
       if (contacts.length > 0) {
         const primary = contacts[0];
         // Throwaway hash — gets overwritten by the regen step below.
-        const placeholderHash = await bcrypt.hash(randomUUID(), 10);
+        const placeholderHash = await bcrypt.hash(randomUUID(), BCRYPT_COST);
         user = await prisma.user.create({
           data: {
             email: email,
@@ -159,14 +160,13 @@ export async function requestPasswordReset(
     return { ok: true };
   }
 
-  // Same character set + length as the admin reset flow — keeps emails
-  // visually consistent and avoids ambiguous chars (0/O, 1/l, etc.).
-  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const newPassword = Array.from({ length: 12 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
+  // CSPRNG-generated, ambiguous-char-free credential (see lib/security).
+  // This string is the investor's entire login secret, so it must not come
+  // from Math.random() — its state is recoverable and the password would be
+  // predictable.
+  const newPassword = generateSecurePassword();
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
   await prisma.user.update({
     where: { id: user.id },

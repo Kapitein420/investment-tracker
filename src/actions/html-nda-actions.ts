@@ -13,7 +13,7 @@ import {
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
-import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
+import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -35,7 +35,7 @@ function parseMeta(keyMetrics: unknown): HtmlNdaMeta | null {
  * admin hasn't enabled the HTML flow yet.
  */
 export async function getHtmlNdaForAsset(assetId: string) {
-  await requireUser();
+  await requireRole("EDITOR");
   return findHtmlNda(assetId);
 }
 
@@ -240,6 +240,12 @@ export async function cloneHtmlNdaForInvestor(
   assetContentId: string,
   uploadedByUserId: string
 ) {
+  // Exported from a "use server" module, so this is a directly-invokable
+  // endpoint. All legitimate callers are EDITOR-gated actions; without this
+  // guard any caller could mint NDA Documents + SigningTokens on arbitrary
+  // trackings and forge uploadedByUserId. Enforce the same role here.
+  await requireRole("EDITOR");
+
   const ndaStage = await prisma.pipelineStage.findFirst({
     where: { key: "nda", isActive: true },
   });
@@ -391,6 +397,29 @@ export async function signHtmlNda(data: {
   if (!signingToken) throw new Error("Invalid signing token");
   if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
   if (signingToken.usedAt !== null) throw new Error("Token already used");
+
+  // signHtmlNda is a public, token-gated action and its inputs are
+  // attacker-controlled. signatureData is later interpolated raw into an
+  // <img src="..."> and persisted as signedHtml, which is rendered to
+  // admins/investors via dangerouslySetInnerHTML — so an unvalidated value
+  // like `"><img src=x onerror=...>` is stored XSS that fires in a
+  // reviewing admin's session. Constrain it to an actual data-image URL
+  // and bound the other free-text fields.
+  if (!/^data:image\/(png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(data.signatureData)) {
+    throw new Error("Invalid signature data");
+  }
+  if (data.signatureData.length > 1_000_000) {
+    throw new Error("Signature image too large");
+  }
+  if (
+    typeof data.signedByName !== "string" ||
+    data.signedByName.trim().length === 0 ||
+    data.signedByName.length > 200 ||
+    typeof data.signedByEmail !== "string" ||
+    data.signedByEmail.length > 320
+  ) {
+    throw new Error("Invalid signer details");
+  }
 
   const doc = signingToken.document;
   if (doc.mimeType !== "text/html" || !doc.fileUrl.startsWith(HTML_NDA_FILEURL_PREFIX)) {
