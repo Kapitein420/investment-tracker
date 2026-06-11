@@ -97,7 +97,7 @@ export async function updateAssetFieldDefaults(
 export async function getAssetPlaceholderTokens(
   assetId: string
 ): Promise<string[]> {
-  await requireUser();
+  await requireRole("EDITOR");
 
   const [contents, docs] = await Promise.all([
     prisma.assetContent.findMany({
@@ -150,7 +150,7 @@ export async function createCompany(data: CreateCompanyInput) {
 }
 
 export async function getAssets() {
-  await requireUser();
+  await requireRole("EDITOR");
 
   return prisma.asset.findMany({
     include: {
@@ -162,7 +162,7 @@ export async function getAssets() {
 }
 
 export async function getAssetById(id: string) {
-  await requireUser();
+  await requireRole("EDITOR");
 
   const asset = await prisma.asset.findUnique({
     where: { id },

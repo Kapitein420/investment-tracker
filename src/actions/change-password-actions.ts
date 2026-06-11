@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
+import { BCRYPT_COST } from "@/lib/security";
 
 /** Minimum password length we accept on the change-password form. We're
  *  not enforcing complexity here on purpose — the bigger risk is users
@@ -58,7 +59,7 @@ export async function changeMyPassword(input: {
     return { ok: false, error: "New password must be different from your current password." };
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
   await prisma.user.update({
     where: { id: dbUser.id },

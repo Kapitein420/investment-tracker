@@ -40,6 +40,9 @@ ALTER TABLE "Document"                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "SigningToken"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "InvestorInvite"          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AssetContent"            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UserCompanyMembership"   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CompanyContact"          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "AssetViewerAccess"       ENABLE ROW LEVEL SECURITY;
 
 -- ── Default-deny policy: anon role can't read ANYTHING ───────
 -- Service role bypasses RLS automatically — the Next.js server
@@ -53,7 +56,8 @@ BEGIN
     SELECT unnest(ARRAY[
       'User','Asset','Company','PipelineStage','AssetCompanyTracking',
       'StageStatus','Comment','StageHistory','ActivityLog','SavedView',
-      'Document','SigningToken','InvestorInvite','AssetContent'
+      'Document','SigningToken','InvestorInvite','AssetContent',
+      'UserCompanyMembership','CompanyContact','AssetViewerAccess'
     ])
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS deny_anon_select ON %I', tbl);
@@ -73,16 +77,16 @@ DO $$
 DECLARE
   unprotected text;
 BEGIN
+  -- Derive the table set dynamically: ANY public table (excluding Prisma's
+  -- migration bookkeeping) without RLS is a gap. This way a newly-added
+  -- model that someone forgets to list above still trips this check instead
+  -- of silently shipping unprotected.
   SELECT string_agg(c.relname, ', ') INTO unprotected
   FROM pg_class c
   JOIN pg_namespace n ON c.relnamespace = n.oid
   WHERE n.nspname = 'public'
     AND c.relkind = 'r'
-    AND c.relname IN (
-      'User','Asset','Company','PipelineStage','AssetCompanyTracking',
-      'StageStatus','Comment','StageHistory','ActivityLog','SavedView',
-      'Document','SigningToken','InvestorInvite','AssetContent'
-    )
+    AND c.relname NOT LIKE '\_%' ESCAPE '\'
     AND c.relrowsecurity = false;
 
   IF unprotected IS NOT NULL THEN
@@ -149,3 +153,6 @@ CREATE POLICY "documents_deny_anon"
 -- ALTER TABLE "SigningToken"            DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE "InvestorInvite"          DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE "AssetContent"            DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE "UserCompanyMembership"   DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE "CompanyContact"          DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE "AssetViewerAccess"       DISABLE ROW LEVEL SECURITY;

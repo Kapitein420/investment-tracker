@@ -45,11 +45,23 @@ export async function POST(req: Request) {
     .createHmac("sha256", signingKey)
     .update(signature.timestamp + signature.token)
     .digest("hex");
-  if (expected !== signature.signature) {
+  // Constant-time comparison so the verification can't be probed byte-by-byte
+  // via response timing. timingSafeEqual requires equal-length buffers, so
+  // guard the length (and the type) first.
+  const provided =
+    typeof signature.signature === "string" ? signature.signature : "";
+  const expectedBuf = Buffer.from(expected, "hex");
+  const providedBuf = Buffer.from(provided, "hex");
+  if (
+    expectedBuf.length !== providedBuf.length ||
+    !crypto.timingSafeEqual(expectedBuf, providedBuf)
+  ) {
     return NextResponse.json({ error: "Bad signature" }, { status: 401 });
   }
 
-  // Reject events more than 5 minutes old to limit replay attacks
+  // Reject events more than 5 minutes old to limit replay attacks. (A
+  // captured event can still be replayed within this window — eliminating
+  // that fully needs a persisted seen-token store; tracked as a follow-up.)
   const ts = parseInt(signature.timestamp, 10);
   if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) {
     return NextResponse.json({ error: "Stale event" }, { status: 401 });

@@ -247,6 +247,21 @@ export async function getSignedContentUrl(storagePath: string) {
     }
   }
 
+  // VIEWER (opdrachtgever / client) check: must have been granted access to
+  // the asset this file belongs to. Previously VIEWERs fell straight through
+  // to getSignedUrl, so any storagePath they could discover was downloadable
+  // — the same AssetViewerAccess gate getSignedDocumentUrl/getSignedHtmlNda
+  // already enforce, kept consistent here.
+  if (user.role === "VIEWER") {
+    const assetId = content?.assetId ?? teaser?.assetId ?? doc?.tracking.assetId;
+    if (!assetId) throw new Error("Forbidden");
+    const access = await prisma.assetViewerAccess.findUnique({
+      where: { userId_assetId: { userId: user.id, assetId } },
+      select: { id: true },
+    });
+    if (!access) throw new Error("Forbidden");
+  }
+
   // Log the access — surfaces "first viewed at" timestamps in the admin
   // overview ("Anna opened the IM at 14:02"). Best-effort: logging failure
   // never blocks the URL from being returned.
@@ -287,7 +302,7 @@ export async function getContentAccessByTracking(
   assetId: string,
   stageKey: string
 ): Promise<Record<string, Date>> {
-  await requireUser();
+  await requireRole("EDITOR");
 
   const trackings = await prisma.assetCompanyTracking.findMany({
     where: { assetId },

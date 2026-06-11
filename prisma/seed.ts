@@ -3,6 +3,17 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Refuse to run against production. This seed wipes core tables and creates
+// accounts with well-known passwords ("password123") — catastrophic if
+// pointed at a live database.
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "Refusing to seed: NODE_ENV=production. This script deletes data and " +
+      "creates known-password accounts. Unset NODE_ENV or run against a dev DB."
+  );
+  process.exit(1);
+}
+
 async function main() {
   console.log("Seeding database...");
 
