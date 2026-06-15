@@ -56,6 +56,18 @@ export const authOptions: NextAuthOptions = {
           checkRateLimit(`auth:email:${email}`, emailCap, 15 * 60),
           checkRateLimit(`auth:ip:${ip}`, ipCap, 15 * 60),
         ]);
+        // Fail CLOSED on the auth path: if the limiter couldn't authoritatively
+        // count (Upstash outage, or no distributed backend in prod), deny the
+        // login rather than let an attacker ride out the degradation with
+        // unlimited guesses. Availability tradeoff accepted — a limiter outage
+        // briefly blocks logins instead of silently removing brute-force
+        // protection. Other callers (e.g. password reset) still fail open.
+        if (emailLimit.degraded || ipLimit.degraded) {
+          console.error(
+            "[auth] rate-limit backend unavailable — failing closed (denying login)"
+          );
+          return null;
+        }
         if (!emailLimit.allowed || !ipLimit.allowed) {
           console.warn(
             `[auth] rate-limited email=${email} ip=${ip} ` +

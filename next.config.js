@@ -44,13 +44,18 @@ const nextConfig = {
     //   file and napi-rs/canvas binaries even though nothing statically
     //   imports them, so they're present in /var/task/node_modules.
     serverComponentsExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
-  },
-  outputFileTracingIncludes: {
-    "/**/*": [
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-      "./node_modules/@napi-rs/canvas/**/*",
-    ],
+    // outputFileTracingIncludes is an EXPERIMENTAL key in Next 14.2 — at the
+    // top level Next silently ignores it ("Unrecognized key"), leaving the
+    // pdf worker + @napi-rs/canvas binaries untraced so the scanner crashes
+    // with "Cannot find module" in production. Nested under experimental it
+    // actually ships them. (Promoted to a stable top-level key in Next 15.)
+    outputFileTracingIncludes: {
+      "/**/*": [
+        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+        "./node_modules/@napi-rs/canvas/**/*",
+      ],
+    },
   },
   async headers() {
     return [
