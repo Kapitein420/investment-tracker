@@ -14,9 +14,21 @@ import {
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
-import { sanitizeNdaHtml } from "@/lib/sanitize-html";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
+
+// Server-only lazy loader for the HTML sanitizer. This module is "use server"
+// and is imported by client components for their action stubs — so a STATIC
+// top-level import of sanitize-html drags isomorphic-dompurify -> jsdom into
+// the BROWSER bundle, where jsdom's unguarded crypto.randomUUID() throws
+// ("randomUUID is not a function") and blanks the page. A dynamic import keeps
+// jsdom server-only; sanitisation still runs server-side, identically.
+async function sanitizeNdaHtml(
+  html: string | null | undefined
+): Promise<string> {
+  const mod = await import("@/lib/sanitize-html");
+  return mod.sanitizeNdaHtml(html);
+}
 
 interface HtmlNdaMeta {
   isHtmlNda: true;
@@ -136,7 +148,7 @@ export async function updateHtmlNdaTemplate(
       // dangerouslySetInnerHTML.
       htmlContent:
         data.html !== undefined
-          ? sanitizeNdaHtml(data.html)
+          ? await sanitizeNdaHtml(data.html)
           : existing.htmlContent,
       keyMetrics: newMeta as any,
     },
@@ -372,7 +384,7 @@ export async function getHtmlNdaForSigning(token: string) {
     companyName: doc.tracking.company.name,
     // Sanitise on the way out too — covers templates stored before
     // sanitise-on-save shipped.
-    html: sanitizeNdaHtml(template.htmlContent),
+    html: await sanitizeNdaHtml(template.htmlContent),
     fields,
     adminFieldDefaults,
   };
@@ -490,7 +502,7 @@ export async function signHtmlNda(data: {
   // Sanitise the (untrusted, EDITOR-authored) template before rendering, so
   // the persisted signedHtml is clean by construction. The signature image
   // is appended afterwards from the already-validated data:image payload.
-  const renderedHtml = renderTemplate(sanitizeNdaHtml(template.htmlContent), merged);
+  const renderedHtml = renderTemplate(await sanitizeNdaHtml(template.htmlContent), merged);
   const signedHtml = injectSignature(renderedHtml, signatureImg);
 
   try {
@@ -633,7 +645,7 @@ export async function getSignedHtmlNda(documentId: string) {
     signedByEmail: showSignerIdentity ? doc.signedByEmail : null,
     // Sanitise legacy signed copies on render (data:image signature is
     // preserved by sanitizeNdaHtml's URI allow-list).
-    signedHtml: cfg?.signedHtml ? sanitizeNdaHtml(cfg.signedHtml) : null,
+    signedHtml: cfg?.signedHtml ? await sanitizeNdaHtml(cfg.signedHtml) : null,
   };
 }
 
