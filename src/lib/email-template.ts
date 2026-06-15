@@ -180,6 +180,15 @@ function escape(s: string): string {
 }
 
 /**
+ * Public, null-safe HTML escaper for callers that build their own email
+ * body HTML (e.g. invite-actions) and interpolate user-controlled values
+ * such as company name / asset title.
+ */
+export function escapeHtml(s: unknown): string {
+  return escape(String(s ?? ""));
+}
+
+/**
  * Editorial credentials table — used by the invite + password-reset emails.
  */
 export function renderCredentialsTable(rows: { label: string; value: string; mono?: boolean }[]): string {

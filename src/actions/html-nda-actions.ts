@@ -14,6 +14,7 @@ import {
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import { sanitizeNdaHtml } from "@/lib/sanitize-html";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -130,7 +131,13 @@ export async function updateHtmlNdaTemplate(
   const updated = await prisma.assetContent.update({
     where: { id: assetContentId },
     data: {
-      htmlContent: data.html ?? existing.htmlContent,
+      // Sanitise EDITOR-supplied template HTML at the point of storage —
+      // it's untrusted and ends up in investors' browsers via
+      // dangerouslySetInnerHTML.
+      htmlContent:
+        data.html !== undefined
+          ? sanitizeNdaHtml(data.html)
+          : existing.htmlContent,
       keyMetrics: newMeta as any,
     },
   });
@@ -363,7 +370,9 @@ export async function getHtmlNdaForSigning(token: string) {
     documentId: doc.id,
     assetTitle: doc.tracking.asset.title,
     companyName: doc.tracking.company.name,
-    html: template.htmlContent,
+    // Sanitise on the way out too — covers templates stored before
+    // sanitise-on-save shipped.
+    html: sanitizeNdaHtml(template.htmlContent),
     fields,
     adminFieldDefaults,
   };
@@ -478,7 +487,10 @@ export async function signHtmlNda(data: {
   if (data.values.FIRST_NAMES) merged.FIRST_NAMES = data.values.FIRST_NAMES;
   if (data.values.SURNAME) merged.SURNAME = data.values.SURNAME;
 
-  const renderedHtml = renderTemplate(template.htmlContent, merged);
+  // Sanitise the (untrusted, EDITOR-authored) template before rendering, so
+  // the persisted signedHtml is clean by construction. The signature image
+  // is appended afterwards from the already-validated data:image payload.
+  const renderedHtml = renderTemplate(sanitizeNdaHtml(template.htmlContent), merged);
   const signedHtml = injectSignature(renderedHtml, signatureImg);
 
   try {
@@ -619,7 +631,9 @@ export async function getSignedHtmlNda(documentId: string) {
     signedAt: doc.signedAt,
     signedByName: showSignerIdentity ? doc.signedByName : null,
     signedByEmail: showSignerIdentity ? doc.signedByEmail : null,
-    signedHtml: cfg?.signedHtml ?? null,
+    // Sanitise legacy signed copies on render (data:image signature is
+    // preserved by sanitizeNdaHtml's URI allow-list).
+    signedHtml: cfg?.signedHtml ? sanitizeNdaHtml(cfg.signedHtml) : null,
   };
 }
 
