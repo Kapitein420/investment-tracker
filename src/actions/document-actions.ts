@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
 import { uploadFile, getSignedUrl, downloadFile, uploadBytes, deleteFile } from "@/lib/supabase-storage";
@@ -13,7 +14,7 @@ import {
   saveDocumentPlacementsSchema,
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
-import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
+import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -252,7 +253,11 @@ export async function uploadDocument(formData: FormData) {
     }
   }
 
-  const path = `documents/${trackingId}/${Date.now()}_${file.name}`;
+  // Sanitise the client-supplied filename before using it as a storage key
+  // — an un-neutralised name like "../../x.pdf" would escape the intended
+  // prefix. Mirrors uploadInvestorNda's safeName handling.
+  const safeName = (file.name || "document.pdf").replace(/[^\w.\-]/g, "_");
+  const path = `documents/${trackingId}/${Date.now()}_${safeName}`;
   const storagePath = await uploadFile(buffer, path, file.type);
 
   const document = await prisma.document.create({
@@ -272,6 +277,11 @@ export async function uploadDocument(formData: FormData) {
 
   const token = await prisma.signingToken.create({
     data: {
+      // Explicit high-entropy token. Relying on the schema's cuid() default
+      // would gate unauthenticated NDA signing on a partially-predictable
+      // value (timestamp + counter + host fingerprint); use two random
+      // UUIDs (~244 bits) like the other signing-token creation sites.
+      token: randomUUID() + "-" + randomUUID(),
       documentId: document.id,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
@@ -356,7 +366,8 @@ export async function uploadOfferDocument(formData: FormData) {
     );
   }
 
-  const path = `documents/${trackingId}/offer_${Date.now()}_${file.name}`;
+  const safeName = (file.name || "offer.pdf").replace(/[^\w.\-]/g, "_");
+  const path = `documents/${trackingId}/offer_${Date.now()}_${safeName}`;
   const storagePath = await uploadFile(buffer, path, file.type);
 
   // Atomic replace: remove any prior OFFER doc on this tracking, then
@@ -657,17 +668,17 @@ export async function getSignedDocumentUrl(documentId: string) {
 }
 
 export async function getDocumentsByTracking(trackingId: string) {
-  await requireUser();
+  // Admin-side read. Previously guarded only by requireUser(), which let any
+  // logged-in investor enumerate trackingIds and pull another company's
+  // documents — including live, unused SigningTokens and signatureData,
+  // enabling NDA-signing hijack. Restrict to EDITOR+ and never return
+  // signing tokens / signature blobs here.
+  await requireRole("EDITOR");
   return prisma.document.findMany({
     where: { trackingId },
     include: {
       stage: true,
       uploadedBy: { select: { id: true, name: true } },
-      signingTokens: {
-        where: { usedAt: null, expiresAt: { gt: new Date() } },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -684,16 +695,39 @@ export async function getDocumentPlaceholderInfo(
   placeholderMap: Record<string, unknown> | null;
   assetFieldDefaults: Record<string, string>;
 } | null> {
-  await requireUser();
+  const user = await requireUser();
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
     select: {
       placementMode: true,
       placeholderMap: true,
-      tracking: { select: { asset: { select: { fieldDefaults: true } } } },
+      tracking: {
+        select: {
+          companyId: true,
+          assetId: true,
+          asset: { select: { fieldDefaults: true } },
+        },
+      },
     },
   });
   if (!doc) return null;
+
+  // Ownership gate (mirrors getSignedDocumentUrl). Without this, any
+  // logged-in investor could read another deal's placeholderMap and the
+  // asset's confidential fieldDefaults by guessing a documentId.
+  if (user.role === "INVESTOR" && doc.tracking?.companyId !== user.companyId) {
+    throw new Error("Forbidden");
+  }
+  if (user.role === "VIEWER") {
+    const assetId = doc.tracking?.assetId;
+    const access = assetId
+      ? await prisma.assetViewerAccess.findUnique({
+          where: { userId_assetId: { userId: user.id, assetId } },
+          select: { id: true },
+        })
+      : null;
+    if (!access) throw new Error("Forbidden");
+  }
   if (doc.placementMode !== "PLACEHOLDER") {
     return { placeholderMap: null, assetFieldDefaults: {} };
   }

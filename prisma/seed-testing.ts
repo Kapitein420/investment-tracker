@@ -3,6 +3,15 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Refuse to run against production — creates test investor accounts with
+// well-known passwords ("testtest123").
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "Refusing to seed test data: NODE_ENV=production. Run against a dev DB only."
+  );
+  process.exit(1);
+}
+
 async function main() {
   // Find admin user to assign as asset creator
   const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });

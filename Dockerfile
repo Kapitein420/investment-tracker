@@ -20,6 +20,9 @@ COPY --from=base /app/.next/static ./.next/static
 COPY --from=base /app/prisma ./prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
+# Drop root — the official node image ships an unprivileged "node" user.
+USER node
+
 EXPOSE 3000
 
 CMD ["node", "server.js"]

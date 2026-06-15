@@ -59,7 +59,9 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      // Reject tokens the jwt callback has marked invalidated (deactivated
+      // account or password rotated since the token was issued).
+      authorized: ({ token }) => !!token && !(token as any).invalidated,
     },
   }
 );

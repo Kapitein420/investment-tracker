@@ -6,17 +6,18 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { renderEmail, renderCredentialsTable, renderCta, renderTeaserPreview } from "@/lib/email-template";
+import { renderEmail, renderCredentialsTable, renderCta, renderTeaserPreview, escapeHtml } from "@/lib/email-template";
 import { getSignedUrl } from "@/lib/supabase-storage";
 import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
+import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
 
-function generatePassword(length = 12): string {
-  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+// CSPRNG-backed; the issued string is the investor's whole login secret.
+function generatePassword(length = 16): string {
+  return generateSecurePassword(length);
 }
 
 export async function sendInvestorInvite({
@@ -52,7 +53,7 @@ export async function sendInvestorInvite({
     // company as the "primary" so existing single-company code paths keep
     // working until PR-5 drops the column.
     plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
 
     investorUser = await prisma.user.create({
       data: {
@@ -87,7 +88,7 @@ export async function sendInvestorInvite({
     if (!hasLoggedIn) {
       // Never logged in anywhere — safe to reset password.
       plainPassword = generatePassword();
-      const passwordHash = await bcrypt.hash(plainPassword, 10);
+      const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
       await prisma.user.update({
         where: { id: investorUser.id },
         data: { passwordHash, passwordChangedAt: null },
@@ -356,7 +357,7 @@ export async function sendInvestorInvite({
       <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
         <tr>
           <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
-          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${email}</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
@@ -381,7 +382,7 @@ export async function sendInvestorInvite({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            You have been granted access to review <strong>${asset.title}</strong> in ${asset.city}, ${asset.country}. A short preview is below — full details unlock in the portal once you sign the NDA.
+            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below — full details unlock in the portal once you sign the NDA.
           </p>
           ${teaserPreviewHtml}
           ${credentialsBlock}
@@ -390,7 +391,7 @@ export async function sendInvestorInvite({
             Keep these credentials secure. For assistance, reply to this email or contact the deal team directly.
           </p>
         `,
-        meta: `${asset.title} · ${asset.city}, ${asset.country}`,
+        meta: `${escapeHtml(asset.title)} · ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}`,
       }),
     });
     messageId = result.messageId;

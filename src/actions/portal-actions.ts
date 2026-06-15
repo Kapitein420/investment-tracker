@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { StageStatusValue } from "@prisma/client";
-import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
+import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 
 // Stage unlock rules:
 // - teaser: always unlocked

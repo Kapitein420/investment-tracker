@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
+import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
 import {
   createUserSchema,
   updateUserSchema,
@@ -50,7 +51,7 @@ export async function createUser(data: CreateUserInput) {
   // login through bcrypt and produced 68% false 401s at 100 concurrent.
   // Cost 10 is ~62ms — still strong (≥10K hash/s would still take centuries
   // to brute-force a single password) and fixes the load-test cliff.
-  const passwordHash = await bcrypt.hash(validated.password, 10);
+  const passwordHash = await bcrypt.hash(validated.password, BCRYPT_COST);
 
   const user = await prisma.user.create({
     data: {
@@ -271,11 +272,10 @@ export async function resetUserPassword(userId: string) {
     where: { id: userId },
   });
 
-  // Generate random 12-char password
-  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const newPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  // CSPRNG-generated credential — see lib/security. Not Math.random().
+  const newPassword = generateSecurePassword();
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
   await prisma.user.update({
     where: { id: userId },

@@ -69,7 +69,7 @@ export function renderEmail(opts: {
       ${renderHeader()}
       <div style="background: ${COLORS.paper}; padding: 40px 32px 32px 32px;">
         <h1 style="font-family: Georgia, 'Times New Roman', serif; color: ${COLORS.ink}; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.2;">
-          ${opts.heading}
+          ${escape(opts.heading)}
         </h1>
         <div style="background: ${COLORS.brass}; height: 2px; width: 40px; margin: 14px 0 24px 0; line-height: 2px; font-size: 0;">&nbsp;</div>
         ${opts.bodyHtml}
@@ -85,9 +85,9 @@ export function renderEmail(opts: {
 export function renderCta(text: string, url: string): string {
   return `
     <div style="margin: 0 0 28px 0;">
-      <a href="${url}"
+      <a href="${escape(url)}"
          style="background: ${COLORS.ink}; color: ${COLORS.paper}; padding: 14px 28px; text-decoration: none; border-radius: 4px; font-weight: 700; display: inline-block; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-family: Arial, Helvetica, sans-serif;">
-        ${text}
+        ${escape(text)}
       </a>
     </div>
   `;
@@ -180,6 +180,15 @@ function escape(s: string): string {
 }
 
 /**
+ * Public, null-safe HTML escaper for callers that build their own email
+ * body HTML (e.g. invite-actions) and interpolate user-controlled values
+ * such as company name / asset title.
+ */
+export function escapeHtml(s: unknown): string {
+  return escape(String(s ?? ""));
+}
+
+/**
  * Editorial credentials table — used by the invite + password-reset emails.
  */
 export function renderCredentialsTable(rows: { label: string; value: string; mono?: boolean }[]): string {
@@ -187,8 +196,8 @@ export function renderCredentialsTable(rows: { label: string; value: string; mon
     .map(
       (r, i) => `
       <tr>
-        <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${COLORS.ink}; font-weight: 700; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${r.label}</td>
-        <td style="padding: 14px 16px; font-size: 14px; color: ${COLORS.ink}; ${r.mono ? "font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;" : ""} background: ${COLORS.surface}; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${r.value}</td>
+        <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${COLORS.ink}; font-weight: 700; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(r.label)}</td>
+        <td style="padding: 14px 16px; font-size: 14px; color: ${COLORS.ink}; ${r.mono ? "font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;" : ""} background: ${COLORS.surface}; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(r.value)}</td>
       </tr>`,
     )
     .join("");

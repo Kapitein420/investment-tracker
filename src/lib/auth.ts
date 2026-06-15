@@ -1,8 +1,16 @@
 import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { BCRYPT_COST } from "@/lib/security";
+
+// A valid bcrypt hash of a throwaway random string, computed once at module
+// load. Used only to burn an equivalent amount of CPU when the looked-up
+// user doesn't exist or is inactive, so login timing can't be used to
+// enumerate accounts. Cost matches BCRYPT_COST so the work is comparable.
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync(randomUUID(), BCRYPT_COST);
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -60,7 +68,14 @@ export const authOptions: NextAuthOptions = {
           where: { email: { equals: email, mode: "insensitive" } },
         });
 
-        if (!user || !user.isActive) return null;
+        // Constant-time-ish: always pay a bcrypt comparison even when the
+        // account is missing/inactive, so the response time doesn't reveal
+        // which emails are registered (account enumeration via timing).
+        // DUMMY_HASH is a valid bcrypt hash of a random string.
+        if (!user || !user.isActive) {
+          await bcrypt.compare(credentials.password, DUMMY_BCRYPT_HASH);
+          return null;
+        }
 
         const valid = await bcrypt.compare(
           credentials.password,
@@ -83,6 +98,12 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           companyId: user.companyId,
           mustChangePassword: user.passwordChangedAt === null,
+          // Epoch ms of the last credential rotation (0 when never set).
+          // Stamped into the JWT so a password change/reset can invalidate
+          // any session minted before it (see jwt callback).
+          pwChangedAt: user.passwordChangedAt
+            ? user.passwordChangedAt.getTime()
+            : 0,
         };
       },
     }),
@@ -94,8 +115,13 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
         token.mustChangePassword = (user as any).mustChangePassword === true;
+        token.pwChangedAt = (user as any).pwChangedAt ?? 0;
+        token.invalidated = false;
       }
-      // Refresh role/companyId/mustChangePassword from DB on token refresh
+      // Refresh role/companyId/mustChangePassword from DB on token refresh,
+      // and enforce session invalidation: a disabled account or a password
+      // changed after this token was issued must lose access immediately
+      // rather than ride out the 8h JWT lifetime.
       if (token.id && !user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
@@ -106,15 +132,40 @@ export const authOptions: NextAuthOptions = {
             passwordChangedAt: true,
           },
         });
-        if (dbUser && dbUser.isActive) {
-          token.role = dbUser.role;
-          token.companyId = dbUser.companyId;
-          token.mustChangePassword = dbUser.passwordChangedAt === null;
+
+        if (!dbUser || !dbUser.isActive) {
+          // Account deleted or deactivated — kill the session.
+          token.invalidated = true;
+          return token;
         }
+
+        const dbMs = dbUser.passwordChangedAt
+          ? dbUser.passwordChangedAt.getTime()
+          : 0;
+
+        if (typeof token.pwChangedAt !== "number") {
+          // Legacy token minted before invalidation tracking existed —
+          // adopt the current value rather than force a one-time mass logout.
+          token.pwChangedAt = dbMs;
+        } else if (dbMs !== token.pwChangedAt) {
+          // Credentials rotated (user change, admin reset, forgot-password)
+          // since this token was issued — invalidate it.
+          token.invalidated = true;
+          return token;
+        }
+
+        token.role = dbUser.role;
+        token.companyId = dbUser.companyId;
+        token.mustChangePassword = dbUser.passwordChangedAt === null;
+        token.invalidated = false;
       }
       return token;
     },
     async session({ session, token }) {
+      // An invalidated token must not resolve to an authenticated session.
+      if (token.invalidated) {
+        return { ...session, user: undefined } as unknown as typeof session;
+      }
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;

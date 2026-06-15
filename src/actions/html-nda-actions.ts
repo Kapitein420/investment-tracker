@@ -13,7 +13,8 @@ import {
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
-import { syncCurrentStageKeyAfterCommit } from "@/actions/tracking-actions";
+import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import { sanitizeNdaHtml } from "@/lib/sanitize-html";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -35,7 +36,7 @@ function parseMeta(keyMetrics: unknown): HtmlNdaMeta | null {
  * admin hasn't enabled the HTML flow yet.
  */
 export async function getHtmlNdaForAsset(assetId: string) {
-  await requireUser();
+  await requireRole("EDITOR");
   return findHtmlNda(assetId);
 }
 
@@ -130,7 +131,13 @@ export async function updateHtmlNdaTemplate(
   const updated = await prisma.assetContent.update({
     where: { id: assetContentId },
     data: {
-      htmlContent: data.html ?? existing.htmlContent,
+      // Sanitise EDITOR-supplied template HTML at the point of storage —
+      // it's untrusted and ends up in investors' browsers via
+      // dangerouslySetInnerHTML.
+      htmlContent:
+        data.html !== undefined
+          ? sanitizeNdaHtml(data.html)
+          : existing.htmlContent,
       keyMetrics: newMeta as any,
     },
   });
@@ -240,6 +247,12 @@ export async function cloneHtmlNdaForInvestor(
   assetContentId: string,
   uploadedByUserId: string
 ) {
+  // Exported from a "use server" module, so this is a directly-invokable
+  // endpoint. All legitimate callers are EDITOR-gated actions; without this
+  // guard any caller could mint NDA Documents + SigningTokens on arbitrary
+  // trackings and forge uploadedByUserId. Enforce the same role here.
+  await requireRole("EDITOR");
+
   const ndaStage = await prisma.pipelineStage.findFirst({
     where: { key: "nda", isActive: true },
   });
@@ -357,7 +370,9 @@ export async function getHtmlNdaForSigning(token: string) {
     documentId: doc.id,
     assetTitle: doc.tracking.asset.title,
     companyName: doc.tracking.company.name,
-    html: template.htmlContent,
+    // Sanitise on the way out too — covers templates stored before
+    // sanitise-on-save shipped.
+    html: sanitizeNdaHtml(template.htmlContent),
     fields,
     adminFieldDefaults,
   };
@@ -391,6 +406,29 @@ export async function signHtmlNda(data: {
   if (!signingToken) throw new Error("Invalid signing token");
   if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
   if (signingToken.usedAt !== null) throw new Error("Token already used");
+
+  // signHtmlNda is a public, token-gated action and its inputs are
+  // attacker-controlled. signatureData is later interpolated raw into an
+  // <img src="..."> and persisted as signedHtml, which is rendered to
+  // admins/investors via dangerouslySetInnerHTML — so an unvalidated value
+  // like `"><img src=x onerror=...>` is stored XSS that fires in a
+  // reviewing admin's session. Constrain it to an actual data-image URL
+  // and bound the other free-text fields.
+  if (!/^data:image\/(png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(data.signatureData)) {
+    throw new Error("Invalid signature data");
+  }
+  if (data.signatureData.length > 1_000_000) {
+    throw new Error("Signature image too large");
+  }
+  if (
+    typeof data.signedByName !== "string" ||
+    data.signedByName.trim().length === 0 ||
+    data.signedByName.length > 200 ||
+    typeof data.signedByEmail !== "string" ||
+    data.signedByEmail.length > 320
+  ) {
+    throw new Error("Invalid signer details");
+  }
 
   const doc = signingToken.document;
   if (doc.mimeType !== "text/html" || !doc.fileUrl.startsWith(HTML_NDA_FILEURL_PREFIX)) {
@@ -449,7 +487,10 @@ export async function signHtmlNda(data: {
   if (data.values.FIRST_NAMES) merged.FIRST_NAMES = data.values.FIRST_NAMES;
   if (data.values.SURNAME) merged.SURNAME = data.values.SURNAME;
 
-  const renderedHtml = renderTemplate(template.htmlContent, merged);
+  // Sanitise the (untrusted, EDITOR-authored) template before rendering, so
+  // the persisted signedHtml is clean by construction. The signature image
+  // is appended afterwards from the already-validated data:image payload.
+  const renderedHtml = renderTemplate(sanitizeNdaHtml(template.htmlContent), merged);
   const signedHtml = injectSignature(renderedHtml, signatureImg);
 
   try {
@@ -590,7 +631,9 @@ export async function getSignedHtmlNda(documentId: string) {
     signedAt: doc.signedAt,
     signedByName: showSignerIdentity ? doc.signedByName : null,
     signedByEmail: showSignerIdentity ? doc.signedByEmail : null,
-    signedHtml: cfg?.signedHtml ?? null,
+    // Sanitise legacy signed copies on render (data:image signature is
+    // preserved by sanitizeNdaHtml's URI allow-list).
+    signedHtml: cfg?.signedHtml ? sanitizeNdaHtml(cfg.signedHtml) : null,
   };
 }
 
