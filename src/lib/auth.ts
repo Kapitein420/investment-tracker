@@ -164,7 +164,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // An invalidated token must not resolve to an authenticated session.
       if (token.invalidated) {
-        return { ...session, user: undefined } as typeof session;
+        return { ...session, user: undefined } as unknown as typeof session;
       }
       if (session.user) {
         (session.user as any).id = token.id;

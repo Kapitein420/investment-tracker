@@ -22,5 +22,5 @@ export default async function SignedNdaPage({ params }: { params: { documentId: 
   }
   if (!result || !result.signedHtml) notFound();
 
-  return <PrintableSignedNda data={result} />;
+  return <PrintableSignedNda data={{ ...result, signedHtml: result.signedHtml }} />;
 }
