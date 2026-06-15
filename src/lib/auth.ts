@@ -6,11 +6,24 @@ import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { BCRYPT_COST } from "@/lib/security";
 
-// A valid bcrypt hash of a throwaway random string, computed once at module
-// load. Used only to burn an equivalent amount of CPU when the looked-up
-// user doesn't exist or is inactive, so login timing can't be used to
-// enumerate accounts. Cost matches BCRYPT_COST so the work is comparable.
-const DUMMY_BCRYPT_HASH = bcrypt.hashSync(randomUUID(), BCRYPT_COST);
+// A valid bcrypt hash of a throwaway random string. Used only to burn an
+// equivalent amount of CPU when the looked-up user doesn't exist or is
+// inactive, so login timing can't be used to enumerate accounts. Cost matches
+// BCRYPT_COST so the work is comparable.
+//
+// Computed LAZILY (not at module load): this module is dragged into the client
+// bundle via a "use server" import chain (permissions -> auth), and a
+// module-scope `bcrypt.hashSync(randomUUID())` would execute in the browser —
+// where Node's `randomUUID` polyfill is absent — and crash the page with
+// "randomUUID is not a function". The hash only ever materialises server-side,
+// on the first failed-lookup login.
+let _dummyBcryptHash: string | null = null;
+function getDummyBcryptHash(): string {
+  if (_dummyBcryptHash === null) {
+    _dummyBcryptHash = bcrypt.hashSync(randomUUID(), BCRYPT_COST);
+  }
+  return _dummyBcryptHash;
+}
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -85,7 +98,7 @@ export const authOptions: NextAuthOptions = {
         // which emails are registered (account enumeration via timing).
         // DUMMY_HASH is a valid bcrypt hash of a random string.
         if (!user || !user.isActive) {
-          await bcrypt.compare(credentials.password, DUMMY_BCRYPT_HASH);
+          await bcrypt.compare(credentials.password, getDummyBcryptHash());
           return null;
         }
 
