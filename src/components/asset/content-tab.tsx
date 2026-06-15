@@ -17,6 +17,7 @@ import { createAssetContent, updateAssetContent, deleteAssetContent, getSignedCo
 import { deleteAssetPendingDocuments } from "@/actions/document-actions";
 import { enableHtmlNdaForAsset, disableHtmlNdaForAsset, issueHtmlNdaToAllTrackings } from "@/actions/html-nda-actions";
 import { HtmlNdaEditor } from "@/components/asset/html-nda-editor";
+import { HtmlNdaTestTools } from "@/components/asset/html-nda-test-tools";
 import { HtmlNdaPreview } from "@/components/asset/html-nda-preview";
 import { HtmlNdaDownload } from "@/components/asset/html-nda-download";
 import { AssetFieldDefaultsEditor } from "@/components/asset/asset-field-defaults-editor";
@@ -28,10 +29,11 @@ interface ContentTabProps {
   contents: any[];
   trackings: any[];
   editable: boolean;
+  isAdmin?: boolean;
   assetFieldDefaults?: Record<string, string>;
 }
 
-export function ContentTab({ assetId, contents, trackings, editable, assetFieldDefaults }: ContentTabProps) {
+export function ContentTab({ assetId, contents, trackings, editable, isAdmin, assetFieldDefaults }: ContentTabProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -500,6 +502,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                   >
                     Disable
                   </Button>
+                  {isAdmin && <HtmlNdaTestTools assetId={assetId} />}
                 </div>
               ) : (
                 <Button

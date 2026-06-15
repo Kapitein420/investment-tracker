@@ -19,7 +19,7 @@ export default async function DashboardPage() {
       : await prisma.asset.findMany({
           where: viewerScope === null ? undefined : { id: { in: viewerScope } },
           include: {
-            _count: { select: { trackings: true } },
+            _count: { select: { trackings: { where: { isTest: false } } } },
             createdBy: { select: { name: true } },
           },
           orderBy: { updatedAt: "desc" },

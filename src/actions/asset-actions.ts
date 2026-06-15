@@ -155,7 +155,7 @@ export async function getAssets() {
   return prisma.asset.findMany({
     include: {
       createdBy: { select: { id: true, name: true, email: true } },
-      _count: { select: { trackings: true } },
+      _count: { select: { trackings: { where: { isTest: false } } } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -169,6 +169,7 @@ export async function getAssetById(id: string) {
     include: {
       createdBy: { select: { id: true, name: true, email: true } },
       trackings: {
+        where: { isTest: false },
         include: {
           company: true,
           stageStatuses: {

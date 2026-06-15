@@ -30,6 +30,8 @@ export default async function AssetDetailPage({ params }: { params: { id: string
     include: {
       createdBy: { select: { id: true, name: true } },
       trackings: {
+        // Throwaway admin test rows never appear in the real pipeline/overview.
+        where: { isTest: false },
         include: {
           company: true,
           ownerUser: { select: { id: true, name: true } },
