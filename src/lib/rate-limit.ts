@@ -65,6 +65,14 @@ export interface RateLimitResult {
   remaining: number;
   /** Epoch ms when the window resets and the counter goes back to 0. */
   resetAt: number;
+  /**
+   * True when the limiter could NOT authoritatively count this event — the
+   * Upstash backend errored, or no distributed backend is configured in
+   * production (the in-memory fallback isn't shared across instances).
+   * Fail-open callers ignore it; the auth path treats it as a hard deny so a
+   * limiter outage can't silently disable brute-force protection.
+   */
+  degraded?: boolean;
 }
 
 /**
@@ -104,10 +112,13 @@ export async function checkRateLimit(
       const pttlMs = Number(data[2]?.result ?? windowSec * 1000);
       const resetAt = Date.now() + Math.max(pttlMs, 0);
       const allowed = count <= limit;
-      return { allowed, remaining: Math.max(0, limit - count), resetAt };
+      return { allowed, remaining: Math.max(0, limit - count), resetAt, degraded: false };
     } catch (e) {
-      console.warn("[rate-limit] upstash failed, falling open:", e);
-      return { allowed: true, remaining: limit, resetAt: Date.now() + windowSec * 1000 };
+      // Backend blip — keep allowed:true so fail-open callers (e.g. password
+      // reset) aren't taken down by a Redis hiccup, but flag degraded so the
+      // auth path fails CLOSED instead of trusting an uncounted attempt.
+      console.warn("[rate-limit] upstash failed:", e);
+      return { allowed: true, remaining: limit, resetAt: Date.now() + windowSec * 1000, degraded: true };
     }
   }
 
@@ -118,17 +129,22 @@ export async function checkRateLimit(
     warnedNoUpstash = true;
   }
 
+  // No distributed backend. In production the in-memory store is not a real
+  // limiter (each function instance keeps its own Map), so report degraded —
+  // the auth path fails closed rather than trust it. In dev it's fine.
+  const noBackendInProd = process.env.NODE_ENV === "production";
   const now = Date.now();
   const existing = memoryStore.get(key);
   if (!existing || existing.resetAt <= now) {
     memoryStore.set(key, { count: 1, resetAt: now + windowSec * 1000 });
-    return { allowed: true, remaining: limit - 1, resetAt: now + windowSec * 1000 };
+    return { allowed: true, remaining: limit - 1, resetAt: now + windowSec * 1000, degraded: noBackendInProd };
   }
   existing.count += 1;
   return {
     allowed: existing.count <= limit,
     remaining: Math.max(0, limit - existing.count),
     resetAt: existing.resetAt,
+    degraded: noBackendInProd,
   };
 }
 

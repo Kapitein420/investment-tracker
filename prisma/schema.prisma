@@ -406,7 +406,11 @@ model Document {
 model SigningToken {
   id         String    @id @default(cuid())
   documentId String
-  token      String    @unique @default(cuid())
+  // No @default(cuid()) — a signing token is an auth secret and cuid() is
+  // sequential/guessable. Every create path sets a CSPRNG token explicitly;
+  // dropping the default makes `token` required so a future caller can never
+  // silently fall back to a predictable value.
+  token      String    @unique
   expiresAt  DateTime
   usedAt     DateTime?
   createdAt  DateTime  @default(now())
@@ -422,7 +426,9 @@ model InvestorInvite {
   companyId   String
   assetId     String
   email       String
-  token       String    @unique @default(cuid())
+  // No @default(cuid()) — see SigningToken.token. An invite token is an auth
+  // secret; require an explicit CSPRNG value rather than a guessable cuid.
+  token       String    @unique
   expiresAt   DateTime
   acceptedAt  DateTime?
   createdById String
