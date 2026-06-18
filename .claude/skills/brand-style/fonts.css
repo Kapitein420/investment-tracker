@@ -1,0 +1,34 @@
+/* ============================================================================
+   DILS BRAND FONTS  ·  self-hosted @font-face
+   ----------------------------------------------------------------------------
+   IvyMode (serif)      → display / headings  → var(--font-display)
+   Nunito Sans (sans)   → body / UI           → var(--font-sans)
+   Load this alongside tokens.css:  <link rel="stylesheet" href="fonts.css">
+   (Paths are relative to this file — keep the fonts/ folder next to it.)
+   For a single-file artifact (deck/email), base64-embed these instead; see
+   scripts/build-deck.cjs for the pattern.
+   ============================================================================ */
+
+@font-face {
+  font-family: "IvyMode";
+  src: url("fonts/ivymode-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Nunito Sans ships as a variable font — one file covers weights 200–1000. */
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("fonts/nunito-sans.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("fonts/nunito-sans-italic.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: italic;
+  font-display: swap;
+}
