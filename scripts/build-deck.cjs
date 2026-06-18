@@ -198,6 +198,52 @@ async function dataUri(name) {
     <footer class="foot"><span class="mono">investment-tracker</span><span>No spreadsheets, no email chains — the deal record moves with the deal</span></footer>
   </section>`);
 
+  // 7c — ANIMATED BACKEND / SECURITY WORKFLOW
+  const flowSvcs = [
+    { y: 80,  name: "PostgreSQL",        via: "Supabase · connection pooling", badge: "PRO" },
+    { y: 172, name: "Object storage",    via: "Supabase · signed URLs",        badge: "" },
+    { y: 264, name: "Auth + rate-limit", via: "NextAuth · Upstash Redis",      badge: "PRO" },
+    { y: 356, name: "Email API",         via: "Mailgun · paid domain",         badge: "PAID" },
+  ];
+  const svgServices = flowSvcs.map((s, idx) => `
+      <path class="fl-base" d="M752,278 C 840,278 832,${s.y} 918,${s.y}"/>
+      <path class="fl-dash" d="M752,278 C 840,278 832,${s.y} 918,${s.y}" style="animation-delay:${(idx * 0.18).toFixed(2)}s"/>
+      <rect class="n-box" x="920" y="${s.y - 34}" width="252" height="68" rx="10"/>
+      <text class="n-title" x="940" y="${s.y - 5}" font-size="16.5">${s.name}</text>
+      <text class="n-item" x="940" y="${s.y + 16}" font-size="12.5">${s.via}</text>
+      ${s.badge ? `<g class="glow"><rect class="badge-pro" x="1112" y="${s.y - 28}" width="48" height="19" rx="9.5"/><text class="badge-txt" x="1136" y="${s.y - 14.5}" font-size="10.5" text-anchor="middle">${s.badge}</text></g>` : ""}`).join("");
+
+  slides.push(`<section class="slide">
+    <header class="shead"><span class="kicker"><i></i>Backend workflow · live</span><h2>How it connects — and where security runs</h2></header>
+    <div class="grow flowwrap">
+      <svg viewBox="0 0 1200 560" class="flowsvg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <rect class="n-box" x="30" y="232" width="172" height="96" rx="12"/>
+        <text class="n-title" x="116" y="276" font-size="18" text-anchor="middle">Client</text>
+        <text class="n-sub" x="116" y="298" font-size="11.5" text-anchor="middle">Browser · all roles</text>
+        <path class="fl-base" d="M202,284 C 320,284 320,278 430,278"/>
+        <path class="fl-dash" d="M202,284 C 320,284 320,278 430,278"/>
+        <rect class="n-app" x="430" y="150" width="322" height="252" rx="16"/>
+        <text class="n-title" x="450" y="185" font-size="20">Our servers · Vercel</text>
+        <text class="n-sub" x="450" y="206" font-size="12">Next.js 14 · Edge · WAF firewall</text>
+        <rect class="seclayer" x="450" y="224" width="282" height="62" rx="10"/>
+        <text class="n-eyebrow" x="464" y="245" font-size="10">SECURITY LAYER</text>
+        <text class="n-item" x="464" y="266" font-size="12.5">Server-side RBAC · rate-limit · signed URLs</text>
+        <text class="n-item" x="450" y="320" font-size="12.5">Server Components · Server Actions · API routes</text>
+        <g class="glow"><circle cx="718" cy="176" r="15" fill="var(--dils-red)" opacity="0.16"/><text x="718" y="182" font-size="15" text-anchor="middle">🔒</text></g>
+        <text class="n-eyebrow" x="836" y="34" font-size="10" text-anchor="middle">REST APIs</text>
+        ${svgServices}
+        <rect class="n-agents" x="430" y="442" width="322" height="104" rx="14"/>
+        <text class="n-title" x="450" y="478" font-size="18">AI security agents</text>
+        <text class="n-item" x="450" y="500" font-size="12.5">QA · pen-test · load-test · ISO 27001</text>
+        <text class="n-sub" x="450" y="521" font-size="11.5">Continuous automated security runs</text>
+        <path class="fl-base" d="M591,442 L591,402"/>
+        <path class="fl-dash" d="M591,442 L591,402" style="animation-delay:.3s"/>
+        <circle class="scanring" cx="591" cy="255" r="6" fill="none" stroke="var(--dils-red)" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <p class="cap flowcap"><span class="legdot"></span> Live data flow · <b>paid tiers (PRO)</b> add the WAF, connection pooling, deliverability &amp; security headroom — and our <b>AI agents audit it continuously</b>.</p>
+  </section>`);
+
   // 8 — SECURITY
   slides.push(`<section class="slide">
     <header class="shead"><span class="kicker"><i></i>Trust by design</span><h2>Security underneath every role</h2></header>
@@ -358,6 +404,44 @@ async function dataUri(name) {
   .syschip { font-size: .82rem; font-weight: 600; padding: .42rem .8rem; border-radius: var(--radius-full); background: var(--background-100); border: 1px solid var(--border); }
   .syschip.done { border-color: transparent; background: var(--green-100); color: var(--green-900); }
   .fitcap { margin-top: 2.2rem; max-width: 82ch; }
+
+  /* architecture diagram */
+  .arch { display: grid; grid-template-columns: 1fr auto 1.25fr auto 1fr; gap: 1.2vw; align-items: stretch; }
+  .arch-box { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--background-100); box-shadow: var(--shadow-sm); padding: 1.2rem 1.3rem; display: flex; flex-direction: column; }
+  .arch-box.app { border: 1.5px solid var(--dils-red); box-shadow: var(--shadow-md); }
+  .arch-h { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; line-height: 1.1; }
+  .arch-sub { font-size: .68rem; color: var(--foreground-subtle); margin: .3rem 0 .9rem; text-transform: uppercase; letter-spacing: .06em; }
+  .arch-box ul { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+  .arch-box li { font-size: .86rem; color: var(--foreground-muted); padding-left: 1rem; position: relative; line-height: 1.35; }
+  .arch-box li::before { content: "·"; position: absolute; left: .15rem; color: var(--dils-red); font-weight: 700; }
+  .arch-arrow { display: flex; align-items: center; justify-content: center; color: var(--dils-red); font-size: 1.5rem; }
+  .stackline { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 2.4vh; }
+  .stackchip { font-size: .74rem; font-weight: 600; font-family: var(--font-mono); color: var(--foreground-subtle); background: var(--background-200); border: 1px solid var(--border); border-radius: var(--radius-full); padding: .26rem .6rem; }
+  .archcap { margin-top: 1.6rem; max-width: 84ch; }
+
+  /* animated backend / security workflow */
+  .flowwrap { display: flex; align-items: center; justify-content: center; }
+  .flowsvg { width: 100%; height: 100%; max-height: 66vh; }
+  .n-box { fill: var(--background-100); stroke: var(--border); stroke-width: 1.5; }
+  .n-app { fill: var(--background-100); stroke: var(--dils-red); stroke-width: 2; }
+  .n-agents { fill: var(--background-200); stroke: var(--border); stroke-width: 1.5; }
+  .seclayer { fill: var(--background-200); stroke: var(--gray-alpha-300); stroke-width: 1; }
+  .n-title { fill: var(--foreground); font-family: var(--font-display); font-weight: 600; }
+  .n-sub { fill: var(--foreground-subtle); font-family: var(--font-sans); }
+  .n-item { fill: var(--foreground-muted); font-family: var(--font-sans); }
+  .n-eyebrow { fill: var(--foreground-subtle); font-family: var(--font-sans); font-weight: 700; letter-spacing: .12em; }
+  .badge-pro { fill: var(--dils-red); }
+  .badge-txt { fill: #fff; font-family: var(--font-mono); font-weight: 700; }
+  .fl-base { fill: none; stroke: var(--gray-300); stroke-width: 2; }
+  .fl-dash { fill: none; stroke: var(--dils-red); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 2.5 14; }
+  .slide.active .fl-dash { animation: flowdash 1s linear infinite; }
+  @keyframes flowdash { to { stroke-dashoffset: -33; } }
+  .slide.active .glow { animation: softglow 2s ease-in-out infinite; }
+  @keyframes softglow { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+  .slide.active .scanring { animation: scanring 2.2s ease-out infinite; }
+  @keyframes scanring { 0% { r: 6; opacity: .55; } 100% { r: 34; opacity: 0; } }
+  .flowcap { margin-top: 1.4vh; display: flex; align-items: center; gap: .5rem; }
+  .legdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--dils-red); flex: none; }
 
   /* lifecycle timeline */
   .timeline { display: flex; flex-direction: column; justify-content: center; gap: 0; }
