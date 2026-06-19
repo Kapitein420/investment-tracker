@@ -246,6 +246,11 @@ model AssetCompanyTracking {
   assetId                  String
   companyId                String
   relationshipType         String          @default("Investor")
+  // Throwaway rows from the admin "Test the NDA flow" tool. ALWAYS filtered
+  // out of real pipelines/dashboards/reports via explicit `isTest: false`
+  // clauses, and removed by the clearTestData admin action. Never set true
+  // for a real investor.
+  isTest                   Boolean         @default(false)
   currentStageKey          String?
   currentStageManualOverride Boolean       @default(false)
   lifecycleStatus          LifecycleStatus @default(ACTIVE)

@@ -38,6 +38,7 @@ export default async function InvestorPortalPage() {
       prisma.assetCompanyTracking.findMany({
         where: {
           companyId: { in: companyIds },
+          isTest: false,
           lifecycleStatus: { in: ["ACTIVE", "COMPLETED", "ON_HOLD"] },
         },
         include: {

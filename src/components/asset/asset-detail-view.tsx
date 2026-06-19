@@ -399,6 +399,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
             contents={contents}
             trackings={asset.trackings}
             editable={editable}
+            isAdmin={currentUser.role === "ADMIN"}
             assetFieldDefaults={(asset.fieldDefaults ?? {}) as Record<string, string>}
           />
         </div>

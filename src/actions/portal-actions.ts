@@ -68,7 +68,7 @@ export async function getInvestorDeals() {
   }
 
   const trackings = await prisma.assetCompanyTracking.findMany({
-    where: { companyId: user.companyId },
+    where: { companyId: user.companyId, isTest: false },
     include: {
       asset: true,
       stageStatuses: {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import { getAppUrl } from "@/lib/app-url";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -100,7 +101,7 @@ export async function enableHtmlNdaForAsset(assetId: string) {
   // one is already there).
   try {
     const trackings = await prisma.assetCompanyTracking.findMany({
-      where: { assetId },
+      where: { assetId, isTest: false },
       select: { id: true },
     });
     for (const t of trackings) {
@@ -177,7 +178,7 @@ export async function issueHtmlNdaToAllTrackings(
   }
 
   const trackings = await prisma.assetCompanyTracking.findMany({
-    where: { assetId },
+    where: { assetId, isTest: false },
     select: { id: true },
   });
 
@@ -647,5 +648,138 @@ export async function getSignedHtmlNda(documentId: string) {
     // preserved by sanitizeNdaHtml's URI allow-list).
     signedHtml: cfg?.signedHtml ? await sanitizeNdaHtml(cfg.signedHtml) : null,
   };
+}
+
+// ─── Admin QC: "Test the NDA flow as an investor" ───────────────────────────
+// Throwaway test data so an admin can walk the exact investor signing journey
+// and catch render/UI bugs before real investors do. Every row created here is
+// isTest=true and filtered out of all real pipelines/reports; clearTestData
+// removes them.
+
+const NDA_TEST_COMPANY_NAME = "🧪 Test Investor (internal QC)";
+
+/**
+ * ADMIN-only. Mints a real /sign/<token> link backed by a throwaway isTest
+ * tracking under a single shared internal test company. The admin opens it and
+ * walks the exact investor signing journey. Re-running resets to a fresh
+ * signing document so the flow can be replayed.
+ */
+export async function generateTestSigningLink(
+  assetId: string
+): Promise<{ url: string }> {
+  const user = await requireRole("ADMIN");
+
+  const master = await findHtmlNda(assetId);
+  if (!master) {
+    throw new Error("Enable the HTML NDA for this asset before testing it.");
+  }
+
+  // One shared internal test company, reused across assets.
+  let company = await prisma.company.findFirst({
+    where: { name: NDA_TEST_COMPANY_NAME },
+  });
+  if (!company) {
+    company = await prisma.company.create({
+      data: { name: NDA_TEST_COMPANY_NAME, type: "INVESTOR" },
+    });
+  }
+
+  // One isTest tracking per (asset, test company); reused on repeat tests.
+  let tracking = await prisma.assetCompanyTracking.findUnique({
+    where: { assetId_companyId: { assetId, companyId: company.id } },
+  });
+  if (!tracking) {
+    const created = await prisma.assetCompanyTracking.create({
+      data: {
+        assetId,
+        companyId: company.id,
+        isTest: true,
+        relationshipType: "Investor",
+      },
+    });
+    tracking = created;
+    const stages = await prisma.pipelineStage.findMany({
+      where: { isActive: true },
+    });
+    if (stages.length > 0) {
+      await prisma.stageStatus.createMany({
+        data: stages.map((s) => ({
+          trackingId: created.id,
+          stageId: s.id,
+          status: "NOT_STARTED" as const,
+        })),
+      });
+    }
+  } else if (!tracking.isTest) {
+    // Defensive: the shared test company must never own a real tracking.
+    throw new Error(
+      "A real tracking already exists for the internal test company on this asset — aborting to avoid touching real data."
+    );
+  } else {
+    // Re-test: drop prior test signing docs + reset the NDA stage so the run
+    // starts clean.
+    await prisma.document.deleteMany({
+      where: { trackingId: tracking.id, mimeType: "text/html" },
+    });
+    const ndaStage = await prisma.pipelineStage.findFirst({
+      where: { key: "nda", isActive: true },
+    });
+    if (ndaStage) {
+      await prisma.stageStatus.updateMany({
+        where: { trackingId: tracking.id, stageId: ndaStage.id },
+        data: { status: "NOT_STARTED", completedAt: null },
+      });
+    }
+  }
+
+  // Real Document + SigningToken via the exact same path investors get.
+  const doc = await cloneHtmlNdaForInvestor(tracking.id, master.id, user.id);
+  const signingToken = await prisma.signingToken.findFirst({
+    where: { documentId: doc.id, usedAt: null },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!signingToken) {
+    throw new Error("Failed to issue a test signing token.");
+  }
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "AssetCompanyTracking",
+      entityId: tracking.id,
+      action: "NDA_TEST_LINK_GENERATED",
+      metadata: { assetId, documentId: doc.id },
+      userId: user.id,
+    },
+  });
+
+  return { url: `${getAppUrl()}/sign/${signingToken.token}` };
+}
+
+/**
+ * ADMIN-only. Removes every throwaway test tracking for an asset (cascades its
+ * documents, tokens, stage rows, comments, history). Never touches a non-isTest
+ * row.
+ */
+export async function clearTestData(
+  assetId: string
+): Promise<{ deleted: number }> {
+  const user = await requireRole("ADMIN");
+
+  const result = await prisma.assetCompanyTracking.deleteMany({
+    where: { assetId, isTest: true },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "Asset",
+      entityId: assetId,
+      action: "NDA_TEST_DATA_CLEARED",
+      metadata: { assetId, deletedTrackings: result.count },
+      userId: user.id,
+    },
+  });
+
+  revalidatePath(`/assets/${assetId}`);
+  return { deleted: result.count };
 }
 

@@ -305,7 +305,7 @@ export async function getContentAccessByTracking(
   await requireRole("EDITOR");
 
   const trackings = await prisma.assetCompanyTracking.findMany({
-    where: { assetId },
+    where: { assetId, isTest: false },
     select: { id: true },
   });
   if (trackings.length === 0) return {};
