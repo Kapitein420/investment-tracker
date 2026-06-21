@@ -194,11 +194,26 @@ export async function getAssetById(id: string) {
   // without requiring an admin to open each drawer.
   const trackingIds = asset.trackings.map((t) => t.id);
   if (trackingIds.length > 0) {
+    // Scope to THIS asset's trackings. Previously this fetched every
+    // CONTENT_ACCESSED / INVESTOR_STAGE_EVENT row in the whole system and
+    // filtered them down in JS — a full-table read that grew unbounded with
+    // activity. The metadata.trackingId filter pushes that selection into
+    // Postgres so we only read this asset's events (the [entityType, action]
+    // index narrows the scan further).
     const accessLogs = await prisma.activityLog.findMany({
       where: {
-        OR: [
-          { action: "CONTENT_ACCESSED", entityType: "AssetContent" },
-          { action: "INVESTOR_STAGE_EVENT", entityType: "StageStatus" },
+        AND: [
+          {
+            OR: [
+              { action: "CONTENT_ACCESSED", entityType: "AssetContent" },
+              { action: "INVESTOR_STAGE_EVENT", entityType: "StageStatus" },
+            ],
+          },
+          {
+            OR: trackingIds.map((id) => ({
+              metadata: { path: ["trackingId"], equals: id },
+            })),
+          },
         ],
       },
       select: { metadata: true, createdAt: true },
