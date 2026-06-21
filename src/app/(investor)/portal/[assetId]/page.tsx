@@ -5,7 +5,8 @@ import { getSignedUrl } from "@/lib/supabase-storage";
 import { DealJourney } from "@/components/investor/deal-journey";
 import { getUserCompanyIds } from "@/lib/user-companies";
 
-export default async function InvestorDealPage({ params }: { params: { assetId: string } }) {
+export default async function InvestorDealPage(props: { params: Promise<{ assetId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 

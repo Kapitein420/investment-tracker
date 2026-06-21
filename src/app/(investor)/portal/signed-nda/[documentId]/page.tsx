@@ -2,7 +2,8 @@ import { getSignedHtmlNda } from "@/actions/html-nda-actions";
 import { notFound } from "next/navigation";
 import { PrintableSignedNda } from "@/components/investor/printable-signed-nda";
 
-export default async function SignedNdaPage({ params }: { params: { documentId: string } }) {
+export default async function SignedNdaPage(props: { params: Promise<{ documentId: string }> }) {
+  const params = await props.params;
   // Distinguish "doesn't exist" from "not yours". The previous catch-all
   // collapsed both into 404, which let an investor enumerate doc IDs and
   // tell which ones were real (404 = doesn't exist, 403 = exists but

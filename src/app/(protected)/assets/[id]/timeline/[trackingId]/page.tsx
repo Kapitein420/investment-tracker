@@ -5,11 +5,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { TimelineView, type TimelineEvent } from "@/components/timeline/timeline-view";
 
-export default async function TimelinePage({
-  params,
-}: {
-  params: { id: string; trackingId: string };
-}) {
+export default async function TimelinePage(
+  props: {
+    params: Promise<{ id: string; trackingId: string }>;
+  }
+) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
