@@ -10,7 +10,8 @@ import { AssetDetailView } from "@/components/asset/asset-detail-view";
 // 10s; switch to Pro before running large batches.
 export const maxDuration = 300;
 
-export default async function AssetDetailPage({ params }: { params: { id: string } }) {
+export default async function AssetDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 

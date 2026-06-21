@@ -159,7 +159,7 @@ export async function checkRateLimit(
 export async function getClientIp(): Promise<string> {
   try {
     const { headers } = await import("next/headers");
-    const h = headers();
+    const h = await headers();
     const forwarded =
       h.get("x-forwarded-for") ||
       h.get("x-real-ip") ||

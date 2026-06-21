@@ -31,31 +31,28 @@ const nextConfig = {
         "*.vercel.app",
       ],
     },
-    // pdfjs-dist resolves its "fake worker" by dynamic-requiring
-    // pdf.worker.mjs at runtime; @napi-rs/canvas is loaded the same
-    // dynamic way for the DOMMatrix polyfill. Webpack bundling rewrites
-    // both paths and Vercel's file tracer skips the dynamically-required
-    // files, so the scanner crashes with "Cannot find module ..." in
-    // production.
-    //
-    // serverComponentsExternalPackages: tell Next not to bundle the
-    //   packages — they load straight from node_modules at runtime.
-    // outputFileTracingIncludes: tell Vercel's tracer to ship the worker
-    //   file and napi-rs/canvas binaries even though nothing statically
-    //   imports them, so they're present in /var/task/node_modules.
-    serverComponentsExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
-    // outputFileTracingIncludes is an EXPERIMENTAL key in Next 14.2 — at the
-    // top level Next silently ignores it ("Unrecognized key"), leaving the
-    // pdf worker + @napi-rs/canvas binaries untraced so the scanner crashes
-    // with "Cannot find module" in production. Nested under experimental it
-    // actually ships them. (Promoted to a stable top-level key in Next 15.)
-    outputFileTracingIncludes: {
-      "/**/*": [
-        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-        "./node_modules/@napi-rs/canvas/**/*",
-      ],
-    },
+  },
+  // pdfjs-dist resolves its "fake worker" by dynamic-requiring
+  // pdf.worker.mjs at runtime; @napi-rs/canvas is loaded the same
+  // dynamic way for the DOMMatrix polyfill. Webpack bundling rewrites
+  // both paths and Vercel's file tracer skips the dynamically-required
+  // files, so the scanner crashes with "Cannot find module ..." in
+  // production.
+  //
+  // serverExternalPackages: tell Next not to bundle the packages — they
+  //   load straight from node_modules at runtime. (Stable top-level key
+  //   as of Next 15; was experimental.serverComponentsExternalPackages.)
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  // outputFileTracingIncludes: tell Vercel's tracer to ship the worker
+  //   file and napi-rs/canvas binaries even though nothing statically
+  //   imports them, so they're present in /var/task/node_modules.
+  //   Promoted from experimental to a stable top-level key in Next 15.
+  outputFileTracingIncludes: {
+    "/**/*": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+      "./node_modules/@napi-rs/canvas/**/*",
+    ],
   },
   async headers() {
     return [

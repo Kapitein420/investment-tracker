@@ -5,7 +5,8 @@ import { SigningPage } from "@/components/signing/signing-page";
 import { HtmlNdaSigningPage } from "@/components/signing/html-nda-signing-page";
 import { CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 
-export default async function SignPage({ params }: { params: { token: string } }) {
+export default async function SignPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   // Try HTML NDA first — its tokens look identical, but the document
   // mimeType is text/html instead of application/pdf.
   const html = await getHtmlNdaForSigning(params.token);
