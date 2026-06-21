@@ -273,6 +273,11 @@ model AssetCompanyTracking {
   documents    Document[]
 
   @@unique([assetId, companyId])
+  // [assetId, companyId] already covers assetId lookups (leftmost prefix),
+  // but the investor portal filters trackings by companyId alone
+  // (getUserCompanyIds → tracking-by-company), which that composite can't
+  // serve. Add a standalone companyId index for that hot path.
+  @@index([companyId])
 }
 
 // ─── 6. StageStatus ─────────────────────────────────────────────────────────
@@ -348,6 +353,9 @@ model ActivityLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+  // Supports the asset-detail first-access lookup, which filters by
+  // (action, entityType) before narrowing on metadata.trackingId.
+  @@index([entityType, action])
 }
 
 // ─── 10. SavedView ──────────────────────────────────────────────────────────
