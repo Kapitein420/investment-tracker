@@ -55,12 +55,40 @@ const nextConfig = {
     ],
   },
   async headers() {
+    // Content-Security-Policy. Defence-in-depth on top of the DOMPurify
+    // sanitisation of NDA HTML (rendered via dangerouslySetInnerHTML): even
+    // if a payload slipped past the sanitiser, the browser refuses to load
+    // external/inline scripts it doesn't allow.
+    //
+    // 'unsafe-inline' for script/style is required by Next's App Router
+    // (inline bootstrap + RSC payload) and by the inline style="" attributes
+    // the NDA templates rely on — a nonce-based policy is deliberately avoided
+    // (more moving parts, and it was the subject of a Next CSP advisory).
+    // worker-src blob: covers pdfjs-dist's worker; data:/blob:/https: images
+    // cover signature data-URIs, next/image, and Supabase signed URLs.
+    // In dev we additionally allow 'unsafe-eval' + ws: for HMR.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      `connect-src 'self' https://*.supabase.co${isDev ? ' ws: http://localhost:*' : ''}`,
+      "worker-src 'self' blob:",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
         headers: [
           // HSTS: force HTTPS for 2 years, including subdomains. Required for preload list.
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
