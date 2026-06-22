@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { redactEmail } from "@/lib/log-redact";
 
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
@@ -60,7 +61,7 @@ export async function sendEmail({
       );
     }
     console.log(
-      `[Email skipped - Mailgun not configured] To: ${to}, Subject: ${subject}`,
+      `[Email skipped - Mailgun not configured] To: ${redactEmail(to)}, Subject: ${subject}`,
     );
     return { messageId: null };
   }

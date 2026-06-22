@@ -15,6 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-test": "tsx prisma/seed-testing.ts",
+    "purge:dry": "tsx scripts/purge-expired-data.ts --dry",
+    "purge": "tsx scripts/purge-expired-data.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest run",

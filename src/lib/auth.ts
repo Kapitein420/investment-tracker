@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { BCRYPT_COST } from "@/lib/security";
+import { redactEmail, redactIp } from "@/lib/log-redact";
 
 // A valid bcrypt hash of a throwaway random string. Used only to burn an
 // equivalent amount of CPU when the looked-up user doesn't exist or is
@@ -83,7 +84,7 @@ export const authOptions: NextAuthOptions = {
         }
         if (!emailLimit.allowed || !ipLimit.allowed) {
           console.warn(
-            `[auth] rate-limited email=${email} ip=${ip} ` +
+            `[auth] rate-limited email=${redactEmail(email)} ip=${redactIp(ip)} ` +
               `emailRemaining=${emailLimit.remaining} ipRemaining=${ipLimit.remaining}`
           );
           return null;
