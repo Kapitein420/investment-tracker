@@ -32,7 +32,8 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 - [x] **Supabase region confirmed: EU — Ireland (`eu-west-1`)** ✅ (primary data stays in-EEA).
 - [ ] **Confirm remaining regions**: Upstash/KV region (EU); **confirm Vercel DPF** active. Record in the RoPA. See checklist below.
 - [ ] **Get docs 1 & 5 reviewed by Dutch counsel**; confirm controller/processor role and Wwft/AFM scope.
-- [ ] **Remove any seeded demo accounts** (`admin@example.com` etc.) from the production database.
+- [x] **Admin credential rotated** to a strong hashed password ✅ (no published-credential risk).
+- [ ] **Verify the other seeded demo accounts** (`editor@example.com`, `viewer@example.com`, any demo investor) don't still exist in the **production** DB with the default `password123` — delete or deactivate + scramble. Optional: rename the admin login off `admin@example.com`.
 - [ ] **MFA** for admin/internal accounts — plan ready in [mfa-implementation-plan.md](mfa-implementation-plan.md); kickstart when ready.
 
 ## Transfer-verification checklist (Art. 44–49)
