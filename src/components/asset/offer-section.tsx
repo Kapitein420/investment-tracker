@@ -20,6 +20,7 @@ import {
   deleteDocument,
   getSignedDocumentUrl,
 } from "@/actions/document-actions";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { formatBid } from "@/lib/utils";
 
 type OfferDoc = {
@@ -119,8 +120,7 @@ export function OfferSection({
   async function handleDownload() {
     if (!offerDocument) return;
     try {
-      const url = await getSignedDocumentUrl(offerDocument.id);
-      window.open(url, "_blank");
+      await openInNewTab(() => getSignedDocumentUrl(offerDocument.id));
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to get download link");
     }

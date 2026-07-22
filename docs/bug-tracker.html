@@ -515,6 +515,14 @@
             <td>User report ("signing route completely broken")</td>
             <td>Jul 22 &mdash; changed to <code>object-src 'self' https://*.supabase.co</code></td>
           </tr>
+          <tr data-status="fixed" data-priority="medium">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-042</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-medium">Medium</span></td>
+            <td>Admin/investor "Download" buttons for signed PDFs called <code>window.open(url, "_blank")</code> *after* an <code>await</code> on the server action &mdash; pop-up blockers silently kill this (no exception, no console error), worse on documents needing the lazy PDF regen from BUG-015. Root cause of "admin can't see some signed PDFs" (e.g. ARC Real Estate / Anderlechtlaan)</td>
+            <td>User report ("admin can't see signed PDFs when clicking")</td>
+            <td>Jul 22 &mdash; open the tab synchronously before the await (<code>src/lib/open-in-new-tab.ts</code>), same pattern already used by <code>html-nda-print.ts</code>; applied to all 7 call sites</td>
+          </tr>
         </tbody>
       </table>
     </div>
