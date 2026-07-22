@@ -523,6 +523,14 @@
             <td>User report ("admin can't see signed PDFs when clicking")</td>
             <td>Jul 22 &mdash; open the tab synchronously before the await (<code>src/lib/open-in-new-tab.ts</code>), same pattern already used by <code>html-nda-print.ts</code>; applied to all 7 call sites</td>
           </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-043</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>Every HTML-NDA sign/render crashed in production with <code>ERR_REQUIRE_ESM</code> (digest matched exactly) &mdash; <code>isomorphic-dompurify</code>'s jsdom dependency chain (<code>html-encoding-sniffer</code> &rarr; <code>@exodus/bytes</code>) is an unconditional CJS/ESM incompatibility: every published <code>@exodus/bytes</code> release ships <code>"type":"module"</code> while <code>html-encoding-sniffer</code> still <code>require()</code>s it. <code>next dev</code>/tsx didn't reproduce it (looser interop); a real <code>next build</code> + <code>next start</code> did</td>
+            <td>User report (live production reproduction, exact digest match: 2624575871)</td>
+            <td>Jul 22 &mdash; replaced <code>isomorphic-dompurify</code> with jsdom-free <code>sanitize-html</code> in <code>src/lib/sanitize-html.ts</code>; verified against a real production build (<code>next build</code> + <code>next start</code>), not just dev mode</td>
+          </tr>
         </tbody>
       </table>
     </div>
