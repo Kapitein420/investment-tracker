@@ -25,6 +25,7 @@ import { DocumentUpload } from "@/components/asset/document-upload";
 import { OfferSection } from "@/components/asset/offer-section";
 import { approveStage } from "@/actions/approval-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import { canSeeContactDetails } from "@/lib/permissions";
 import {
@@ -412,8 +413,7 @@ export function TrackingDetailDrawer({
                   async function handleDownloadNda() {
                     if (!ndaDoc) return;
                     try {
-                      const url = await getSignedDocumentUrl(ndaDoc.id);
-                      window.open(url, "_blank");
+                      await openInNewTab(() => getSignedDocumentUrl(ndaDoc.id));
                     } catch (e: any) {
                       toast.error(e?.message ?? "Failed to get download link");
                     }

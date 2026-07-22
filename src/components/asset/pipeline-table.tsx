@@ -40,6 +40,7 @@ import { RelationshipTypeCell } from "@/components/asset/relationship-type-cell"
 import { updateTracking, deleteTracking } from "@/actions/tracking-actions";
 import { sendInvestorInvite } from "@/actions/invite-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -178,8 +179,7 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
                       onClick={async (e) => {
                         e.stopPropagation();
                         try {
-                          const url = await getSignedDocumentUrl(offerDoc.id);
-                          window.open(url, "_blank");
+                          await openInNewTab(() => getSignedDocumentUrl(offerDoc.id));
                         } catch (err: any) {
                           toast.error(err?.message ?? "Failed to download offer");
                         }

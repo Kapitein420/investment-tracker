@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { uploadDocument, deleteDocument, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { PdfPlacementDialog } from "@/components/admin/pdf-placement-dialog";
@@ -323,8 +324,7 @@ export function DocumentUpload({ trackingId, stages, documents, editable }: Docu
                             type="button"
                             onClick={async () => {
                               try {
-                                const url = await getSignedDocumentUrl(doc.id);
-                                window.open(url, "_blank");
+                                await openInNewTab(() => getSignedDocumentUrl(doc.id));
                               } catch (e: any) {
                                 toast.error(e?.message ?? "Failed to get download link");
                               }

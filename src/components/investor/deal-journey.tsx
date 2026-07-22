@@ -15,6 +15,7 @@ import { orderedHighlightEntries } from "@/lib/highlights";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { InvestorNdaDownload } from "@/components/investor/investor-nda-download";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { recordInvestorStageEvent, requestViewing } from "@/actions/portal-actions";
 import { toast } from "sonner";
 
@@ -226,8 +227,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
   async function handleDownload(docId: string, stageKey?: string) {
     try {
-      const url = await getSignedDocumentUrl(docId);
-      window.open(url, "_blank");
+      await openInNewTab(() => getSignedDocumentUrl(docId));
       if (stageKey) {
         recordInvestorStageEvent({
           trackingId: tracking.id,
