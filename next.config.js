@@ -79,7 +79,11 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "object-src 'none'",
+      // 'self' + Supabase covers the <embed type="application/pdf"> viewers
+      // (signing page, content tab, deal journey, signing modal) — 'none'
+      // silently blocked every one of them, since object-src also governs
+      // <embed>/<object>, not just Flash-era <object> embeds.
+      "object-src 'self' https://*.supabase.co",
     ].join('; ');
 
     return [
