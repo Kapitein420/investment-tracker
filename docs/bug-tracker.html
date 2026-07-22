@@ -507,6 +507,14 @@
             <td>PDF Research Agent</td>
             <td>Apr 14 &mdash; locked engines to Node 20&ndash;22</td>
           </tr>
+          <tr data-status="fixed" data-priority="high">
+            <td style="font-weight:600;color:var(--gold-dim)">BUG-041</td>
+            <td><span class="badge badge-fixed">Fixed</span></td>
+            <td><span class="priority p-high">High</span></td>
+            <td>PR #127's CSP added <code>object-src 'none'</code>, which silently blocks every &lt;embed type="application/pdf"&gt; PDF viewer app-wide (signing page, content tab, deal journey, signing modal) &mdash; browser refuses to load the embed, no visible error</td>
+            <td>User report ("signing route completely broken")</td>
+            <td>Jul 22 &mdash; changed to <code>object-src 'self' https://*.supabase.co</code></td>
+          </tr>
         </tbody>
       </table>
     </div>
