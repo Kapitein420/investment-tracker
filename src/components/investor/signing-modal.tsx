@@ -21,6 +21,7 @@ import {
   getSignedDocumentUrl,
   getDocumentPlaceholderInfo,
 } from "@/actions/document-actions";
+import { openInNewTab } from "@/lib/open-in-new-tab";
 import { toast } from "sonner";
 
 const INVESTOR_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
@@ -202,8 +203,11 @@ export function SigningModal({
   }
 
   async function handleDownload() {
-    const url = await getSignedDocumentUrl(doc.id);
-    window.open(url, "_blank");
+    try {
+      await openInNewTab(() => getSignedDocumentUrl(doc.id));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to get download link");
+    }
   }
 
   return (

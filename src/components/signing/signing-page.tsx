@@ -195,12 +195,20 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               size="sm"
               className="mt-4"
               onClick={async () => {
+                // Open the tab synchronously (before any await) so the
+                // browser still attributes it to this click — see
+                // src/lib/open-in-new-tab.ts.
+                const w = window.open("", "_blank");
                 try {
                   const url = await getSignedDocumentUrl(doc.id);
-                  window.open(url, "_blank");
+                  if (w) w.location.href = url;
                 } catch {
                   // Fallback: use the fileUrl directly
-                  window.open(doc.fileUrl, "_blank");
+                  if (w) {
+                    w.location.href = doc.fileUrl;
+                  } else {
+                    toast.error("Pop-up blocked — allow pop-ups for this site and try again.");
+                  }
                 }
               }}
             >
