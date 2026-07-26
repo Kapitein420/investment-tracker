@@ -70,7 +70,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.19",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.18",
     "prisma": "^6.3.0",
     "puppeteer": "^25.1.0",
     "sharp": "^0.35.1",
