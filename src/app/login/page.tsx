@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 // NextAuth redirects auth-flow errors to /login?error=<code> (we configure
 // pages.error in lib/auth.ts). Translate the codes to user-friendly text.
 // Read params via window.location to avoid the Suspense-boundary requirement
-// useSearchParams() carries in Next 14 — login is small enough that hooking
-// once on mount is cleaner than restructuring the page.
+// useSearchParams() carries in the App Router — login is small enough that
+// hooking once on mount is cleaner than restructuring the page.
 function authErrorMessage(code: string | null): string {
   if (!code) return "";
   switch (code) {
