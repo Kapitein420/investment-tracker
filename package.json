@@ -81,6 +81,7 @@
     "wawoff2": "^2.0.1"
   },
   "overrides": {
-    "undici": "^7.28.0"
+    "undici": "^7.28.0",
+    "deepmerge-ts": "^8.0.0"
   }
 }
