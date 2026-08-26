@@ -21,20 +21,41 @@ jobs:
   verify:
     name: Test & build
     runs-on: ubuntu-latest
+
+    # src/actions/asset-actions.test.ts is an integration test that runs
+    # real Prisma queries against seeded data. It self-skips when
+    # DATABASE_URL is unset — but the build needs DATABASE_URL to parse, so
+    # setting one at job level un-skips the test. Rather than hide it, give
+    # CI a real database and let it run.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: investment_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
-      # Build-time placeholders, not secrets. `next build` collects page
-      # data, which evaluates src/lib/db.ts and constructs PrismaClient at
-      # module scope — so DATABASE_URL has to parse, but nothing in the
-      # build ever opens a connection. Real values live in Vercel.
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      # Throwaway service container, torn down with the job. `npm run
+      # db:seed` wipes core tables and creates known-password accounts, so
+      # this must never point anywhere real.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/investment_tracker
+      # Build-time placeholders, not secrets. Real values live in Vercel.
       NEXTAUTH_SECRET: ci-build-placeholder-not-a-real-secret
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
           # engines: >=20.9.0 <25. Production runs on Vercel; the Dockerfile
           # is still on 20.
@@ -44,7 +65,12 @@ jobs:
       # postinstall runs `prisma generate`, which the build depends on.
       - run: npm ci
 
-      - name: Unit tests
+      - name: Prepare database
+        run: |
+          npx prisma db push --skip-generate
+          npm run db:seed
+
+      - name: Unit + integration tests
         run: npm test
 
       # The PDF placeholder scanner is the most upgrade-fragile path in the
@@ -61,9 +87,9 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22.x
           cache: npm
