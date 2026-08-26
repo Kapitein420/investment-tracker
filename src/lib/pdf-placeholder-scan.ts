@@ -1,8 +1,14 @@
-// pdfjs-dist v5 references DOMMatrix / Path2D / ImageData at module load.
+// pdfjs-dist v5 referenced DOMMatrix / Path2D / ImageData at module load.
 // On Vercel's Node runtime none of those exist, which crashes the asset
 // page (`ReferenceError: DOMMatrix is not defined`) the moment any code
 // path touches the scanner. We install a minimal polyfill, then dynamic-
 // import pdfjs so the polyfill is in place before the module evaluates.
+//
+// v6 appears not to need this any more — it depends on @napi-rs/canvas
+// directly and scans fine with the polyfill disabled locally. Kept until
+// that's confirmed against the real Word-generated templates in prod,
+// since this path has taken production down before. The guards are
+// `typeof === "undefined"` checks, so they're inert where natives exist.
 //
 // @napi-rs/canvas — referenced here only so Vercel's file tracer ships the
 // package into the serverless function bundle. pdfjs's own polyfill

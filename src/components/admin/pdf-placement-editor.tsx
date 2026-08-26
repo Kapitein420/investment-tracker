@@ -149,11 +149,13 @@ export function PdfPlacementEditor({
             const viewport = page.getViewport({ scale: RENDER_SCALE });
             canvas.width = viewport.width;
             canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) continue;
-            // pdfjs-dist v5 requires `canvas` param; older versions ignored it.
+            // Probe the 2D context before handing the canvas to pdfjs: this
+            // runs inside a requestAnimationFrame callback, so a throw here
+            // escapes the outer try/catch as an unhandled rejection.
+            if (!canvas.getContext("2d")) continue;
+            // pdfjs-dist v6 renders from `canvas` directly; passing
+            // `canvasContext` as well is legacy and silently ignored.
             await page.render({
-              canvasContext: ctx,
               viewport,
               canvas,
             } as any).promise;
