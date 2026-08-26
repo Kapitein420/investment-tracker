@@ -1,0 +1,76 @@
+# Runs on every PR so Dependabot's security bumps arrive pre-verified
+# instead of sitting unmerged. Before this existed, .github/ held only
+# dependabot.yml — nothing checked the PRs it opened, and a batch of
+# security updates went stale for three weeks.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    # Surface new advisories on the same weekly cadence Dependabot runs,
+    # so the audit job goes red even in a quiet week with no PRs.
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test & build
+    runs-on: ubuntu-latest
+    env:
+      # Build-time placeholders, not secrets. `next build` collects page
+      # data, which evaluates src/lib/db.ts and constructs PrismaClient at
+      # module scope — so DATABASE_URL has to parse, but nothing in the
+      # build ever opens a connection. Real values live in Vercel.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-build-placeholder-not-a-real-secret
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # engines: >=20.9.0 <25. Production runs on Vercel; the Dockerfile
+          # is still on 20.
+          node-version: 22.x
+          cache: npm
+
+      # postinstall runs `prisma generate`, which the build depends on.
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      # The PDF placeholder scanner is the most upgrade-fragile path in the
+      # app (pdfjs + a DOM polyfill for the Node runtime) and has broken in
+      # production before, so it gets its own check on every PR.
+      - name: PDF scanner smoke test
+        run: npx tsx scripts/smoke-pdf-scan.ts
+
+      # Also type-checks — `next build` runs tsc as part of the build.
+      - name: Production build
+        run: npm run build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      # --ignore-scripts: the audit needs the dependency tree, not a
+      # generated Prisma client.
+      - run: npm ci --ignore-scripts
+
+      - name: npm audit (high and above)
+        run: npm audit --audit-level=high
