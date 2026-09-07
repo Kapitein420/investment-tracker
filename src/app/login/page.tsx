@@ -42,8 +42,7 @@ export default function LoginPage() {
     if (code) setError(authErrorMessage(code));
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function signInWithCredentials(email: string, password: string) {
     setError("");
     setLoading(true);
 
@@ -64,9 +63,17 @@ export default function LoginPage() {
     }
   }
 
-  function quickLogin(role: string) {
-    setEmail(`${role}@example.com`);
-    setPassword("password123");
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await signInWithCredentials(email, password);
+  }
+
+  async function quickLogin(role: string) {
+    const quickEmail = `${role}@example.com`;
+    const quickPassword = "password123";
+    setEmail(quickEmail);
+    setPassword(quickPassword);
+    await signInWithCredentials(quickEmail, quickPassword);
   }
 
   return (
@@ -143,17 +150,18 @@ export default function LoginPage() {
           <div className="space-y-2 pt-2 border-t border-dils-100">
             <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground">Quick login</p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
+              <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("admin")}>
                 Admin
               </Button>
-              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("editor")}>
+              <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("editor")}>
                 Editor
               </Button>
-              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("viewer")}>
+              <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => quickLogin("viewer")}>
                 Viewer
               </Button>
             </div>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               className="w-full text-xs border-dils-300 text-dils-black hover:bg-dils-50"
