@@ -32,7 +32,7 @@ TOTP (authenticator-app) two-factor auth, **mandatory for ADMIN & EDITOR**, opti
 - Update `src/app/login/page.tsx` to show the code field when prompted.
 
 ### Phase 4 — Enforcement & recovery (~0.5 day)
-- **Force-enrollment** for ADMIN/EDITOR: reuse the existing first-login gate pattern (like `passwordChangedAt` in `middleware.ts`) — redirect privileged users without `totpEnabled` to the enrollment page before any other route.
+- **Force-enrollment** for ADMIN/EDITOR: reuse the existing first-login gate pattern (like `passwordChangedAt` in `proxy.ts`) — redirect privileged users without `totpEnabled` to the enrollment page before any other route.
 - **Admin reset:** `resetUserMfa(userId)` (ADMIN only) clears `totpSecret`/`totpEnabled` so a locked-out user can re-enroll; log to `ActivityLog`.
 - Rate-limit TOTP attempts (reuse `checkRateLimit`, e.g. key `mfa:userId`).
 
