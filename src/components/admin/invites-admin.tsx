@@ -126,16 +126,20 @@ export function InvitesAdmin({
   assets,
   inviteEvents = {},
   suppressedEmails = [],
+  trackingConsentEmails = [],
 }: {
   invites: InviteRow[];
   investorUsers: InvestorUser[];
   companies: Array<{ id: string; name: string; contactEmail: string | null }>;
   assets: Array<{ id: string; title: string }>;
   inviteEvents?: Record<string, InviteEvents>;
-  /** Lowercased emails present in EmailSuppression — drives the "Opted out" chip. */
+  /** Normalised (trimmed+lowercased) emails in EmailSuppression — drives the "Opted out" chip. */
   suppressedEmails?: string[];
+  /** Normalised (trimmed+lowercased) emails with active tracking consent. */
+  trackingConsentEmails?: string[];
 }) {
   const suppressedSet = useMemo(() => new Set(suppressedEmails), [suppressedEmails]);
+  const trackingConsentSet = useMemo(() => new Set(trackingConsentEmails), [trackingConsentEmails]);
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyId, setCompanyId] = useState("");
@@ -292,11 +296,37 @@ export function InvitesAdmin({
             ) : (
               groups.map((group) => {
                 const latest = group.invites[0];
+                // Both chips describe the recipient's email preferences
+                // rather than any single invite, so they sit together under
+                // the address instead of in the per-invite Status column.
+                const emailKey = group.email.trim().toLowerCase();
+                const optedOut = suppressedSet.has(emailKey);
+                const trackingOn = trackingConsentSet.has(emailKey);
                 return (
                   <tr key={group.key} className="border-b border-dils-100 align-top hover:bg-dils-50/40">
                     <td className="px-4 py-3">
                       <p className="font-medium text-dils-black">{group.company.name}</p>
                       <p className="text-xs text-muted-foreground">{group.email}</p>
+                      {(optedOut || trackingOn) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {optedOut && (
+                            <Badge
+                              className="bg-dils-100 text-dils-600 border-0 text-[10px]"
+                              title="Opted out of deal emails — future invites won't email this address"
+                            >
+                              Opted out
+                            </Badge>
+                          )}
+                          {trackingOn && (
+                            <Badge
+                              className="bg-dils-100 text-dils-700 border-0 text-[10px]"
+                              title="Investor opted in to email open/click tracking in their portal preferences"
+                            >
+                              Tracking on
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
@@ -370,14 +400,6 @@ export function InvitesAdmin({
                         ) : (
                           <Badge className="bg-red-100 text-red-700 border-0 text-xs">
                             <X className="mr-1 h-3 w-3" />Expired
-                          </Badge>
-                        )}
-                        {suppressedSet.has(group.email.toLowerCase()) && (
-                          <Badge
-                            className="bg-dils-100 text-dils-600 border-0 text-xs"
-                            title="Opted out of deal emails — future invites won't email this address"
-                          >
-                            Opted out
                           </Badge>
                         )}
                       </div>

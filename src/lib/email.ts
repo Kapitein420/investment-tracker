@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redactEmail } from "@/lib/log-redact";
 import { isSuppressed, unsubscribeUrl } from "@/lib/unsubscribe";
+import { hasTrackingConsent, trackingOptions } from "@/lib/email-tracking";
 
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
@@ -97,6 +98,17 @@ export async function sendEmail({
   // the sender without the recipient opening the message.
   body.set("h:List-Unsubscribe", `<${unsubscribeUrl(to)}>`);
   body.set("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+
+  // Telecommunicatiewet 11.7a / ePrivacy Art. 5(3): the Mailgun open pixel
+  // and link rewriting read the recipient's device, so tracking needs prior
+  // opt-in — checked per send since consent can change between two emails
+  // to the same address. Message-level o:tracking* flags override the
+  // Mailgun domain default, so this is what keeps tracking off regardless
+  // of what's configured in the dashboard.
+  const consented = await hasTrackingConsent(to);
+  for (const [key, value] of Object.entries(trackingOptions(consented))) {
+    body.set(key, value);
+  }
 
   // Resolve the actor: explicit override beats session pickup, null skips.
   let resolvedActor: string | null = null;

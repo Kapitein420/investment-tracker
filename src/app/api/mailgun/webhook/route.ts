@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { suppressEmail } from "@/lib/unsubscribe";
+import { hasTrackingConsent } from "@/lib/email-tracking";
 
 /**
  * Mailgun webhook endpoint.
@@ -11,6 +12,16 @@ import { suppressEmail } from "@/lib/unsubscribe";
  *   complained, unsubscribed
  * and point them at:
  *   https://<your-app>/api/mailgun/webhook
+ *
+ * unsubscribed/complained events add the recipient to EmailSuppression
+ * straight away, before any correlation to an invite — the opt-out is
+ * binding whether or not we can match the message.
+ *
+ * opened/clicked only arrive for recipients who granted tracking consent in
+ * their portal preferences — sendEmail() sends o:tracking*=no otherwise, so
+ * Mailgun doesn't fire these events at all for most recipients. The check
+ * below is belt-and-braces for events queued before a revoke or a stray
+ * domain-default send.
  *
  * Then add MAILGUN_WEBHOOK_SIGNING_KEY (the HTTP webhook signing key from
  * Mailgun's "Webhooks" page, NOT the API key) to the Vercel env.
@@ -93,6 +104,14 @@ export async function POST(req: Request) {
 
   if (!messageId) {
     return NextResponse.json({ ok: true, ignored: "no message-id" });
+  }
+
+  if (
+    (event === "opened" || event === "clicked") &&
+    recipient &&
+    !(await hasTrackingConsent(recipient))
+  ) {
+    return NextResponse.json({ ok: true, ignored: "tracking not consented" });
   }
 
   // Find the InvestorInvite this event belongs to by searching the audit
