@@ -170,3 +170,20 @@ export async function getClientIp(): Promise<string> {
   }
   return "unknown";
 }
+
+/**
+ * Best-effort caller User-Agent extraction, for signing-evidence capture.
+ * Same headers()-outside-a-request-scope fallback as getClientIp(). Truncated
+ * to 512 chars — UA strings are unbounded and this is stored, not parsed.
+ */
+export async function getClientUserAgent(): Promise<string | null> {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const ua = h.get("user-agent");
+    return ua ? ua.slice(0, 512) : null;
+  } catch {
+    // headers() throws when called outside a request scope — fall through
+  }
+  return null;
+}

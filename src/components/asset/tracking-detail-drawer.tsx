@@ -754,7 +754,7 @@ export function TrackingDetailDrawer({
                             <span className="font-medium">{h.newValue}</span>
                           </p>
                           <p className="text-muted-foreground">
-                            by {showPII ? h.changedBy.name : "Team member"} &middot; {formatDateTime(h.createdAt)}
+                            by {!h.changedBy ? "Signer (signing link)" : showPII ? h.changedBy.name : "Team member"} &middot; {formatDateTime(h.createdAt)}
                           </p>
                         </div>
                       </div>

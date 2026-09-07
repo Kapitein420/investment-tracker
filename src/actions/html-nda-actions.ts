@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireRole, requireUser } from "@/lib/permissions";
+import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
 import {
   DEFAULT_NDA_TEMPLATE,
   extractTokens,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -419,6 +420,11 @@ export async function signHtmlNda(data: {
   if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
   if (signingToken.usedAt !== null) throw new Error("Token already used");
 
+  // Actor resolution — see signDocument in document-actions.ts.
+  const actor = await getCurrentUser();
+  const signerIp = await getClientIp();
+  const signerUserAgent = await getClientUserAgent();
+
   // signHtmlNda is a public, token-gated action and its inputs are
   // attacker-controlled. signatureData is later interpolated raw into an
   // <img src="..."> and persisted as signedHtml, which is rendered to
@@ -525,6 +531,8 @@ export async function signHtmlNda(data: {
         signedByName: data.signedByName,
         signedByEmail: data.signedByEmail,
         signatureData: data.signatureData,
+        signerIp,
+        signerUserAgent,
         fieldConfig: {
           values: merged,
           signedHtml,
@@ -549,7 +557,7 @@ export async function signHtmlNda(data: {
         fieldName: "status",
         oldValue: oldStatus,
         newValue: "COMPLETED",
-        changedByUserId: doc.uploadedByUserId,
+        changedByUserId: actor?.id ?? null,
       },
     });
 
@@ -558,8 +566,14 @@ export async function signHtmlNda(data: {
         entityType: "Document",
         entityId: doc.id,
         action: "HTML_NDA_SIGNED",
-        metadata: { trackingId: doc.trackingId, signedByName: data.signedByName },
-        userId: doc.uploadedByUserId,
+        metadata: {
+          trackingId: doc.trackingId,
+          signedByName: data.signedByName,
+          signingTokenId: signingToken.id,
+          signerIp,
+          signerUserAgent,
+        },
+        userId: actor?.id ?? null,
       },
     });
     });
