@@ -32,16 +32,17 @@ export async function GET(request: Request) {
   const provided = bearer ?? url.searchParams.get("secret") ?? "";
   const expected = process.env.HEALTH_SECRET;
 
-  // Require the secret in all environments — a non-production preview deploy
-  // must not expose this publicly.
-  if (!expected) {
-    return NextResponse.json(
-      { error: "HEALTH_SECRET not configured" },
-      { status: 503 }
-    );
-  }
-  if (!timingSafeEqualStr(provided, expected)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // The secret is required in every environment — a preview deploy must not
+  // expose this publicly. Both unauthorized cases (secret unset, or secret
+  // mismatch) return an identical opaque 401, which avoids two failure
+  // modes: leaking the literal env-var name into a public body, and
+  // answering an *authorization* problem with 503, which turned any uptime
+  // monitor pointed at this URL into a perpetual false alarm. (QC F-01.)
+  //
+  // The `!expected` short-circuit also keeps timingSafeEqualStr from being
+  // handed undefined.
+  if (!expected || !timingSafeEqualStr(provided, expected)) {
+    return NextResponse.json({ status: "unauthorized" }, { status: 401 });
   }
 
   const checks: Record<string, any> = {
