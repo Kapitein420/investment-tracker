@@ -227,7 +227,7 @@ NOT FOUND in CI: SAST/CodeQL, secret scanning, DAST, coverage gate, SBOM.
 
 ---
 
-## 13. Branch `claude/trusting-elion-63a5ed` (unmerged, 2026-06-22)
+## 13. Branch `claude/trusting-elion-63a5ed` (June 2026 remediation — merged to master 2026-09-07 as #170, squash `919923e`)
 
 `git diff master...claude/trusting-elion-63a5ed --stat` → 19 files, +641 / −9 (merge-base `e639abe`). Adds `compliance/` (README, breach runbook, retention schedule, DSAR procedure, lawful-basis + LIA, MFA plan, privacy-statement portal addendum, RoPA, sub-processor/DPA register), `scripts/purge-expired-data.ts` + `purge:dry`/`purge` scripts, `src/actions/data-export-actions.ts` (ADMIN-only export), `src/lib/log-redact.ts` (+ call sites in `auth.ts`, `auth-actions.ts`, `email.ts`), BSN elfproef guard in `src/lib/validators.ts` (+ test), privacy link on the login page.
 
@@ -235,4 +235,4 @@ Retention schedule proposes: SigningToken 30 d after expiry; unaccepted Investor
 
 **Applies cleanly:** `git merge-tree --write-tree master claude/trusting-elion-63a5ed` → exit 0, zero conflicts. Master changes since June (`cea9a21`, `45c2d80`, `0f999bd`) do not collide with the branch hunks.
 
-**Still NOT FOUND even after merge:** signature-time IP/UA capture; PDF hash; completion certificate; copy-to-signer; consent checkbox; email tracking controls; unsubscribe / `List-Unsubscribe`; document download logging; MFA (plan only); account lockout; reset-token flow; self-service export/erasure/rectification; true anonymisation on removal; `security.txt`/VDP; scheduled purge; Vercel region pinning; the unguarded timeline page; misattributed actor on `DOCUMENT_SIGNED`/`HTML_NDA_SIGNED`.
+**Still NOT FOUND after the merge:** signature-time IP/UA capture; PDF hash; completion certificate; copy-to-signer; consent checkbox; email tracking controls; unsubscribe / `List-Unsubscribe`; document download logging; MFA (plan only); account lockout; reset-token flow; self-service export/erasure/rectification; true anonymisation on removal; `security.txt`/VDP; scheduled purge; Vercel region pinning; the unguarded timeline page; misattributed actor on `DOCUMENT_SIGNED`/`HTML_NDA_SIGNED`.

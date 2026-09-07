@@ -8,7 +8,7 @@
 
 ## 1. Verdict in five lines
 
-1. **The June remediation never shipped.** The 19-file GDPR fix (RoPA, retention schedule, purge script, data export, log redaction, BSN guard) sits on branch `claude/trusting-elion-63a5ed` and merges cleanly, but production still runs without it.
+1. **The June remediation sat unmerged for 11 weeks.** The 19-file GDPR fix (RoPA, retention schedule, purge script, data export, log redaction, BSN guard) was found still on branch `claude/trusting-elion-63a5ed` during this research and was merged to master on 2026-09-07 (#170). The purge script is not yet scheduled.
 2. **Nine regimes apply, not one.** Beyond GDPR/UAVG: the Dutch Telecommunicatiewet (spam + tracking), the Wwft anti-money-laundering act (Dils *is* a Wwft institution), EU sanctions law, Dutch e-signature and e-contract law (BW 3:15a, 6:227a), the Trade Secrets Act, the Works Councils Act (WOR Art. 27), Dutch record-retention law (AWR 52, BW 2:10), and organisation-level duties under the Whistleblower Act and AI Act Art. 4.
 3. **Eight regimes do not apply** and can be documented as out of scope: NIS2/Cyberbeveiligingswet, Cyber Resilience Act, Product Liability Directive (likely), European Accessibility Act, DSA and P2B, Wft/AFM licensing (for asset deals), Bibob, and the eIDAS wallet-acceptance duty. The Data Act applies only as a benefit to Dils as a cloud customer.
 4. **Three gaps are live legal exposure today**, independent of the June work: email open/click tracking without consent and no opt-out link (Telecommunicatiewet 11.7 and 11.7a, an AP and ACM 2026 enforcement priority); the staff audit log deployed without works-council consent (WOR 27); and no Wwft/sanctions gate anywhere in the deal pipeline.
@@ -20,7 +20,7 @@
 
 | Regime | Applies? | Why (for this app) | What it expects to find | In code today |
 |---|---|---|---|---|
-| **GDPR + UAVG** | Yes | Staff and investor-contact personal data; signatures; audit log | Art. 13/14 notices, RoPA, retention, DPAs, DPIA screening, LIAs, DSAR path, breach register | Partial (June branch unmerged) — §3 G1–G4 |
+| **GDPR + UAVG** | Yes | Staff and investor-contact personal data; signatures; audit log | Art. 13/14 notices, RoPA, retention, DPAs, DPIA screening, LIAs, DSAR path, breach register | Partial (June docs merged #170; purge unscheduled) — §3 G1–G4 |
 | **Telecommunicatiewet Art. 11.7** (spam) | Yes | Invite emails carry a deal teaser = commercial communication; B2B exception allows sending, but an opt-out is mandatory in every message | Unsubscribe in every commercial email; honour unsubscribes | **No opt-out, unsubscribes ignored** — G5 |
 | **Telecommunicatiewet Art. 11.7a** (cookies/tracking) | Yes | Auth cookie is exempt (strictly necessary). Mailgun open pixel reads the recipient's device → consent | Tracking off, or consent | **Tracking effectively on** — G6 |
 | **Wwft** (AML) | Yes | Dils mediates real-estate sales → Wwft institution, Art. 1a lid 4 sub h (verified on wetten.overheid.nl, version 2026-01-01). Supervisor: Bureau Toezicht Wwft | CDD on client (seller) and, lighter, on buyer before the transaction completes; UBO/PEP; unusual-transaction reporting; 5-year retention (Art. 33) | **No CDD status, no gate, no legal-hold flag** — G7 |
@@ -49,14 +49,14 @@ Priority: **P0** = legal exposure today or a regulator's named 2026 priority · 
 
 ### P0
 
-**G1 · The June GDPR remediation is unmerged.** RoPA, retention schedule, DSAR procedure, breach runbook, LIA, sub-processor register, purge script, ADMIN data export, log redaction and the BSN guard all exist only on `claude/trusting-elion-63a5ed`. `git merge-tree` shows zero conflicts against master. Until merged, the Art. 30 register, Art. 5(1)(e) retention and Art. 15/20 export gaps from June are still open in production.
-*Fix:* open the PR, merge, then wire `purge-expired-data.ts` to a Vercel Cron (needs a `vercel.json`, which also lets you pin the function region — see G11).
+**G1 · The June GDPR remediation was unmerged for 11 weeks — merged 2026-09-07 (#170).** RoPA, retention schedule, DSAR procedure, breach runbook, LIA, sub-processor register, purge script, ADMIN data export, log redaction and the BSN guard are now on master. What remains from that package: `scripts/purge-expired-data.ts` runs only by hand (`npm run purge:dry`), the four DPAs are unsigned, and the docs still carry ⚖️ legal-review markers.
+*Fix:* wire the purge to a Vercel Cron (needs a `vercel.json`, which also lets you pin the function region — see G11); sign the DPAs; get the addendum and LIA reviewed.
 
 **G2 · Wrong controller identity and no Art. 13/14 notice at collection.** The only in-app notice (`signing-page.tsx:339-348`, duplicated in `signing-modal.tsx:363-372`) names **"DILS Group B.V."** and `privacy@dils.com`; the portal footer shows an **Italian VAT number** (`investor-shell.tsx:55`). The controller is Dils Netherlands B.V. and the working DSAR channel is `privacy.netherlands@dils.com`. The HTML-NDA page has no notice; login, request-access, forgot-password and `/sign/[token]` have no privacy link on master. Most contacts arrive via CSV or staff entry (`bulk-invite-actions.ts`, `reimport-csvs-to-asset.ts`), which is **Art. 14** data: the notice must state the *source* and reach the person at first contact or within one month. Transparency (Art. 12–14) is a named AP 2026 enforcement pillar.
 *Fix:* one shared `<PrivacyNotice>` component with the correct entity, address, DSAR mailbox, purposes, bases, recipients (Supabase, Vercel, Mailgun, Upstash), retention and rights; render it on every public page and inside the invite email; add a `source` and `collectedAt` column on `CompanyContact` so the Art. 14 clock is provable.
 
-**G3 · Nothing is ever purged, and deletion is obfuscation.** No TTL, cron or anonymisation exists on master. `removeInvestor` (`invite-actions.ts:453-505`) can only rewrite the email to `<email>.removed-<ts>` because `ActivityLog`, `Comment`, `StageHistory`, `Document` have no cascade; signature PNGs, signed PDFs and `ActivityLog.metadata.email` survive; storage objects are never removed. Meanwhile signed NDAs and offers *must* be kept 7 years (BW 2:10 / AWR 52) and Wwft CDD records 5 years — so the same system both over-retains and cannot guarantee the legal minimums.
-*Fix:* merge G1, then implement the retention table in §4 as a scheduled job with a `legalHoldUntil` on `Document`, a real anonymise routine for users, and storage-object deletion.
+**G3 · Nothing is purged automatically, and deletion is obfuscation.** The purge script exists (#170) but no cron runs it, and no anonymisation exists. `removeInvestor` (`invite-actions.ts:453-505`) can only rewrite the email to `<email>.removed-<ts>` because `ActivityLog`, `Comment`, `StageHistory`, `Document` have no cascade; signature PNGs, signed PDFs and `ActivityLog.metadata.email` survive; storage objects are never removed. Meanwhile signed NDAs and offers *must* be kept 7 years (BW 2:10 / AWR 52) and Wwft CDD records 5 years — so the same system both over-retains and cannot guarantee the legal minimums.
+*Fix:* schedule the purge (G1), then implement the retention table in §4 as a scheduled job with a `legalHoldUntil` on `Document`, a real anonymise routine for users, and storage-object deletion.
 
 **G4 · Staff audit log deployed without works-council consent or DPIA screening.** `ActivityLog` + `StageHistory` record every staff action and the timeline page names the employee behind each change. Under WOR Art. 27(1)(l) a facility "suitable for" monitoring behaviour needs OR *instemming* before introduction or material change; a decision taken without it is voidable for a month after the OR learns of it. The same facts meet two WP248 DPIA criteria (systematic monitoring + power imbalance), so a documented DPIA threshold assessment is owed even if the answer is "no full DPIA". The AP's OR-privacyboekje expects a written purpose, viewer list and retention.
 *Fix (organisational):* confirm whether Dils NL has an OR; table the log for instemming with a one-page monitoring protocol (purpose = deal governance and evidence, not performance; ADMIN/EDITOR view only; 24-month retention; never used for HR without a fresh decision). Write the DPIA screening memo for the log and for the portal. Add a staff-facing notice in Dutch.
@@ -90,7 +90,7 @@ Priority: **P0** = legal exposure today or a regulator's named 2026 priority · 
 
 **G13 · Portal terms of use.** Only an external "Algemene voorwaarden" link in the investor footer. BW 6:234 wants terms presented before contracting and retrievable afterwards; a click-accept on first login is routine and binding on business users. Low risk, cheap.
 
-**G14 · Free-text PII risk.** `Company.notes`, `CompanyContact.notes`, `Comment.body` accept anything; the June BSN guard (UAVG Art. 46) is unmerged. Merge G1.
+**G14 · Free-text PII risk.** `Company.notes`, `CompanyContact.notes`, `Comment.body` accept anything beyond the BSN elfproef guard merged in #170 (UAVG Art. 46). Consider IBAN/passport patterns and a staff notice on what not to type.
 
 **G15 · Calendar items.** AI Act Art. 4 literacy note for the team; screen any future summarisation/scoring feature against Annex III and Art. 50 (in force 2 Aug 2026; high-risk deadline moved to 2 Dec 2027 by Regulation (EU) 2026/1744); Data Act zero egress fees from 12 Jan 2027 (check cloud contracts); PLD transposition 9 Dec 2026 (documentation hygiene only); EUDI wallet available end-2026 (no acceptance duty).
 
@@ -111,7 +111,7 @@ Longest applicable regime wins. "Legal hold" means the purge job must skip the r
 | Users | `User` | GDPR | active + 12 months after deactivation | anonymise (name, email → hash) |
 | `SigningToken`, unaccepted `InvestorInvite` | tables | GDPR | 30 days after expiry | delete |
 | Upstash rate-limit keys (IP, email) | Redis | GDPR 6(1)(f) security | 15–60 min TTL ✅ | — |
-| Vercel function logs with IP/email | Vercel | GDPR | Vercel default; redaction in June branch | merge G1 |
+| Vercel function logs with IP/email | Vercel | GDPR | Vercel default; redaction merged #170 | — |
 | Password-reset / credential emails | Mailgun | none | Mailgun default 3–7 days ✅ | — |
 
 ---
