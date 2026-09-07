@@ -17,6 +17,10 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | 7 | [data-subject-request-procedure.md](data-subject-request-procedure.md) | Art. 12–22 | ✅ Draft (adopt) |
 | 8 | [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md) | All regimes beyond GDPR (Telecommunicatiewet, Wwft, e-sign, trade secrets, WOR, retention) + 15 ranked gaps | 📋 Research (Sept 2026) → prioritise G1–G7 |
 | 9 | [code-fact-sheet-2026-09.md](code-fact-sheet-2026-09.md) | Evidence base with path:line refs and explicit NOT FOUND items | 📋 Re-check per remediation |
+| 10 | [dpia-screening-staff-audit-log.md](dpia-screening-staff-audit-log.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
+| 11 | [dpia-screening-investor-portal.md](dpia-screening-investor-portal.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
+| 12 | [staff-monitoring-protocol.md](staff-monitoring-protocol.md) | WOR art. 27 lid 1 k+l; AP OR-privacyboekje | 📋 Draft → Noah/OR |
+| 13 | [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md) | WOR art. 27 lid 1 k+l | 📋 Draft → Noah/OR |
 
 ## Code shipped alongside these docs
 
@@ -40,6 +44,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 - [x] **Admin credential rotated** to a strong hashed password ✅ (no published-credential risk).
 - [ ] **Verify the other seeded demo accounts** (`editor@example.com`, `viewer@example.com`, any demo investor) don't still exist in the **production** DB with the default `password123` — delete or deactivate + scramble. Optional: rename the admin login off `admin@example.com`.
 - [ ] **MFA** for admin/internal accounts — plan ready in [mfa-implementation-plan.md](mfa-implementation-plan.md); kickstart when ready.
+- [ ] **Table the audit log for OR instemming; complete the placeholders** in docs 10–13 (OR status, assessor/DPO names, account volume) — see [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md).
 
 ## Transfer-verification checklist (Art. 44–49)
 
