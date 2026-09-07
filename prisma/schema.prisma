@@ -63,17 +63,17 @@ enum EmailSuppressionReason {
 
 // ─── 1. User ────────────────────────────────────────────────────────────────
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(VIEWER)
-  isActive     Boolean  @default(true)
+  id                String    @id @default(cuid())
+  name              String
+  email             String    @unique
+  passwordHash      String
+  role              Role      @default(VIEWER)
+  isActive          Boolean   @default(true)
   // companyId stays as the "primary" company for backwards-compat (login
   // session, existing portal queries). Sprint B introduces UserCompanyMembership
   // for the many-to-many shape; this scalar will be deprecated once the
   // portal fully reads from memberships.
-  companyId    String?
+  companyId         String?
   // When the user last changed their own password (set by changeMyPassword).
   // NULL means the current passwordHash was set by an admin / system flow
   // (initial invite, resetUserPassword, requestPasswordReset, etc.) — middleware
@@ -84,26 +84,27 @@ model User {
   // Brute-force lockout counters, maintained by the NextAuth authorize path.
   // The counter resets to 0 the moment a lock is applied — lockedUntil is
   // what the check reads, so keeping both would double-count.
-  failedLoginCount Int      @default(0)
-  lockedUntil      DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  company            Company?              @relation(fields: [companyId], references: [id])
-  memberships        UserCompanyMembership[]
-  createdAssets      Asset[]               @relation("AssetCreator")
-  ownedRows          AssetCompanyTracking[] @relation("TrackingOwner")
-  comments           Comment[]
-  stageUpdates       StageStatus[]         @relation("StageUpdater")
-  stageApprovals     StageStatus[]         @relation("StageApprover")
-  stageHistory       StageHistory[]
-  activityLogs       ActivityLog[]
-  savedViews         SavedView[]
-  uploadedDocuments  Document[]            @relation("DocumentUploader")
-  createdInvites     InvestorInvite[]      @relation("InviteCreator")
-  viewerAccess       AssetViewerAccess[]   @relation("ViewerAccessUser")
-  grantedViewerAccess AssetViewerAccess[]  @relation("ViewerAccessGranter")
-  passwordSetTokens  PasswordSetToken[]
+  company             Company?                @relation(fields: [companyId], references: [id])
+  memberships         UserCompanyMembership[]
+  createdAssets       Asset[]                 @relation("AssetCreator")
+  ownedRows           AssetCompanyTracking[]  @relation("TrackingOwner")
+  comments            Comment[]
+  stageUpdates        StageStatus[]           @relation("StageUpdater")
+  stageApprovals      StageStatus[]           @relation("StageApprover")
+  stageHistory        StageHistory[]
+  activityLogs        ActivityLog[]
+  savedViews          SavedView[]
+  uploadedDocuments   Document[]              @relation("DocumentUploader")
+  createdInvites      InvestorInvite[]        @relation("InviteCreator")
+  viewerAccess        AssetViewerAccess[]     @relation("ViewerAccessUser")
+  grantedViewerAccess AssetViewerAccess[]     @relation("ViewerAccessGranter")
+  passwordSetTokens   PasswordSetToken[]
+  cddCleared          Company[]               @relation("CompanyCddClearer")
 }
 
 // ─── 1c. PasswordSetToken ───────────────────────────────────────────────────
@@ -177,11 +178,11 @@ model Asset {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  createdBy  User                   @relation("AssetCreator", fields: [createdById], references: [id])
-  trackings  AssetCompanyTracking[]
-  savedViews SavedView[]
-  invites    InvestorInvite[]
-  contents   AssetContent[]
+  createdBy    User                   @relation("AssetCreator", fields: [createdById], references: [id])
+  trackings    AssetCompanyTracking[]
+  savedViews   SavedView[]
+  invites      InvestorInvite[]
+  contents     AssetContent[]
   viewerAccess AssetViewerAccess[]
 }
 
@@ -211,28 +212,44 @@ model AssetViewerAccess {
 
 // ─── 3. Company ─────────────────────────────────────────────────────────────
 model Company {
-  id           String      @id @default(cuid())
-  name         String
-  legalName    String?
-  type         CompanyType @default(INVESTOR)
-  website      String?
+  id                  String      @id @default(cuid())
+  name                String
+  legalName           String?
+  type                CompanyType @default(INVESTOR)
+  website             String?
   // contactName/contactEmail are kept as the "primary contact" pointer
   // for backwards compatibility. The full list of contacts (which can
   // grow when an admin imports more rows for an existing company) lives
   // in CompanyContact below — that's the source of truth for "who do
   // we know at this firm".
-  contactName  String?
-  contactEmail String?
-  contactPhone String?
-  notes        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  contactName         String?
+  contactEmail        String?
+  contactPhone        String?
+  notes               String?
+  // ── Wwft / AML buyer-side CDD attestation (G7) ──────────────────────────
+  // Manual, soft attestation that buyer-side client due diligence and
+  // sanctions screening happened before this company's deals reach the NBO
+  // stage. KYC itself runs outside this app (Dils's Wwft file); this is
+  // just a status marker + legal-hold-adjacent note, NOT a KYC engine and
+  // NOT document storage — no ID uploads, no UBO data.
+  // "NOT_STARTED" | "IN_PROGRESS" | "CLEARED" | "ESCALATED"
+  cddStatus           String      @default("NOT_STARTED")
+  cddClearedAt        DateTime?
+  cddClearedByUserId  String?
+  // Free-text reference into the external Wwft/KYC file (e.g. a case id) —
+  // capped at 500 chars in setCompanyCddSchema. Never store ID numbers,
+  // BSNs, or UBO data here (noBsn guard applies).
+  cddNote             String?     @db.VarChar(500)
+  sanctionsScreenedAt DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
-  trackings   AssetCompanyTracking[]
-  users       User[]
-  memberships UserCompanyMembership[]
-  invites     InvestorInvite[]
-  contacts    CompanyContact[]
+  trackings        AssetCompanyTracking[]
+  users            User[]
+  memberships      UserCompanyMembership[]
+  invites          InvestorInvite[]
+  contacts         CompanyContact[]
+  cddClearedByUser User?                   @relation("CompanyCddClearer", fields: [cddClearedByUserId], references: [id])
 }
 
 // ─── 3b. CompanyContact ─────────────────────────────────────────────────────
@@ -249,7 +266,7 @@ model CompanyContact {
   companyId   String
   name        String?
   email       String
-  role        String?  // optional free-text label e.g. "Investment Manager"
+  role        String? // optional free-text label e.g. "Investment Manager"
   notes       String?
   // Art. 14(1)(f) GDPR — where this contact's data came from, so the
   // "notify within a month" clock is provable. Free-text like `role`
@@ -283,35 +300,35 @@ model PipelineStage {
 
 // ─── 5. AssetCompanyTracking ────────────────────────────────────────────────
 model AssetCompanyTracking {
-  id                       String          @id @default(cuid())
-  assetId                  String
-  companyId                String
-  relationshipType         String          @default("Investor")
-  currentStageKey          String?
-  currentStageManualOverride Boolean       @default(false)
-  lifecycleStatus          LifecycleStatus @default(ACTIVE)
-  interestLevel            InterestLevel?
-  ownerUserId              String?
-  priority                 Int?
-  latestCommentPreview     String?
-  sortOrder                Int?
+  id                         String          @id @default(cuid())
+  assetId                    String
+  companyId                  String
+  relationshipType           String          @default("Investor")
+  currentStageKey            String?
+  currentStageManualOverride Boolean         @default(false)
+  lifecycleStatus            LifecycleStatus @default(ACTIVE)
+  interestLevel              InterestLevel?
+  ownerUserId                String?
+  priority                   Int?
+  latestCommentPreview       String?
+  sortOrder                  Int?
   // Bid recorded for this investor on this deal. Surfaced to the
   // selling-side VIEWER and to admins in the trackings table. The
   // accompanying offer PDF lives in Document with kind="OFFER".
   // Single value (edit-in-place); StageHistory captures every change.
-  bidAmount                Decimal?        @db.Decimal(14, 2)
-  bidCurrency              String          @default("EUR")
-  bidSubmittedAt           DateTime?
-  createdAt                DateTime        @default(now())
-  updatedAt                DateTime        @updatedAt
+  bidAmount                  Decimal?        @db.Decimal(14, 2)
+  bidCurrency                String          @default("EUR")
+  bidSubmittedAt             DateTime?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
 
-  asset        Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  ownerUser    User?         @relation("TrackingOwner", fields: [ownerUserId], references: [id])
+  asset         Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerUser     User?          @relation("TrackingOwner", fields: [ownerUserId], references: [id])
   stageStatuses StageStatus[]
-  comments     Comment[]
-  stageHistory StageHistory[]
-  documents    Document[]
+  comments      Comment[]
+  stageHistory  StageHistory[]
+  documents     Document[]
 
   @@unique([assetId, companyId])
   // [assetId, companyId] already covers assetId lookups (leftmost prefix),
@@ -440,8 +457,8 @@ model Document {
   // statement as signedFileUrl, and cleared whenever signedFileUrl is cleared.
   pdfSha256        String?
   fieldConfig      Json?
-  placeholderMap   Json?     // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
-  placementMode    String    @default("GRID")  // "GRID" | "PLACEHOLDER" | "MANUAL"
+  placeholderMap   Json? // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
+  placementMode    String         @default("GRID") // "GRID" | "PLACEHOLDER" | "MANUAL"
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime       @default(now())
