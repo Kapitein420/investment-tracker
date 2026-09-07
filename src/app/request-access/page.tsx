@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail, Lock } from "lucide-react";
 import { requestAccessEmail } from "@/actions/auth-actions";
+import { PrivacyNotice } from "@/components/privacy-notice";
 
 export default function RequestAccessPage() {
   const [email, setEmail] = useState("");
@@ -100,6 +101,10 @@ export default function RequestAccessPage() {
             </Link>
           </form>
         )}
+
+        <div className="text-center">
+          <PrivacyNotice variant="compact" />
+        </div>
       </div>
     </div>
   );

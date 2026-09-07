@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PrivacyNotice } from "@/components/privacy-notice";
 
 // NextAuth redirects auth-flow errors to /login?error=<code> (we configure
 // pages.error in lib/auth.ts). Translate the codes to user-friendly text.
@@ -172,16 +173,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        <p className="text-center text-[10px] text-muted-foreground">
-          <a
-            href="https://dils.nl/privacyverklaring/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground hover:underline"
-          >
-            Privacy statement
-          </a>
-        </p>
+        <div className="text-center">
+          <PrivacyNotice variant="compact" />
+        </div>
       </div>
     </div>
   );

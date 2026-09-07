@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail } from "lucide-react";
 import { requestPasswordReset } from "@/actions/auth-actions";
+import { PrivacyNotice } from "@/components/privacy-notice";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -94,6 +95,10 @@ export default function ForgotPasswordPage() {
             </Link>
           </form>
         )}
+
+        <div className="text-center">
+          <PrivacyNotice variant="compact" />
+        </div>
       </div>
     </div>
   );

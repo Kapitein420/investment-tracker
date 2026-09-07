@@ -35,6 +35,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | Telecommunicatiewet 11.7a | Open/click tracking off by default, opt-in via portal preferences, consent evidence in `EmailTrackingConsent` | `src/lib/email-tracking.ts` |
 | Wet bescherming bedrijfsgeheimen / Art. 15 | Download logging — every signed-URL issuance for documents and content, all roles | `src/lib/activity-log.ts`, `src/actions/document-actions.ts`, `src/actions/html-nda-actions.ts`, `src/actions/content-actions.ts` |
 | NCSC coordinated vulnerability disclosure | `security.txt` + reporting policy | `public/.well-known/security.txt`, `.github/SECURITY.md` |
+| Art. 13/14 | In-app `/privacy` notice + shared `PrivacyNotice` component + `CompanyContact.source`/`collectedAt` | `src/components/privacy-notice.tsx` |
 
 ## Open ops / human actions (cannot be done in code)
 

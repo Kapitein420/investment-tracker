@@ -393,8 +393,12 @@ export async function sendInvestorInvite({
           ${teaserPreviewHtml}
           ${credentialsBlock}
           ${renderCta("Log in to portal", loginUrl)}
-          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">
             Keep these credentials secure. For assistance, reply to this email or contact the deal team directly.
+          </p>
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
+            Where we got your details: your firm or a DILS deal contact shared them so we could invite you to this
+            process. Your rights and how we handle your data are in the <a href="${getAppUrl()}/privacy" style="color: #101820; text-decoration: underline;">portal privacy notice</a>.
           </p>
         `,
         meta: `${escapeHtml(asset.title)} · ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}`,

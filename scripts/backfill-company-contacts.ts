@@ -57,6 +57,7 @@ async function main() {
           companyId: c.id,
           name: c.contactName,
           email,
+          source: "CSV_IMPORT",
         },
       });
     }
