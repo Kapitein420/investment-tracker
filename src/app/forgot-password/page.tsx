@@ -39,7 +39,7 @@ export default function ForgotPasswordPage() {
               Reset your password
             </p>
             <p className="text-xs text-muted-foreground">
-              Enter your email — we&rsquo;ll send you a fresh password.
+              Enter your email — we&rsquo;ll send you a link to set a new one.
             </p>
           </div>
         </div>
@@ -52,9 +52,9 @@ export default function ForgotPasswordPage() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Check your inbox</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    If an account exists for <strong>{email}</strong>, you&rsquo;ll receive an
-                    email with a fresh password within a minute. Use it to sign in, then change it
-                    once you&rsquo;re inside.
+                    If an account exists for <strong>{email}</strong>, you&rsquo;ll receive a
+                    link to set a new password within a minute. The link works once and expires
+                    in 60 minutes.
                   </p>
                 </div>
               </div>
@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending..." : "Email me a new password"}
+              {loading ? "Sending..." : "Email me a reset link"}
             </Button>
 
             <Link

@@ -12,9 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, UserCheck, UserX, KeyRound, ShieldCheck, MapPin } from "lucide-react";
+import { Plus, UserCheck, UserX, KeyRound, ShieldCheck, MapPin, LockOpen } from "lucide-react";
 import {
   resetUserPassword,
+  unlockUser,
   createUser,
   updateUser,
   getViewerAssetAccess,
@@ -31,9 +32,21 @@ type UserRow = {
   role: Role;
   isActive: boolean;
   createdAt: Date;
+  lockedUntil: Date | null;
 };
 
 type AssetPickerItem = { id: string; title: string; city: string; country: string };
+
+// A lock is a 15-minute window (lib/login-lockout), so a stale server render
+// can show one that has already elapsed — compare against the clock, not
+// against the column being non-null.
+function isLocked(lockedUntil: Date | null): boolean {
+  return lockedUntil !== null && new Date(lockedUntil).getTime() > Date.now();
+}
+
+function formatTime(value: Date): string {
+  return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 export function UsersAdmin({ users }: { users: UserRow[] }) {
   const router = useRouter();
@@ -208,12 +221,22 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
   }
 
   async function handleResetPassword(userId: string, email: string) {
-    if (!confirm(`Reset password for ${email}? A new password will be emailed to them.`)) return;
+    if (!confirm(`Reset password for ${email}? A one-time link to set a new password will be emailed to them.`)) return;
     try {
       await resetUserPassword(userId);
-      toast.success(`Password reset email sent to ${email}`);
+      toast.success(`Set-password link sent to ${email}`);
     } catch {
-      toast.error("Failed to reset password");
+      toast.error("Failed to send reset link");
+    }
+  }
+
+  async function handleUnlock(userId: string, email: string) {
+    try {
+      await unlockUser(userId);
+      toast.success(`${email} unlocked`);
+      router.refresh();
+    } catch {
+      toast.error("Failed to unlock account");
     }
   }
 
@@ -277,6 +300,11 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                   <Badge variant={u.isActive ? "secondary" : "destructive"} className="text-xs">
                     {u.isActive ? "Active" : "Inactive"}
                   </Badge>
+                  {isLocked(u.lockedUntil) && (
+                    <p className="mt-1 text-[11px] font-medium text-destructive">
+                      Locked until {formatTime(u.lockedUntil!)}
+                    </p>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(u.createdAt)}</td>
                 <td className="px-4 py-3">
@@ -313,6 +341,17 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
                       <KeyRound className="mr-1 h-3 w-3" />
                       Reset Password
                     </Button>
+                    {isLocked(u.lockedUntil) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleUnlock(u.id, u.email)}
+                      >
+                        <LockOpen className="mr-1 h-3 w-3" />
+                        Unlock
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>

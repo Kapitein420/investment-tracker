@@ -119,13 +119,29 @@ export const updateCommentSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  // 12, not the self-change flow's 10: an admin types this for someone else
+  // and has to communicate it out of band, so it is the one remaining path
+  // where a human picks a password on another human's behalf.
+  password: z.string().min(12, "Password must be at least 12 characters"),
   role: z.enum(["ADMIN", "EDITOR", "VIEWER", "INVESTOR"]),
   // VIEWER-only: which assets the new viewer is allowed to see. Empty
   // array = no access (empty dashboard until an admin grants assets via
   // Manage access). Ignored for non-VIEWER roles.
   accessibleAssetIds: z.array(z.string()).optional(),
 });
+
+// ─── Set password via one-time link ─────────────────────────────────────────
+// 10 chars, no complexity rule — same policy as the self-change flow in
+// change-password-actions (NIST SP 800-63B).
+export const setPasswordSchema = z
+  .object({
+    newPassword: z.string().min(10, "Password must be at least 10 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -197,4 +213,5 @@ export type UpdateTrackingInput = z.infer<typeof updateTrackingSchema>;
 export type UpdateStageStatusInput = z.infer<typeof updateStageStatusSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

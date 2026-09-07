@@ -39,8 +39,8 @@ export default function RequestAccessPage() {
               Get your DILS Investor Portal login
             </p>
             <p className="text-xs text-muted-foreground">
-              Enter the email your DILS broker has on file. We&rsquo;ll send your
-              sign-in details to your inbox &mdash; usually within a minute.
+              Enter the email your DILS broker has on file. We&rsquo;ll send you a
+              link to set your password &mdash; usually within a minute.
             </p>
           </div>
         </div>
@@ -54,8 +54,8 @@ export default function RequestAccessPage() {
                   <p className="text-sm font-semibold text-foreground">Check your inbox</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     If <strong>{email}</strong> is on the access list for the DILS
-                    Investor Portal, you&rsquo;ll receive an email with your login
-                    credentials shortly.
+                    Investor Portal, you&rsquo;ll receive an email with a link to set
+                    your password shortly.
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed pt-1">
                     No email arrives within 5 minutes? Reply to the message your
@@ -89,7 +89,7 @@ export default function RequestAccessPage() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               <Lock className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
-              {loading ? "Sending..." : "Send my sign-in details"}
+              {loading ? "Sending..." : "Email me a set-password link"}
             </Button>
 
             <Link
@@ -97,7 +97,7 @@ export default function RequestAccessPage() {
               className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-3 w-3" strokeWidth={2.4} />
-              Already have credentials? Sign in
+              Already have a password? Sign in
             </Link>
           </form>
         )}

@@ -5,9 +5,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
+import { renderEmail, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
-import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
+import { BCRYPT_COST } from "@/lib/security";
+import { issuePasswordSetToken } from "@/lib/password-set-token";
 import { unsubscribeUrl } from "@/lib/unsubscribe";
 import {
   createUserSchema,
@@ -30,6 +31,7 @@ export async function getUsers() {
       role: true,
       isActive: true,
       createdAt: true,
+      lockedUntil: true,
     },
     orderBy: { name: "asc" },
   });
@@ -266,41 +268,38 @@ export async function updatePipelineStage(
   return stage;
 }
 
+/**
+ * Admin-initiated password reset. Emails a one-time set-password link
+ * instead of a plaintext password (compliance gap G9) — so the user's
+ * current password stays valid until they redeem it, and no live credential
+ * ever sits in an inbox or in Mailgun's logs.
+ */
 export async function resetUserPassword(userId: string) {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
   });
 
-  // CSPRNG-generated credential — see lib/security. Not Math.random().
-  const newPassword = generateSecurePassword();
+  const link = await issuePasswordSetToken(userId, "ADMIN_RESET");
 
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash, passwordChangedAt: null },
-  });
-
-  // Send email with new password
   try {
     await sendEmail({
       to: user.email,
-      subject: "Your password has been reset — DILS Investor Portal",
+      subject: "Set a new password — DILS Investor Portal",
       html: renderEmail({
-        heading: "Your password has been reset",
+        heading: "Set a new password",
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            An administrator has reset your password. Use the new credentials below to log in.
+            An administrator has started a password reset for your account. Use the button below to choose a new password.
           </p>
-          ${renderCredentialsTable([
-            { label: "Email", value: user.email, mono: true },
-            { label: "Password", value: newPassword, mono: true },
-          ])}
-          ${renderCta("Log in to portal", `${getAppUrl()}/login`)}
+          ${renderCta("Set your password", link.url)}
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 24px 0;">
+            This link works once and expires in ${link.ttlLabel}. Signing in afterwards is at
+            <a href="${getAppUrl()}/login" style="color: #101820;">${getAppUrl()}/login</a>.
+          </p>
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-            For your security, change this password after logging in. If you didn't request this reset, contact the deal team immediately.
+            Your current password keeps working until you use the link. If you weren't expecting this, contact the deal team.
           </p>
         `,
         unsubscribeUrl: unsubscribeUrl(user.email),
@@ -314,9 +313,37 @@ export async function resetUserPassword(userId: string) {
     data: {
       entityType: "User",
       entityId: userId,
-      action: "PASSWORD_RESET",
+      action: "PASSWORD_RESET_LINK_SENT",
       metadata: { email: user.email },
-      userId: (await requireRole("ADMIN")).id,
+      userId: admin.id,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true, email: user.email };
+}
+
+/**
+ * Clear a brute-force lockout (see lib/login-lockout) so the user can try
+ * again before the 15-minute window elapses. Does not touch the password —
+ * if they've forgotten it, that's what the reset link above is for.
+ */
+export async function unlockUser(userId: string) {
+  const admin = await requireRole("ADMIN");
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { failedLoginCount: 0, lockedUntil: null },
+    select: { email: true },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "User",
+      entityId: userId,
+      action: "ACCOUNT_UNLOCKED",
+      metadata: { email: user.email },
+      userId: admin.id,
     },
   });
 

@@ -2,6 +2,8 @@
 
 > **Status: NOT IMPLEMENTED (planned).** Authentication today is NextAuth Credentials (email + bcrypt-12 password, JWT sessions, login rate-limiting, session rotation/invalidation). There is no second factor. MFA for privileged accounts is the top open Art. 32 hardening item. This plan lets you kickstart it when ready. **Estimated effort: ~2–3 focused days.**
 
+> **The two non-MFA halves of G9 are done.** Emails no longer carry a plaintext password — invite, welcome, reset and admin-reset all send a one-time set-password link (`src/lib/password-set-token.ts`) — and accounts now lock for 15 minutes after 10 failed passwords (`src/lib/login-lockout.ts`, admin "Unlock" on `/admin/users`). Only the second factor itself is outstanding.
+
 ## Goal
 TOTP (authenticator-app) two-factor auth, **mandatory for ADMIN & EDITOR**, optional for VIEWER/INVESTOR. TOTP is the simplest fit for the existing Credentials provider; passkeys/WebAuthn is a stronger future option (noted at the end).
 

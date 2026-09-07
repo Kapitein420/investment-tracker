@@ -21,6 +21,7 @@ async function main() {
   if (DRY) {
     console.log("[purge:dry] would delete (no changes made):");
     console.log(`  - signing tokens expired >30d:        ${counts.signingTokens}`);
+    console.log(`  - set-password tokens expired >30d:   ${counts.passwordSetTokens}`);
     console.log(`  - unaccepted invites expired >30d:     ${counts.investorInvites}`);
     console.log(`  - activity logs older than 24 months:  ${counts.activityLogs}`);
     console.log("  - signed documents / signatures:        0 (legal hold — never purged)");
@@ -28,9 +29,10 @@ async function main() {
   }
 
   console.log("[purge] deleted:");
-  console.log(`  - signing tokens:   ${counts.signingTokens}`);
-  console.log(`  - expired invites:  ${counts.investorInvites}`);
-  console.log(`  - activity logs:    ${counts.activityLogs}`);
+  console.log(`  - signing tokens:      ${counts.signingTokens}`);
+  console.log(`  - set-password tokens: ${counts.passwordSetTokens}`);
+  console.log(`  - expired invites:     ${counts.investorInvites}`);
+  console.log(`  - activity logs:       ${counts.activityLogs}`);
 }
 
 main()

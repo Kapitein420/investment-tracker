@@ -18,6 +18,7 @@ export default async function AdminUsersPage() {
       role: true,
       isActive: true,
       createdAt: true,
+      lockedUntil: true,
     },
   });
 

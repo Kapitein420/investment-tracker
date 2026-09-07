@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { BCRYPT_COST } from "@/lib/security";
+import { isAccountLocked, nextFailedLoginState } from "@/lib/login-lockout";
 import { redactEmail, redactIp } from "@/lib/log-redact";
 
 // A valid bcrypt hash of a throwaway random string. Used only to burn an
@@ -106,11 +107,54 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Locked out: burn the same bcrypt cost and return the same generic
+        // failure as a wrong password, so the lock state isn't observable to
+        // an attacker (and doesn't confirm the account exists).
+        if (isAccountLocked(user.lockedUntil)) {
+          await bcrypt.compare(credentials.password, getDummyBcryptHash());
+          return null;
+        }
+
         const valid = await bcrypt.compare(
           credentials.password,
           user.passwordHash
         );
-        if (!valid) return null;
+        if (!valid) {
+          const next = nextFailedLoginState(user.failedLoginCount);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginCount: next.failedLoginCount,
+              lockedUntil: next.lockedUntil,
+            },
+          });
+          if (next.justLocked) {
+            try {
+              await prisma.activityLog.create({
+                data: {
+                  entityType: "User",
+                  entityId: user.id,
+                  action: "ACCOUNT_LOCKED",
+                  metadata: { email: user.email, lockedUntil: next.lockedUntil },
+                  userId: user.id,
+                },
+              });
+            } catch {}
+            console.warn(
+              `[auth] account locked email=${redactEmail(email)} ip=${redactIp(ip)}`
+            );
+          }
+          return null;
+        }
+
+        // Successful password — clear the counters. Guarded so the happy
+        // path doesn't write to User on every single login.
+        if (user.failedLoginCount !== 0 || user.lockedUntil !== null) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginCount: 0, lockedUntil: null },
+          });
+        }
 
         // Mark pending invites as accepted on first login (for INVESTOR users)
         if (user.role === "INVESTOR") {
