@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
+import { logDownloadAccess } from "@/lib/activity-log";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -649,6 +650,20 @@ export async function getSignedHtmlNda(documentId: string) {
   // server-side as a defence-in-depth complement to the client redaction
   // rules already in tracking-detail-drawer.
   const showSignerIdentity = user.role !== "VIEWER";
+
+  await logDownloadAccess({
+    action: "DOCUMENT_ACCESSED",
+    entityType: "Document",
+    entityId: doc.id,
+    userId: user.id,
+    role: user.role,
+    metadata: {
+      documentId: doc.id,
+      trackingId: doc.trackingId,
+      assetId: doc.tracking.assetId,
+      fileName: doc.fileName,
+    },
+  });
 
   return {
     documentId: doc.id,

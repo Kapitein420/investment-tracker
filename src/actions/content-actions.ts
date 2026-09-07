@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/permissions";
 import { uploadFile, getSignedUrl, deleteFile, downloadFile, createSignedUploadUrl } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
+import { logDownloadAccess } from "@/lib/activity-log";
 
 export async function createAssetContent(data: {
   assetId: string;
@@ -190,7 +191,7 @@ export async function getSignedContentUrl(storagePath: string) {
   // Find matching content or document
   const content = await prisma.assetContent.findFirst({
     where: { fileUrl: storagePath },
-    select: { id: true, assetId: true },
+    select: { id: true, assetId: true, stageKey: true },
   });
 
   // Teaser images live inside AssetContent.imageUrls (a JSON array), not in
@@ -218,7 +219,6 @@ export async function getSignedContentUrl(storagePath: string) {
 
   // INVESTOR check: must have access to the asset
   let investorTrackingId: string | null = null;
-  let investorContentStageKey: string | null = null;
   if (user.role === "INVESTOR") {
     if (!user.companyId) throw new Error("Forbidden");
     const assetId = content?.assetId ?? teaser?.assetId ?? doc?.tracking.assetId;
@@ -234,16 +234,6 @@ export async function getSignedContentUrl(storagePath: string) {
     // If it's a Document, also check the document belongs to their company
     if (doc && doc.tracking.companyId !== user.companyId) {
       throw new Error("Forbidden");
-    }
-
-    // For AssetContent (IM, NDA template, etc.), capture the stage key so
-    // we can log a per-tracking access event below.
-    if (content) {
-      const fullContent = await prisma.assetContent.findUnique({
-        where: { id: content.id },
-        select: { stageKey: true },
-      });
-      investorContentStageKey = fullContent?.stageKey ?? null;
     }
   }
 
@@ -263,32 +253,46 @@ export async function getSignedContentUrl(storagePath: string) {
   }
 
   // Log the access — surfaces "first viewed at" timestamps in the admin
-  // overview ("Anna opened the IM at 14:02"). Best-effort: logging failure
-  // never blocks the URL from being returned.
-  if (
-    user.role === "INVESTOR" &&
-    investorTrackingId &&
-    content &&
-    investorContentStageKey
-  ) {
-    try {
-      await prisma.activityLog.create({
-        data: {
-          entityType: "AssetContent",
-          entityId: content.id,
-          action: "CONTENT_ACCESSED",
-          metadata: {
-            trackingId: investorTrackingId,
-            stageKey: investorContentStageKey,
-            storagePath,
-          },
-          userId: user.id,
-        },
-      });
-    } catch (e) {
-      console.error("[getSignedContentUrl] access log failed:", e);
-    }
+  // overview ("Anna opened the IM at 14:02") and, for G10, answers "who
+  // downloaded which document/content, when" for every role, not just
+  // investors. trackingId is only known on the INVESTOR path (teasers and
+  // ADMIN/EDITOR/VIEWER reads aren't scoped to one tracking); consumers like
+  // getContentAccessByTracking already ignore rows with no matching
+  // trackingId, so leaving it null elsewhere doesn't change that behaviour.
+  if (content) {
+    await logDownloadAccess({
+      action: "CONTENT_ACCESSED",
+      entityType: "AssetContent",
+      entityId: content.id,
+      userId: user.id,
+      role: user.role,
+      metadata: {
+        contentId: content.id,
+        assetId: content.assetId,
+        trackingId: investorTrackingId,
+        stageKey: content.stageKey,
+        storagePath,
+      },
+    });
+  } else if (doc) {
+    await logDownloadAccess({
+      action: "DOCUMENT_ACCESSED",
+      entityType: "Document",
+      entityId: doc.id,
+      userId: user.id,
+      role: user.role,
+      metadata: {
+        documentId: doc.id,
+        trackingId: doc.trackingId,
+        assetId: doc.tracking.assetId,
+        fileName: doc.fileName,
+        storagePath,
+      },
+    });
   }
+  // Teaser images (thumbnails inside AssetContent.imageUrls) are UI chrome,
+  // not the underlying document/content being accessed — intentionally
+  // unlogged, matching prior behaviour.
 
   return getSignedUrl(storagePath, 7200);
 }
