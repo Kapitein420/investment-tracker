@@ -16,6 +16,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
+import { logDownloadAccess } from "@/lib/activity-log";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -666,6 +667,22 @@ export async function getSignedDocumentUrl(documentId: string) {
   } else {
     path = doc.fileUrl;
   }
+
+  await logDownloadAccess({
+    action: "DOCUMENT_ACCESSED",
+    entityType: "Document",
+    entityId: doc.id,
+    userId: user.id,
+    role: user.role,
+    metadata: {
+      documentId: doc.id,
+      trackingId: doc.trackingId,
+      assetId: doc.tracking.assetId,
+      fileName: doc.fileName,
+      storagePath: path,
+    },
+  });
+
   return getSignedUrl(path, 7200);
 }
 
