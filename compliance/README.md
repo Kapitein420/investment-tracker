@@ -10,7 +10,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 |---|---|---|---|
 | 1 | [privacy-statement-portal-addendum.md](privacy-statement-portal-addendum.md) | Art. 13–14 transparency | ⚖️ Draft → **legal review** |
 | 2 | [record-of-processing-activities.md](record-of-processing-activities.md) | Art. 30 RoPA | ✅ Draft (maintain) |
-| 3 | [data-retention-schedule.md](data-retention-schedule.md) | Art. 5(1)(e) | ✅ Draft + enforced by purge script |
+| 3 | [data-retention-schedule.md](data-retention-schedule.md) | Art. 5(1)(e) | ✅ Draft + purge scheduled daily (dry-run; armed via `PURGE_ENABLED=true`) |
 | 4 | [subprocessors-and-dpa-register.md](subprocessors-and-dpa-register.md) | Art. 28 | ⏳ Sign DPAs (ops) |
 | 5 | [lawful-basis-and-LIA.md](lawful-basis-and-LIA.md) | Art. 6 | ⚖️ Draft → legal review |
 | 6 | [data-breach-response-runbook.md](data-breach-response-runbook.md) | Art. 33–34 | ✅ Draft (adopt) |
@@ -26,7 +26,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 
 | Area | What | Where |
 |---|---|---|
-| Retention | Purge of expired/used tokens, expired invites, aged activity logs | `scripts/purge-expired-data.ts` (`npm run purge:dry` / `npm run purge`) |
+| Retention | Purge of expired/used tokens, expired invites, aged activity logs | `src/lib/purge.ts`, run manually (`npm run purge:dry` / `npm run purge`) or daily via Vercel Cron (`src/app/api/cron/purge/route.ts`, `vercel.json`, 03:30 UTC) |
 | Data-subject access/portability | Per-person data export (JSON) | `src/actions/data-export-actions.ts` |
 | Security (Art. 32) | PII redacted from server logs | `src/lib/log-redact.ts` + call sites |
 | UAVG Art. 46 | BSN / sensitive-data guard on free-text fields | `src/lib/validators.ts` (`assertNoBSN`) |
@@ -45,11 +45,12 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 - [ ] **Verify the other seeded demo accounts** (`editor@example.com`, `viewer@example.com`, any demo investor) don't still exist in the **production** DB with the default `password123` — delete or deactivate + scramble. Optional: rename the admin login off `admin@example.com`.
 - [ ] **MFA** for admin/internal accounts — plan ready in [mfa-implementation-plan.md](mfa-implementation-plan.md); kickstart when ready.
 - [ ] **Table the audit log for OR instemming; complete the placeholders** in docs 10–13 (OR status, assessor/DPO names, account volume) — see [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md).
+- [ ] **Set `CRON_SECRET` in Vercel; flip `PURGE_ENABLED` after sign-off; confirm `fra1` region after first deploy.**
 
 ## Transfer-verification checklist (Art. 44–49)
 
 1. **Supabase** → ✅ **confirmed EU — Ireland (`eu-west-1`)**. Remaining: accept the [Supabase DPA](https://supabase.com/legal/dpa) (SCCs).
 2. **Upstash / Vercel KV** → confirm the Redis database region is EU; confirm DPA.
-3. **Vercel** → confirm the project's functions region is EU (`fra1`/`ams`...) and that Vercel's [EU-US DPF certification](https://vercel.com/changelog/vercel-is-now-certified-under-the-eu-us-data-privacy-framework-dpf) is active at go-live.
+3. **Vercel** → region pinned to `fra1` in `vercel.json` (functions previously ran in Vercel's default US region); confirm the pin took effect after the first deploy. Also confirm Vercel's [EU-US DPF certification](https://vercel.com/changelog/vercel-is-now-certified-under-the-eu-us-data-privacy-framework-dpf) is active at go-live.
 4. **Mailgun** → already on the EU endpoint (`api.eu.mailgun.net`); confirm the Mailgun/Sinch DPA is signed.
 5. Record each result (region + transfer basis + DPA date) in the RoPA, §Recipients & transfers.
