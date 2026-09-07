@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email";
 import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
 import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 import {
   createUserSchema,
   updateUserSchema,
@@ -302,6 +303,7 @@ export async function resetUserPassword(userId: string) {
             For your security, change this password after logging in. If you didn't request this reset, contact the deal team immediately.
           </p>
         `,
+        unsubscribeUrl: unsubscribeUrl(user.email),
       }),
     });
   } catch (e) {

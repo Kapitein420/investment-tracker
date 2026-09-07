@@ -27,6 +27,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | Security (Art. 32) | PII redacted from server logs | `src/lib/log-redact.ts` + call sites |
 | UAVG Art. 46 | BSN / sensitive-data guard on free-text fields | `src/lib/validators.ts` (`assertNoBSN`) |
 | Transparency | Privacy + cookie links surfaced in-app | login / invite-accept / portal footer |
+| Telecommunicatiewet 11.7 | Unsubscribe link + `List-Unsubscribe` header + suppression on commercial email | `src/lib/unsubscribe.ts` |
 
 ## Open ops / human actions (cannot be done in code)
 

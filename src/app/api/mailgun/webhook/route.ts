@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
+import { suppressEmail } from "@/lib/unsubscribe";
 
 /**
  * Mailgun webhook endpoint.
@@ -78,6 +79,17 @@ export async function POST(req: Request) {
   const recipient: string | undefined = eventData.recipient;
   const reason: string | undefined =
     eventData["delivery-status"]?.description ?? eventData.reason;
+
+  // Suppress future commercial sends immediately — independent of whether
+  // this event can be correlated to a tracked InvestorInvite below. The
+  // opt-out/complaint is binding regardless of our own message bookkeeping.
+  if (recipient && (event === "unsubscribed" || event === "complained")) {
+    await suppressEmail(
+      recipient,
+      event === "unsubscribed" ? "UNSUBSCRIBED" : "COMPLAINED",
+      "mailgun"
+    );
+  }
 
   if (!messageId) {
     return NextResponse.json({ ok: true, ignored: "no message-id" });

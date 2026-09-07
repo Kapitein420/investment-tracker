@@ -10,6 +10,7 @@ import { getAppUrl } from "@/lib/app-url";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
 import { redactEmail, redactIp } from "@/lib/log-redact";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 
 /**
  * Self-serve password reset.
@@ -247,6 +248,7 @@ export async function requestPasswordReset(
           ${renderCta(emailContent.ctaLabel, `${getAppUrl()}/login`)}
           ${emailContent.footer}
         `,
+        unsubscribeUrl: unsubscribeUrl(user.email),
       }),
     });
   } catch (e) {

@@ -56,6 +56,11 @@ enum ContentType {
   LANDING_PAGE
 }
 
+enum EmailSuppressionReason {
+  UNSUBSCRIBED
+  COMPLAINED
+}
+
 // ─── 1. User ────────────────────────────────────────────────────────────────
 model User {
   id           String   @id @default(cuid())
@@ -479,4 +484,17 @@ model AssetContent {
 
   @@index([assetId, stageKey])
   @@index([assetId, isPublished])
+}
+
+// ─── 15. EmailSuppression ───────────────────────────────────────────────────
+// Telecommunicatiewet 11.7 lid 4: a recipient who unsubscribes or
+// complains must not receive another commercial email. Checked by
+// sendEmail() for category: "commercial" sends only — transactional mail
+// (credentials, password resets, NDA approvals) is exempt and keeps going.
+model EmailSuppression {
+  id        String                  @id @default(cuid())
+  email     String                  @unique
+  reason    EmailSuppressionReason
+  source    String
+  createdAt DateTime                @default(now())
 }

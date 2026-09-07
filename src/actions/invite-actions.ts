@@ -14,6 +14,7 @@ import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
 import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 
 // CSPRNG-backed; the issued string is the investor's whole login secret.
 function generatePassword(length = 16): string {
@@ -374,10 +375,15 @@ export async function sendInvestorInvite({
   let emailSent = true;
   let emailError: string | undefined;
   let messageId: string | null = null;
+  let suppressed = false;
   try {
     const result = await sendEmail({
       to: email,
       subject: `Your access to ${asset.title} — DILS Investor Portal`,
+      // Invites carry a deal teaser (description, highlights, hero image) —
+      // that's a commercial communication under Telecommunicatiewet 11.7,
+      // so it's checked against EmailSuppression before sending.
+      category: "commercial",
       html: renderEmail({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
@@ -392,9 +398,15 @@ export async function sendInvestorInvite({
           </p>
         `,
         meta: `${escapeHtml(asset.title)} · ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}`,
+        unsubscribeUrl: unsubscribeUrl(email),
       }),
     });
     messageId = result.messageId;
+    if (result.skipped === "suppressed") {
+      suppressed = true;
+      emailSent = false;
+      emailError = `${email} has opted out of deal emails`;
+    }
   } catch (e: any) {
     emailSent = false;
     emailError = e?.message ?? "Unknown email error";
@@ -405,7 +417,11 @@ export async function sendInvestorInvite({
     data: {
       entityType: "InvestorInvite",
       entityId: invite.id,
-      action: emailSent ? "INVITE_SENT" : "INVITE_CREATED_EMAIL_FAILED",
+      action: suppressed
+        ? "INVITE_SUPPRESSED"
+        : emailSent
+        ? "INVITE_SENT"
+        : "INVITE_CREATED_EMAIL_FAILED",
       metadata: {
         email,
         assetId,
@@ -422,7 +438,7 @@ export async function sendInvestorInvite({
   revalidatePath("/admin/invites");
   revalidatePath(`/assets/${assetId}`);
 
-  return { invite, emailSent, emailError };
+  return { invite, emailSent, emailError, suppressed };
 }
 
 export async function getInvites(assetId?: string) {

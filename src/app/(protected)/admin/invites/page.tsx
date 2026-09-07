@@ -30,6 +30,19 @@ export default async function AdminInvitesPage() {
     },
   });
 
+  // One query for every invited email's suppression status — avoids an
+  // N+1 lookup per row. Keyed lowercased since EmailSuppression.email is
+  // stored normalised.
+  const inviteEmails = Array.from(new Set(invites.map((i) => i.email.toLowerCase())));
+  const suppressions =
+    inviteEmails.length === 0
+      ? []
+      : await prisma.emailSuppression.findMany({
+          where: { email: { in: inviteEmails } },
+          select: { email: true },
+        });
+  const suppressedEmails = suppressions.map((s) => s.email);
+
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, contactEmail: true },
@@ -116,6 +129,7 @@ export default async function AdminInvitesPage() {
       companies={companies}
       assets={assets}
       inviteEvents={inviteEvents}
+      suppressedEmails={suppressedEmails}
     />
   );
 }

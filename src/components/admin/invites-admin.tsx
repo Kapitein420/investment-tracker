@@ -125,13 +125,17 @@ export function InvitesAdmin({
   companies,
   assets,
   inviteEvents = {},
+  suppressedEmails = [],
 }: {
   invites: InviteRow[];
   investorUsers: InvestorUser[];
   companies: Array<{ id: string; name: string; contactEmail: string | null }>;
   assets: Array<{ id: string; title: string }>;
   inviteEvents?: Record<string, InviteEvents>;
+  /** Lowercased emails present in EmailSuppression — drives the "Opted out" chip. */
+  suppressedEmails?: string[];
 }) {
+  const suppressedSet = useMemo(() => new Set(suppressedEmails), [suppressedEmails]);
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyId, setCompanyId] = useState("");
@@ -166,6 +170,8 @@ export function InvitesAdmin({
       const result = await sendInvestorInvite({ companyId, assetId, email });
       if (result.emailSent) {
         toast.success("Invitation sent");
+      } else if (result.suppressed) {
+        toast.warning(result.emailError, { duration: 12000 });
       } else {
         // Account + invite are created either way; only the email failed.
         // Long warning toast so the admin actually sees it.
@@ -206,6 +212,8 @@ export function InvitesAdmin({
       });
       if (result.emailSent) {
         toast.success("Invitation resent");
+      } else if (result.suppressed) {
+        toast.warning(result.emailError, { duration: 12000 });
       } else {
         toast.warning(
           `Email didn't send: ${result.emailError ?? "unknown error"}. The login link still works — copy it from the invite list.`,
@@ -350,19 +358,29 @@ export function InvitesAdmin({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {group.status === "accepted" ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
-                          <Check className="mr-1 h-3 w-3" />Accepted
-                        </Badge>
-                      ) : group.status === "pending" ? (
-                        <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
-                          <Clock className="mr-1 h-3 w-3" />Pending
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
-                          <X className="mr-1 h-3 w-3" />Expired
-                        </Badge>
-                      )}
+                      <div className="flex flex-wrap items-center gap-1">
+                        {group.status === "accepted" ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                            <Check className="mr-1 h-3 w-3" />Accepted
+                          </Badge>
+                        ) : group.status === "pending" ? (
+                          <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
+                            <Clock className="mr-1 h-3 w-3" />Pending
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+                            <X className="mr-1 h-3 w-3" />Expired
+                          </Badge>
+                        )}
+                        {suppressedSet.has(group.email.toLowerCase()) && (
+                          <Badge
+                            className="bg-dils-100 text-dils-600 border-0 text-xs"
+                            title="Opted out of deal emails — future invites won't email this address"
+                          >
+                            Opted out
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {group.account == null ? (

@@ -183,9 +183,13 @@ export async function approveStage(trackingId: string, stageKey: string) {
         } else {
           const { sendEmail } = await import("@/lib/email");
           const { renderEmail, renderCta } = await import("@/lib/email-template");
-          const html = renderEmail({
-            heading: "Your NDA has been approved",
-            bodyHtml: `
+          const { unsubscribeUrl } = await import("@/lib/unsubscribe");
+          // Built per-recipient (not once, shared) so each footer carries
+          // that recipient's own unsubscribe link rather than someone else's.
+          const htmlFor = (to: string) =>
+            renderEmail({
+              heading: "Your NDA has been approved",
+              bodyHtml: `
               <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
                 Your NDA for <strong>${tracking.asset.title}</strong> has been reviewed and approved.
               </p>
@@ -194,8 +198,9 @@ export async function approveStage(trackingId: string, stageKey: string) {
               </p>
               ${renderCta("View Information Memorandum", `${getAppUrl()}/portal/${tracking.assetId}`)}
             `,
-            meta: `${tracking.asset.title}`,
-          });
+              meta: `${tracking.asset.title}`,
+              unsubscribeUrl: unsubscribeUrl(to),
+            });
           // Send in parallel; any individual failure is logged but doesn't
           // block the rest. The approval is already committed at this point.
           await Promise.allSettled(
@@ -203,7 +208,7 @@ export async function approveStage(trackingId: string, stageKey: string) {
               sendEmail({
                 to,
                 subject: `NDA Approved — ${tracking.asset.title}`,
-                html,
+                html: htmlFor(to),
               })
             )
           );
