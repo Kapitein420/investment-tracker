@@ -204,24 +204,3 @@ function escape(s: string): string {
 export function escapeHtml(s: unknown): string {
   return escape(String(s ?? ""));
 }
-
-/**
- * Editorial credentials table — used by the invite + password-reset emails.
- */
-export function renderCredentialsTable(rows: { label: string; value: string; mono?: boolean }[]): string {
-  const tr = rows
-    .map(
-      (r, i) => `
-      <tr>
-        <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${COLORS.ink}; font-weight: 700; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(r.label)}</td>
-        <td style="padding: 14px 16px; font-size: 14px; color: ${COLORS.ink}; ${r.mono ? "font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;" : ""} background: ${COLORS.surface}; ${i < rows.length - 1 ? `border-bottom: 1px solid ${COLORS.border};` : ""}">${escape(r.value)}</td>
-      </tr>`,
-    )
-    .join("");
-
-  return `
-    <table style="width: 100%; border: 1px solid ${COLORS.border}; border-collapse: collapse; margin: 0 0 28px 0;">
-      ${tr}
-    </table>
-  `;
-}

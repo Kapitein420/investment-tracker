@@ -35,12 +35,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const code = new URLSearchParams(window.location.search).get("error");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("error");
     if (code) setError(authErrorMessage(code));
+    // Set here by /set-password/[token] after a link is redeemed.
+    if (params.get("set") === "1") {
+      setNotice("Password set. Sign in with your new password.");
+    }
   }, []);
 
   async function signInWithCredentials(email: string, password: string) {
@@ -127,6 +133,10 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          {notice && !error && (
+            <p className="text-sm text-status-success">{notice}</p>
+          )}
 
           {error && (
             <p className="text-sm text-destructive">{error}</p>

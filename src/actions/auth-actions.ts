@@ -1,11 +1,10 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
-import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
+import { hashUnusablePassword } from "@/lib/security";
+import { issuePasswordSetToken } from "@/lib/password-set-token";
 import { sendEmail } from "@/lib/email";
-import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-template";
+import { renderEmail, renderCta } from "@/lib/email-template";
 import { getAppUrl } from "@/lib/app-url";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
@@ -16,24 +15,20 @@ import { unsubscribeUrl } from "@/lib/unsubscribe";
  * Self-serve password reset.
  *
  * Flow: investor enters their email → if a user exists for that email
- * (case-insensitive trim), we generate a fresh 12-char random password,
- * bcrypt-hash it, persist it, and email the plaintext copy. Same model
- * as the admin-side `resetUserPassword` so the UX matches what an admin
- * already sees when issuing a reset on someone's behalf.
+ * (case-insensitive trim), we mint a one-time set-password token and email
+ * the link. Same model as the admin-side `resetUserPassword`.
  *
  * Security notes:
  *  - We always return `{ ok: true }` regardless of whether the email
  *    exists. That avoids leaking which emails are registered.
+ *  - The live password is NOT rotated on request (compliance gap G9). It
+ *    used to be, which meant anyone who knew an address could invalidate
+ *    that person's password at will; now nothing changes until the link is
+ *    redeemed, and redeeming it is what invalidates their other sessions.
  *  - We log every request to ActivityLog (success or no-op) so abuse is
- *    auditable. No global rate-limit yet — a follow-up should add an
- *    upstash limit per email + IP (~3 / 15 min) to mitigate abuse-via-
- *    overwrite (the legitimate user's password gets rotated even when
- *    they didn't ask).
- *  - Plaintext-password emails are technically less secure than a
- *    "click this reset link" flow, but Noah specifically requested
- *    parity with the admin flow already shipped.
+ *    auditable, on top of the per-email / per-IP caps below.
  */
-/** Email tone variants. Both rotate the password the same way; only the
+/** Email tone variants. Both issue the same one-time link; only the
  *  subject line + body copy + heading change. */
 export type AccessRequestFlavor = "reset" | "welcome";
 
@@ -42,7 +37,7 @@ export async function requestPasswordReset(
   opts?: { flavor?: AccessRequestFlavor; restrictToInvestor?: boolean }
 ): Promise<{ ok: true }> {
   // Kill switch: setting INVITES_PAUSED=true on Vercel pauses every
-  // self-serve credential rotation without a redeploy. Used to halt
+  // self-serve set-password email without a redeploy. Used to halt
   // mid-rollout if Mailgun reputation tanks or a wave goes sideways.
   if (process.env.INVITES_PAUSED === "true") {
     console.info("[requestPasswordReset] INVITES_PAUSED=true — silently no-op");
@@ -59,8 +54,8 @@ export async function requestPasswordReset(
   // Rate limit per-email (2/hr) AND per-IP (6/hr). Either being hit
   // returns the standard ok-true response so the attacker can't tell
   // they were blocked. Legit users retry the next hour. Tightened from
-  // 3/10 — this endpoint rotates a LIVE password on every call, so the
-  // abuse-via-overwrite blast radius justifies a stricter cap than login.
+  // 3/10 back when this endpoint rotated a LIVE password on every call;
+  // kept at that level as mailbox-flood protection.
   //
   // AUTH_LIMIT_BOOST triples both caps for launch windows (6 email /
   // 18 IP per hour). See src/lib/auth.ts and the /launch-mode skill.
@@ -110,8 +105,6 @@ export async function requestPasswordReset(
       });
       if (contacts.length > 0) {
         const primary = contacts[0];
-        // Throwaway hash — gets overwritten by the regen step below.
-        const placeholderHash = await bcrypt.hash(randomUUID(), BCRYPT_COST);
         user = await prisma.user.create({
           data: {
             email: email,
@@ -119,7 +112,7 @@ export async function requestPasswordReset(
               primary.name ||
               primary.company.contactName ||
               primary.company.name,
-            passwordHash: placeholderHash,
+            passwordHash: await hashUnusablePassword(),
             role: "INVESTOR",
             companyId: primary.companyId,
             // passwordChangedAt left NULL — matches sendInvestorInvite so
@@ -164,22 +157,13 @@ export async function requestPasswordReset(
     return { ok: true };
   }
 
-  // CSPRNG-generated, ambiguous-char-free credential (see lib/security).
-  // This string is the investor's entire login secret, so it must not come
-  // from Math.random() — its state is recoverable and the password would be
-  // predictable.
-  const newPassword = generateSecurePassword();
-
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { passwordHash, passwordChangedAt: null },
-  });
+  // One-time link instead of a password in the email body. The account's
+  // current password keeps working until the link is redeemed.
+  const link = await issuePasswordSetToken(user.id, "RESET");
 
   // Email content varies by flavor so a "first-time access" request from
   // /request-access doesn't sound like a "you forgot your password" notice.
-  // Both branches rotate the password identically — only the copy differs.
+  // Both branches issue the same link — only the copy differs.
   const emailContent =
     flavor === "welcome"
       ? {
@@ -187,12 +171,12 @@ export async function requestPasswordReset(
           heading: "Your DILS Investor Portal login is ready",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
-              Following up on the access request from the DILS Investor Portal — your sign-in
-              details are below. Sign in to see the live deal opportunities your DILS contact has
-              shared with you.
+              Following up on the access request from the DILS Investor Portal — choose a password
+              below and you're in. You'll then see the live deal opportunities your DILS contact
+              has shared with you.
             </p>
           `,
-          ctaLabel: "Sign in to the portal",
+          ctaLabel: "Set your password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
               If you didn't request access, you can safely ignore this email — no action is
@@ -202,19 +186,19 @@ export async function requestPasswordReset(
           `,
         }
       : {
-          subject: "Your password has been reset — DILS Investor Portal",
+          subject: "Set a new password — DILS Investor Portal",
           heading: "Password reset requested",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
               We received a request to reset the password for your DILS Investor Portal account.
-              Use the new credentials below to sign in.
+              Use the button below to choose a new one.
             </p>
           `,
-          ctaLabel: "Sign in",
+          ctaLabel: "Set a new password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-              If you didn't request this reset, contact the deal team immediately — your previous password
-              has been invalidated.
+              If you didn't request this reset, you can ignore this email — your current password
+              keeps working and nothing changes until the link above is used.
             </p>
           `,
         };
@@ -241,11 +225,11 @@ export async function requestPasswordReset(
         heading: emailContent.heading,
         bodyHtml: `
           ${emailContent.intro}
-          ${renderCredentialsTable([
-            { label: "Email", value: user.email, mono: true },
-            { label: "Password", value: newPassword, mono: true },
-          ])}
-          ${renderCta(emailContent.ctaLabel, `${getAppUrl()}/login`)}
+          ${renderCta(emailContent.ctaLabel, link.url)}
+          <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 24px 0;">
+            This link works once and expires in ${link.ttlLabel}. Signing in afterwards is at
+            <a href="${getAppUrl()}/login" style="color: #101820;">${getAppUrl()}/login</a>.
+          </p>
           ${emailContent.footer}
         `,
         unsubscribeUrl: unsubscribeUrl(user.email),

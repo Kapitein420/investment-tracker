@@ -4,6 +4,7 @@
  *
  * Conservative by design:
  *  - Signing tokens: deleted 30 days after they expire (used or not).
+ *  - Set-password tokens: same 30-day grace past expiry.
  *  - Investor invites: deleted 30 days after expiry IF never accepted.
  *  - Activity logs: deleted after 24 months.
  *  - Signed documents / signature images are NEVER touched here — they are
@@ -18,6 +19,7 @@ const DAY = 24 * 60 * 60 * 1000;
 
 export interface PurgeCounts {
   signingTokens: number;
+  passwordSetTokens: number;
   investorInvites: number;
   activityLogs: number;
 }
@@ -32,21 +34,26 @@ export async function runPurge({ dryRun }: { dryRun: boolean }): Promise<PurgeCo
   const logWhere = { createdAt: { lt: activityLogCutoff } };
 
   if (dryRun) {
-    const [signingTokens, investorInvites, activityLogs] = await Promise.all([
-      prisma.signingToken.count({ where: tokenWhere }),
-      prisma.investorInvite.count({ where: inviteWhere }),
-      prisma.activityLog.count({ where: logWhere }),
-    ]);
-    return { signingTokens, investorInvites, activityLogs };
+    const [signingTokens, passwordSetTokens, investorInvites, activityLogs] =
+      await Promise.all([
+        prisma.signingToken.count({ where: tokenWhere }),
+        prisma.passwordSetToken.count({ where: tokenWhere }),
+        prisma.investorInvite.count({ where: inviteWhere }),
+        prisma.activityLog.count({ where: logWhere }),
+      ]);
+    return { signingTokens, passwordSetTokens, investorInvites, activityLogs };
   }
 
-  const [signingTokens, investorInvites, activityLogs] = await Promise.all([
-    prisma.signingToken.deleteMany({ where: tokenWhere }),
-    prisma.investorInvite.deleteMany({ where: inviteWhere }),
-    prisma.activityLog.deleteMany({ where: logWhere }),
-  ]);
+  const [signingTokens, passwordSetTokens, investorInvites, activityLogs] =
+    await Promise.all([
+      prisma.signingToken.deleteMany({ where: tokenWhere }),
+      prisma.passwordSetToken.deleteMany({ where: tokenWhere }),
+      prisma.investorInvite.deleteMany({ where: inviteWhere }),
+      prisma.activityLog.deleteMany({ where: logWhere }),
+    ]);
   return {
     signingTokens: signingTokens.count,
+    passwordSetTokens: passwordSetTokens.count,
     investorInvites: investorInvites.count,
     activityLogs: activityLogs.count,
   };

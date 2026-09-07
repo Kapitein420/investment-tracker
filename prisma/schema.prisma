@@ -81,6 +81,11 @@ model User {
   // Cleared (set NULL) on every system rotation; set to now() when the user
   // rotates it themselves via the change-password page.
   passwordChangedAt DateTime?
+  // Brute-force lockout counters, maintained by the NextAuth authorize path.
+  // The counter resets to 0 the moment a lock is applied — lockedUntil is
+  // what the check reads, so keeping both would double-count.
+  failedLoginCount Int      @default(0)
+  lockedUntil      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -98,6 +103,31 @@ model User {
   createdInvites     InvestorInvite[]      @relation("InviteCreator")
   viewerAccess       AssetViewerAccess[]   @relation("ViewerAccessUser")
   grantedViewerAccess AssetViewerAccess[]  @relation("ViewerAccessGranter")
+  passwordSetTokens  PasswordSetToken[]
+}
+
+// ─── 1c. PasswordSetToken ───────────────────────────────────────────────────
+// One-time link that lets a user choose their own password, replacing the
+// plaintext passwords that invite / welcome / reset emails used to carry
+// (compliance gap G9). Purpose drives only the expiry and the email copy:
+// "INVITE" (30 d, matching InvestorInvite), "RESET" (60 min), "ADMIN_RESET"
+// (24 h). Kept as a String rather than an enum so adding a purpose doesn't
+// need a second migration on a table that is pure plumbing.
+model PasswordSetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  // SHA-256 of the raw token, never the token itself: an email lives in an
+  // inbox and in Mailgun's logs for days, and a database leak must not hand
+  // an attacker a working set-password link for every pending account.
+  tokenHash String    @unique
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ─── 1b. UserCompanyMembership ──────────────────────────────────────────────

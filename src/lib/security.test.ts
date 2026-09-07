@@ -1,24 +1,23 @@
 import { describe, it, expect } from "vitest";
 import bcrypt from "bcryptjs";
-import { BCRYPT_COST, generateSecurePassword } from "./security";
+import { BCRYPT_COST, hashUnusablePassword } from "./security";
 
-describe("generateSecurePassword", () => {
-  it("returns the requested length (default 16)", () => {
-    expect(generateSecurePassword()).toHaveLength(16);
-    expect(generateSecurePassword(24)).toHaveLength(24);
+describe("hashUnusablePassword", () => {
+  it("returns a real bcrypt hash at the configured cost", async () => {
+    const hash = await hashUnusablePassword();
+    expect(hash).toMatch(new RegExp(`^\\$2[aby]\\$${BCRYPT_COST}\\$`));
   });
 
-  it("only uses the unambiguous alphabet (no 0/O/1/l/I)", () => {
-    const allowed = /^[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/;
-    for (let i = 0; i < 50; i++) {
-      expect(generateSecurePassword(32)).toMatch(allowed);
+  it("never produces the same value twice", async () => {
+    const [a, b] = await Promise.all([hashUnusablePassword(), hashUnusablePassword()]);
+    expect(a).not.toBe(b);
+  });
+
+  it("does not match the empty string or any obvious sentinel", async () => {
+    const hash = await hashUnusablePassword();
+    for (const guess of ["", " ", "password", "null", "undefined"]) {
+      expect(await bcrypt.compare(guess, hash)).toBe(false);
     }
-  });
-
-  it("does not repeat across many draws (CSPRNG, high entropy)", () => {
-    const seen = new Set<string>();
-    for (let i = 0; i < 1000; i++) seen.add(generateSecurePassword());
-    expect(seen.size).toBe(1000);
   });
 
   it("keeps the bcrypt work factor at the 2026 floor", () => {

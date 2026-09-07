@@ -1,25 +1,20 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { renderEmail, renderCredentialsTable, renderCta, renderTeaserPreview, escapeHtml } from "@/lib/email-template";
+import { renderEmail, renderCta, renderTeaserPreview, escapeHtml } from "@/lib/email-template";
 import { getSignedUrl } from "@/lib/supabase-storage";
 import { getAppUrl } from "@/lib/app-url";
 import { downloadFile, uploadBytes } from "@/lib/supabase-storage";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
-import { BCRYPT_COST, generateSecurePassword } from "@/lib/security";
+import { hashUnusablePassword } from "@/lib/security";
+import { issuePasswordSetToken } from "@/lib/password-set-token";
 import { unsubscribeUrl } from "@/lib/unsubscribe";
-
-// CSPRNG-backed; the issued string is the investor's whole login secret.
-function generatePassword(length = 16): string {
-  return generateSecurePassword(length);
-}
 
 export async function sendInvestorInvite({
   companyId,
@@ -47,20 +42,22 @@ export async function sendInvestorInvite({
     where: { email },
   });
 
-  let plainPassword: string | null = null;
+  // Whether this invite carries a "set your password" link. Only investors
+  // who have never signed in get one — an active investor's email says
+  // "your existing password still works" instead.
+  let needsPasswordLink = false;
 
   if (!investorUser) {
     // Auto-create investor account. Also seed User.companyId with this
     // company as the "primary" so existing single-company code paths keep
     // working until PR-5 drops the column.
-    plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
+    needsPasswordLink = true;
 
     investorUser = await prisma.user.create({
       data: {
         email,
         name: company.contactName || company.name,
-        passwordHash,
+        passwordHash: await hashUnusablePassword(),
         role: "INVESTOR",
         companyId,
         // passwordChangedAt left NULL → first login forces a change
@@ -87,16 +84,13 @@ export async function sendInvestorInvite({
     });
 
     if (!hasLoggedIn) {
-      // Never logged in anywhere — safe to reset password.
-      plainPassword = generatePassword();
-      const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_COST);
-      await prisma.user.update({
-        where: { id: investorUser.id },
-        data: { passwordHash, passwordChangedAt: null },
-      });
+      // Never logged in anywhere — send a fresh set-password link. The
+      // stored hash is left alone: it's either the unusable one from
+      // account creation or a password they chose but haven't used yet.
+      needsPasswordLink = true;
     } else {
-      // Already active — don't reset password, just send a reminder with login link
-      plainPassword = null; // Will skip password display in email
+      // Already active — just a reminder with a login link.
+      needsPasswordLink = false;
     }
   }
 
@@ -349,11 +343,26 @@ export async function sendInvestorInvite({
     console.error("[sendInvestorInvite] teaser preview render failed (sending without it):", e);
   }
 
-  const credentialsBlock = plainPassword
-    ? renderCredentialsTable([
-        { label: "Email", value: email, mono: true },
-        { label: "Password", value: plainPassword, mono: true },
-      ])
+  // One-time link, valid for the same 30 days as the InvestorInvite row
+  // above, in place of the plaintext password this email used to carry.
+  const passwordLink = needsPasswordLink
+    ? await issuePasswordSetToken(investorUser.id, "INVITE")
+    : null;
+
+  const credentialsBlock = passwordLink
+    ? `
+      <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
+        <tr>
+          <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
+            Choose your own password with the button below. The link works once and expires in ${passwordLink.ttlLabel}.
+          </td>
+        </tr>
+      </table>
+    `
     : `
       <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
         <tr>
@@ -392,9 +401,13 @@ export async function sendInvestorInvite({
           </p>
           ${teaserPreviewHtml}
           ${credentialsBlock}
-          ${renderCta("Log in to portal", loginUrl)}
+          ${
+            passwordLink
+              ? renderCta("Set your password", passwordLink.url)
+              : renderCta("Log in to portal", loginUrl)
+          }
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">
-            Keep these credentials secure. For assistance, reply to this email or contact the deal team directly.
+            For assistance, reply to this email or contact the deal team directly.
           </p>
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
             Where we got your details: your firm or a DILS deal contact shared them so we could invite you to this
