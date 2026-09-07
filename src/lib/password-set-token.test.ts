@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { createHash } from "crypto";
 import {
   PASSWORD_SET_TTL_MS,
   claimPasswordSetToken,
@@ -8,11 +7,19 @@ import {
 } from "./password-set-token";
 
 describe("password-set token", () => {
-  it("hashes with SHA-256 and never returns the raw token", () => {
+  // Fixed vector rather than re-deriving with createHash: a golden value
+  // fails if the algorithm is swapped, which re-derivation would not catch.
+  it("hashes with SHA-256", () => {
+    expect(hashPasswordSetToken("dils-set-password-vector")).toBe(
+      "41190eab267cddc9ac6ce350adaa2651c3f70f87c629df339d0c313cc861b1bc"
+    );
+  });
+
+  it("stores the digest, never the raw token", () => {
     const { token, tokenHash } = generatePasswordSetToken();
-    expect(tokenHash).toBe(createHash("sha256").update(token).digest("hex"));
     expect(tokenHash).not.toContain(token);
     expect(tokenHash).toHaveLength(64);
+    expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("mints 32 bytes of URL-safe entropy", () => {
