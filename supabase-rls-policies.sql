@@ -43,6 +43,8 @@ ALTER TABLE "AssetContent"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "UserCompanyMembership"   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CompanyContact"          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AssetViewerAccess"       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmailSuppression"        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmailTrackingConsent"    ENABLE ROW LEVEL SECURITY;
 
 -- ── Default-deny policy: anon role can't read ANYTHING ───────
 -- Service role bypasses RLS automatically — the Next.js server
@@ -57,7 +59,8 @@ BEGIN
       'User','Asset','Company','PipelineStage','AssetCompanyTracking',
       'StageStatus','Comment','StageHistory','ActivityLog','SavedView',
       'Document','SigningToken','InvestorInvite','AssetContent',
-      'UserCompanyMembership','CompanyContact','AssetViewerAccess'
+      'UserCompanyMembership','CompanyContact','AssetViewerAccess',
+      'EmailSuppression','EmailTrackingConsent'
     ])
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS deny_anon_select ON %I', tbl);
@@ -156,3 +159,5 @@ CREATE POLICY "documents_deny_anon"
 -- ALTER TABLE "UserCompanyMembership"   DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE "CompanyContact"          DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE "AssetViewerAccess"       DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE "EmailSuppression"        DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE "EmailTrackingConsent"    DISABLE ROW LEVEL SECURITY;
