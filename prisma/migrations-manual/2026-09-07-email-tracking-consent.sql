@@ -24,3 +24,12 @@ CREATE TABLE IF NOT EXISTS "EmailTrackingConsent" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "EmailTrackingConsent_email_key"
   ON "EmailTrackingConsent" ("email");
+
+-- RLS, matching every other public table (see supabase-rls-policies.sql):
+-- the app connects with the service-role key, which bypasses RLS; anon must
+-- see nothing. Idempotent.
+ALTER TABLE "EmailTrackingConsent" ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  CREATE POLICY deny_anon_all ON "EmailTrackingConsent"
+    FOR ALL TO anon USING (false) WITH CHECK (false);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
