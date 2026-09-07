@@ -136,6 +136,17 @@ export default function LoginPage() {
             </Button>
           </div>
         )}
+
+        <p className="text-center text-[10px] text-muted-foreground">
+          <a
+            href="https://dils.nl/privacyverklaring/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground hover:underline"
+          >
+            Privacy statement
+          </a>
+        </p>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { renderEmail, renderCredentialsTable, renderCta } from "@/lib/email-temp
 import { getAppUrl } from "@/lib/app-url";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ensureUserCompanyMembership } from "@/lib/user-companies";
+import { redactEmail, redactIp } from "@/lib/log-redact";
 
 /**
  * Self-serve password reset.
@@ -70,7 +71,7 @@ export async function requestPasswordReset(
   ]);
   if (!emailLimit.allowed || !ipLimit.allowed) {
     console.warn(
-      `[requestPasswordReset] rate-limited email=${email} ip=${ip} ` +
+      `[requestPasswordReset] rate-limited email=${redactEmail(email)} ip=${redactIp(ip)} ` +
         `emailRemaining=${emailLimit.remaining} ipRemaining=${ipLimit.remaining}`
     );
     return { ok: true };
@@ -130,7 +131,7 @@ export async function requestPasswordReset(
           await ensureUserCompanyMembership(user.id, c.companyId);
         }
         console.info(
-          `[requestPasswordReset] JIT-created User from CompanyContact email="${email}" (${contacts.length} membership${contacts.length === 1 ? "" : "s"})`
+          `[requestPasswordReset] JIT-created User from CompanyContact email="${redactEmail(email)}" (${contacts.length} membership${contacts.length === 1 ? "" : "s"})`
         );
       }
     }
@@ -142,7 +143,7 @@ export async function requestPasswordReset(
     // attempt directly — log to the server console instead. A follow-up
     // can introduce a separate AuthAuditEvent table if we need queryable
     // unknown-email audit.
-    console.info(`[requestPasswordReset] no user for email "${email}" (flavor=${flavor})`);
+    console.info(`[requestPasswordReset] no user for email "${redactEmail(email)}" (flavor=${flavor})`);
     return { ok: true };
   }
 

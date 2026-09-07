@@ -327,13 +327,13 @@ model StageHistory {
   fieldName       String
   oldValue        String?
   newValue        String?
-  changedByUserId String
+  changedByUserId String?
   note            String?
   createdAt       DateTime @default(now())
 
   tracking  AssetCompanyTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   stage     PipelineStage?       @relation(fields: [stageId], references: [id])
-  changedBy User                 @relation(fields: [changedByUserId], references: [id])
+  changedBy User?                @relation(fields: [changedByUserId], references: [id])
 
   @@index([trackingId])
   @@index([createdAt])
@@ -346,10 +346,10 @@ model ActivityLog {
   entityId   String
   action     String
   metadata   Json?
-  userId     String
+  userId     String?
   createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([entityType, entityId])
   @@index([createdAt])
@@ -393,6 +393,11 @@ model Document {
   signedByEmail    String?
   signatureData    String?
   signedFileUrl    String?
+  signerIp         String?
+  signerUserAgent  String?
+  // SHA-256 hex of the bytes at signedFileUrl. Must be written in the same
+  // statement as signedFileUrl, and cleared whenever signedFileUrl is cleared.
+  pdfSha256        String?
   fieldConfig      Json?
   placeholderMap   Json?     // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
   placementMode    String    @default("GRID")  // "GRID" | "PLACEHOLDER" | "MANUAL"

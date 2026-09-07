@@ -77,7 +77,7 @@ export async function loadTrackingTimeline(
         ? `Lifecycle changed to ${h.newValue}`
         : `${stageLabel} ${h.fieldName}: ${h.oldValue ?? "—"} → ${h.newValue}`,
       description: null,
-      userName: showPII ? h.changedBy.name : "Team member",
+      userName: showPII ? h.changedBy?.name ?? "Signer (signing link)" : "Team member",
       metadata: {
         fieldName: h.fieldName,
         oldValue: h.oldValue,

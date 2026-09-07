@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+// ─── BSN / sensitive-data guard (UAVG Art. 46) ───────────────────────────────
+// The Dutch BSN (burgerservicenummer) may not be processed without a statutory
+// basis the portal doesn't have. Reject free-text containing a number that
+// passes the BSN "elfproef" (11-test) so a national ID can't be pasted into a
+// notes/comment field. Precise by construction — a random 9-digit string rarely
+// satisfies the checksum — so false positives on ordinary numbers are unlikely.
+function passesElfproef(digits: string): boolean {
+  if (digits.length !== 9) return false;
+  const weights = [9, 8, 7, 6, 5, 4, 3, 2, -1];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(digits[i]) * weights[i];
+  return sum % 11 === 0;
+}
+
+export function containsBSN(text?: string | null): boolean {
+  if (!text) return false;
+  const candidates = text.match(/\b\d{8,9}\b/g);
+  return !!candidates?.some((c) => passesElfproef(c.padStart(9, "0")));
+}
+
+const NO_BSN_MSG =
+  "Please remove the national identification number (BSN) — the portal must not store BSNs.";
+export const noBsn = (v?: string | null) => !containsBSN(v);
+
 // ─── Asset ──────────────────────────────────────────────────────────────────
 export const createAssetSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -10,7 +34,7 @@ export const createAssetSchema = z.object({
   assetType: z.string().optional(),
   transactionType: z.string().optional(),
   ownerEntity: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().optional().refine(noBsn, NO_BSN_MSG),
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
@@ -31,7 +55,7 @@ export const createCompanySchema = z.object({
   contactName: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),
   contactPhone: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().optional().refine(noBsn, NO_BSN_MSG),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();
@@ -79,14 +103,16 @@ export const createCommentSchema = z.object({
   body: z
     .string()
     .min(1, "Comment cannot be empty")
-    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`),
+    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`)
+    .refine(noBsn, NO_BSN_MSG),
 });
 
 export const updateCommentSchema = z.object({
   body: z
     .string()
     .min(1, "Comment cannot be empty")
-    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`),
+    .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`)
+    .refine(noBsn, NO_BSN_MSG),
 });
 
 // ─── User management ────────────────────────────────────────────────────────
