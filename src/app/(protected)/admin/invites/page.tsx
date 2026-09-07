@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { InvitesAdmin, type InviteEvents } from "@/components/admin/invites-admin";
+import { normalise } from "@/lib/email-tracking";
 
 export default async function AdminInvitesPage() {
   const user = await getCurrentUser();
@@ -30,19 +31,6 @@ export default async function AdminInvitesPage() {
     },
   });
 
-  // One query for every invited email's suppression status — avoids an
-  // N+1 lookup per row. Keyed lowercased since EmailSuppression.email is
-  // stored normalised.
-  const inviteEmails = Array.from(new Set(invites.map((i) => i.email.toLowerCase())));
-  const suppressions =
-    inviteEmails.length === 0
-      ? []
-      : await prisma.emailSuppression.findMany({
-          where: { email: { in: inviteEmails } },
-          select: { email: true },
-        });
-  const suppressedEmails = suppressions.map((s) => s.email);
-
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, contactEmail: true },
@@ -52,6 +40,28 @@ export default async function AdminInvitesPage() {
     orderBy: { title: "asc" },
     select: { id: true, title: true },
   });
+
+  // One shared email list feeds both per-recipient email-status lookups:
+  // who opted out of commercial mail (EmailSuppression) and who turned
+  // open/click tracking on (EmailTrackingConsent). Two queries total
+  // regardless of invite count — no N+1 per row. Both tables store the
+  // address normalised, so key off `normalise` going in and coming out.
+  const inviteEmails = Array.from(new Set(invites.map((i) => normalise(i.email))));
+  const [suppressions, trackingConsents] =
+    inviteEmails.length === 0
+      ? [[] as { email: string }[], [] as { email: string }[]]
+      : await Promise.all([
+          prisma.emailSuppression.findMany({
+            where: { email: { in: inviteEmails } },
+            select: { email: true },
+          }),
+          prisma.emailTrackingConsent.findMany({
+            where: { email: { in: inviteEmails }, revokedAt: null },
+            select: { email: true },
+          }),
+        ]);
+  const suppressedEmails = suppressions.map((s) => s.email);
+  const trackingConsentEmails = trackingConsents.map((c) => c.email);
 
   // Fold every invite-related ActivityLog event into a per-invite summary:
   //   - did the email send succeed?
@@ -130,6 +140,7 @@ export default async function AdminInvitesPage() {
       assets={assets}
       inviteEvents={inviteEvents}
       suppressedEmails={suppressedEmails}
+      trackingConsentEmails={trackingConsentEmails}
     />
   );
 }

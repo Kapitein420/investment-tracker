@@ -486,15 +486,36 @@ model AssetContent {
   @@index([assetId, isPublished])
 }
 
-// ─── 15. EmailSuppression ───────────────────────────────────────────────────
+// ─── 15. EmailSuppression ───────────────────────────────────────────────
 // Telecommunicatiewet 11.7 lid 4: a recipient who unsubscribes or
 // complains must not receive another commercial email. Checked by
 // sendEmail() for category: "commercial" sends only — transactional mail
 // (credentials, password resets, NDA approvals) is exempt and keeps going.
 model EmailSuppression {
-  id        String                  @id @default(cuid())
-  email     String                  @unique
+  id        String                 @id @default(cuid())
+  email     String                 @unique
   reason    EmailSuppressionReason
   source    String
-  createdAt DateTime                @default(now())
+  createdAt DateTime               @default(now())
+}
+
+// ─── 16. EmailTrackingConsent ────────────────────────────────────────────
+// Telecommunicatiewet 11.7a / ePrivacy Art. 5(3): the Mailgun open pixel and
+// link rewriting read/write information on the recipient's device, so
+// tracking needs prior, freely given consent. sendEmail() looks this up per
+// recipient and defaults every send to o:tracking=no; an active row
+// (revokedAt IS NULL) turns it on. Keyed by email, not userId, so consent
+// survives account changes and a granted-then-removed investor's history
+// stays intact; userId is kept only as supporting evidence of who granted it.
+model EmailTrackingConsent {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  userId        String?
+  grantedAt     DateTime
+  revokedAt     DateTime?
+  noticeVersion String
+  source        String
+  ip            String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

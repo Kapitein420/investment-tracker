@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -131,6 +132,14 @@ export function ChangePasswordClient({ userEmail }: Props) {
             <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={2} />
             Your new password is hashed before storage. Nobody at DILS can read
             it &mdash; not even an admin. Save it somewhere safe.
+          </p>
+
+          <p className="text-[11px] text-muted-foreground">
+            You can also manage whether DILS sees email opens/clicks in your{" "}
+            <Link href="/portal/preferences" className="underline underline-offset-2 hover:text-foreground">
+              email preferences
+            </Link>
+            .
           </p>
         </form>
       </div>

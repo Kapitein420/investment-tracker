@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,12 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
             >
               Privacy
             </a>
+            <Link
+              href="/portal/preferences"
+              className="hover:text-dils-black hover:underline underline-offset-2"
+            >
+              Preferences
+            </Link>
             <a
               href="https://dils.nl/algemene-voorwaarden/"
               target="_blank"

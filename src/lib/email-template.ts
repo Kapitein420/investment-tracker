@@ -34,6 +34,7 @@ function renderHeader() {
 }
 
 function renderFooter(meta?: string, unsubscribeUrl?: string) {
+  const preferencesUrl = `${getAppUrl()}/portal/preferences`;
   return `
     <div style="background: ${COLORS.surface}; padding: 24px 32px; border-top: 1px solid ${COLORS.border};">
       <p style="color: ${COLORS.muted}; font-size: 11px; line-height: 1.6; margin: 0 0 12px 0;">
@@ -45,6 +46,10 @@ function renderFooter(meta?: string, unsubscribeUrl?: string) {
             ? ` Don't want deal emails? <a href="${escape(unsubscribeUrl)}" style="color: ${COLORS.ink}; text-decoration: underline;">Unsubscribe</a>.`
             : ""
         }
+      </p>
+      <p style="color: ${COLORS.muted}; font-size: 11px; line-height: 1.6; margin: 0 0 12px 0;">
+        We don't track opens or clicks unless you turn it on in your
+        <a href="${preferencesUrl}" style="color: ${COLORS.ink}; text-decoration: underline;">portal preferences</a>.
       </p>
       ${
         meta

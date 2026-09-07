@@ -28,6 +28,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | UAVG Art. 46 | BSN / sensitive-data guard on free-text fields | `src/lib/validators.ts` (`assertNoBSN`) |
 | Transparency | Privacy + cookie links surfaced in-app | login / invite-accept / portal footer |
 | Telecommunicatiewet 11.7 | Unsubscribe link + `List-Unsubscribe` header + suppression on commercial email | `src/lib/unsubscribe.ts` |
+| Telecommunicatiewet 11.7a | Open/click tracking off by default, opt-in via portal preferences, consent evidence in `EmailTrackingConsent` | `src/lib/email-tracking.ts` |
 
 ## Open ops / human actions (cannot be done in code)
 
@@ -35,6 +36,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 - [x] **Supabase region confirmed: EU — Ireland (`eu-west-1`)** ✅ (primary data stays in-EEA).
 - [ ] **Confirm remaining regions**: Upstash/KV region (EU); **confirm Vercel DPF** active. Record in the RoPA. See checklist below.
 - [ ] **Get docs 1 & 5 reviewed by Dutch counsel**; confirm controller/processor role and Wwft/AFM scope.
+- [ ] ⚖️ **Portal privacy addendum must describe consent-based open/click tracking** (purpose, Mailgun EU as recipient, withdrawal via `/portal/preferences`).
 - [x] **Admin credential rotated** to a strong hashed password ✅ (no published-credential risk).
 - [ ] **Verify the other seeded demo accounts** (`editor@example.com`, `viewer@example.com`, any demo investor) don't still exist in the **production** DB with the default `password123` — delete or deactivate + scramble. Optional: rename the admin login off `admin@example.com`.
 - [ ] **MFA** for admin/internal accounts — plan ready in [mfa-implementation-plan.md](mfa-implementation-plan.md); kickstart when ready.
