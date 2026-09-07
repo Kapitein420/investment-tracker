@@ -246,6 +246,28 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
       data: { currentStageKey: derivedStageKey },
     });
 
+    // Wwft soft gate (G7): moving the NBO stage forward doesn't block on
+    // buyer-side CDD, but it does warn the admin and records the CDD
+    // status at the moment of the change for audit. Identified by the
+    // pipeline stage's *key*, same convention document-actions.ts uses to
+    // anchor OFFER docs — never hardcode a stage id.
+    let warning: string | null = null;
+    let cddStatusAtChange: string | null = null;
+    if (
+      stageStatus.stage.key === "nbo" &&
+      (validated.status === "IN_PROGRESS" || validated.status === "COMPLETED")
+    ) {
+      const company = await tx.company.findUnique({
+        where: { id: tracking.companyId },
+        select: { cddStatus: true },
+      });
+      cddStatusAtChange = company?.cddStatus ?? null;
+      if (company && company.cddStatus !== "CLEARED") {
+        warning =
+          "Wwft: buyer CDD not cleared — record it before accepting an offer";
+      }
+    }
+
     // Create activity log
     await tx.activityLog.create({
       data: {
@@ -256,12 +278,13 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
           trackingId: validated.trackingId,
           stageKey: stageStatus.stage.key,
           newStatus: validated.status,
+          ...(cddStatusAtChange !== null ? { cddStatusAtChange } : {}),
         },
         userId: user.id,
       },
     });
 
-    return { stageStatus, tracking };
+    return { stageStatus, tracking, warning };
   });
 
   // Backfill any earlier NOT_STARTED stages so the journey timeline
@@ -269,7 +292,7 @@ export async function updateStageStatus(data: UpdateStageStatusInput) {
   await syncCurrentStageKeyAfterCommit(result.tracking.id);
 
   revalidatePath(`/assets/${result.tracking.assetId}`);
-  return result.stageStatus;
+  return { ...result.stageStatus, warning: result.warning };
 }
 
 export async function advanceToNextStage(trackingId: string) {
@@ -528,6 +551,7 @@ export async function getTrackingDetail(id: string) {
             orderBy: { createdAt: "asc" },
             select: { id: true, name: true, email: true, role: true, createdAt: true },
           },
+          cddClearedByUser: { select: { id: true, name: true } },
         },
       },
       stageStatuses: {
@@ -595,6 +619,12 @@ export async function getTrackingDetail(id: string) {
       // Strip the address-book contact list too — same PII reasoning as
       // the primary contact pointer above.
       (tracking.company as any).contacts = [];
+      // Wwft CDD block stays visible (read-only) to VIEWER, but who
+      // cleared it is a DILS-staff identity — redact same as everywhere
+      // else in this scrub.
+      if ((tracking.company as any).cddClearedByUser) {
+        (tracking.company as any).cddClearedByUser.name = REDACTED_NAME;
+      }
     }
     if (tracking.ownerUser) {
       (tracking.ownerUser as any).name = REDACTED_NAME;

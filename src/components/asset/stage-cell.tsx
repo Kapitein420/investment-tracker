@@ -59,12 +59,17 @@ export function StageCell({ stageStatus, editable, trackingId }: StageCellProps)
     }
     setLoading(true);
     try {
-      await updateStageStatus({
+      const result = await updateStageStatus({
         trackingId,
         stageId: stageStatus.stageId,
         status: newStatus,
       });
       toast.success(`${stageStatus.stage.label}: ${STAGE_STATUS_LABELS[newStatus]}`);
+      // Wwft soft gate (G7) — the status update still went through, but
+      // buyer CDD isn't cleared yet. Doesn't block, just flags it.
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 8000 });
+      }
       router.refresh();
     } catch {
       toast.error("Failed to update status");

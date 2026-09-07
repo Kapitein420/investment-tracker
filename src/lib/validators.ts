@@ -60,6 +60,19 @@ export const createCompanySchema = z.object({
 
 export const updateCompanySchema = createCompanySchema.partial();
 
+// ─── Company CDD / Wwft attestation (G7) ──────────────────────────────────
+export const setCompanyCddSchema = z.object({
+  companyId: z.string().min(1),
+  cddStatus: z.enum(["NOT_STARTED", "IN_PROGRESS", "CLEARED", "ESCALATED"]),
+  cddNote: z
+    .string()
+    .max(500, "Note is too long (max 500 characters)")
+    .refine(noBsn, NO_BSN_MSG)
+    .optional()
+    .nullable(),
+  sanctionsScreened: z.boolean(),
+});
+
 // ─── Tracking Row ───────────────────────────────────────────────────────────
 export const createTrackingSchema = z.object({
   assetId: z.string().min(1),
@@ -208,6 +221,7 @@ export type RejectDocumentInput = z.infer<typeof rejectDocumentSchema>;
 export type CreateAssetInput = z.infer<typeof createAssetSchema>;
 export type UpdateAssetInput = z.infer<typeof updateAssetSchema>;
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type SetCompanyCddInput = z.infer<typeof setCompanyCddSchema>;
 export type CreateTrackingInput = z.infer<typeof createTrackingSchema>;
 export type UpdateTrackingInput = z.infer<typeof updateTrackingSchema>;
 export type UpdateStageStatusInput = z.infer<typeof updateStageStatusSchema>;

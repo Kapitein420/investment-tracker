@@ -52,6 +52,23 @@ export const INTEREST_COLORS = {
   NONE: "bg-gray-100 text-gray-500",
 } as const;
 
+// ─── Wwft / CDD attestation (G7) ────────────────────────────────────────────
+// Company.cddStatus is a plain string (see schema comment), not an enum —
+// these maps are the UI's single source of truth for the valid values.
+export const CDD_STATUS_LABELS = {
+  NOT_STARTED: "Not Started",
+  IN_PROGRESS: "In Progress",
+  CLEARED: "Cleared",
+  ESCALATED: "Escalated",
+} as const;
+
+export const CDD_STATUS_COLORS = {
+  NOT_STARTED: "bg-soft-bg-surface-alt text-muted-foreground",
+  IN_PROGRESS: "bg-status-current/10 text-status-current",
+  CLEARED: "bg-status-success-soft text-status-success",
+  ESCALATED: "bg-status-danger-soft text-status-danger",
+} as const;
+
 /** Map a free-form assetType string to a Dils business-unit color class.
  *  Unit palette from the Brand Identity Guidelines 2025-05-14. */
 export function assetTypeToUnit(assetType: string | null | undefined): {

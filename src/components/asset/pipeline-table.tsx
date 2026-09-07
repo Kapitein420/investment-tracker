@@ -33,6 +33,7 @@ import {
   STAGE_DOT_COLORS,
   LIFECYCLE_LABELS,
   LIFECYCLE_COLORS,
+  CDD_STATUS_LABELS,
 } from "@/lib/stages";
 import { StageCell } from "@/components/asset/stage-cell";
 import { StageSelectCell } from "@/components/asset/stage-select-cell";
@@ -94,10 +95,31 @@ export function PipelineTable({ trackings, stages, users, editable, currentUserI
         size: 180,
         cell: ({ row }) => {
           const imAccess = row.original.firstAccessByStage?.im as Date | string | undefined;
+          // Wwft / CDD (G7) — small chip so an admin can spot an
+          // uncleared buyer without opening the drawer. Amber unless the
+          // company's attestation is CLEARED.
+          const cddStatus = (row.original.company?.cddStatus ?? "NOT_STARTED") as keyof typeof CDD_STATUS_LABELS;
+          const cddCleared = cddStatus === "CLEARED";
           return (
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">{row.original.company.name}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-4 shrink-0 border-0 px-1 text-[9px] font-semibold",
+                        cddCleared
+                          ? "bg-status-success-soft text-status-success"
+                          : "bg-status-warning-soft text-status-warning"
+                      )}
+                    >
+                      {cddCleared ? "CDD ✓" : "CDD !"}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>Wwft / CDD: {CDD_STATUS_LABELS[cddStatus] ?? cddStatus}</TooltipContent>
+                </Tooltip>
               </div>
               {imAccess && (
                 <span

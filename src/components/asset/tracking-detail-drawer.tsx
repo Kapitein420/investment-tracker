@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, Eye, Lock, Download, Upload, Pencil, Trash2, Undo2 } from "lucide-react";
+import { X, Send, ChevronRight, CheckCircle2, Clock, User, MessageSquare, History, FileText, ShieldCheck, ShieldAlert, Eye, Lock, Download, Upload, Pencil, Trash2, Undo2 } from "lucide-react";
 import { DocumentUpload } from "@/components/asset/document-upload";
 import { OfferSection } from "@/components/asset/offer-section";
 import { approveStage } from "@/actions/approval-actions";
@@ -35,8 +35,11 @@ import {
   LIFECYCLE_COLORS,
   INTEREST_LABELS,
   INTEREST_COLORS,
+  CDD_STATUS_LABELS,
+  CDD_STATUS_COLORS,
 } from "@/lib/stages";
 import { getTrackingDetail, updateTracking, advanceToNextStage, finalizeTracking, revertToStage } from "@/actions/tracking-actions";
+import { setCompanyCdd } from "@/actions/cdd-actions";
 import { createComment, updateComment, deleteComment } from "@/actions/comment-actions";
 import { toast } from "sonner";
 
@@ -74,6 +77,16 @@ export function TrackingDetailDrawer({
   const [reverting, setReverting] = useState(false);
   const [revertTargetStageKey, setRevertTargetStageKey] = useState<string>("");
 
+  // Wwft / CDD attestation (G7). Local editable copy so an in-progress
+  // edit survives the loadDetail() refreshes other actions in this drawer
+  // trigger (comments, lifecycle changes, etc.) — only re-synced from the
+  // server once per tracking opened, not on every refresh.
+  const [cddStatus, setCddStatus] = useState<string>("NOT_STARTED");
+  const [cddNote, setCddNote] = useState<string>("");
+  const [sanctionsScreened, setSanctionsScreened] = useState(false);
+  const [cddSyncedForTracking, setCddSyncedForTracking] = useState<string | null>(null);
+  const [savingCdd, setSavingCdd] = useState(false);
+
   async function loadDetail() {
     setLoading(true);
     try {
@@ -89,6 +102,35 @@ export function TrackingDetailDrawer({
   useEffect(() => {
     loadDetail();
   }, [trackingId]);
+
+  useEffect(() => {
+    if (detail?.company && cddSyncedForTracking !== trackingId) {
+      setCddStatus(detail.company.cddStatus ?? "NOT_STARTED");
+      setCddNote(detail.company.cddNote ?? "");
+      setSanctionsScreened(!!detail.company.sanctionsScreenedAt);
+      setCddSyncedForTracking(trackingId);
+    }
+  }, [detail, trackingId, cddSyncedForTracking]);
+
+  async function handleSaveCdd() {
+    if (!detail?.company) return;
+    setSavingCdd(true);
+    try {
+      await setCompanyCdd({
+        companyId: detail.company.id,
+        cddStatus: cddStatus as any,
+        cddNote: cddNote.trim() || null,
+        sanctionsScreened,
+      });
+      toast.success("Wwft / CDD status saved");
+      loadDetail();
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save CDD status");
+    } finally {
+      setSavingCdd(false);
+    }
+  }
 
   async function handleComment() {
     if (!commentText.trim()) return;
@@ -577,6 +619,88 @@ export function TrackingDetailDrawer({
                   </p>
                 )}
               </div>
+              {/* Wwft / CDD attestation (G7) — soft, manual marker that
+                  buyer-side client due diligence and sanctions screening
+                  happened before this deal reaches NBO. NOT a KYC engine,
+                  NOT document storage; the real file lives outside this
+                  app. Investors must never see this — this drawer is only
+                  reachable by ADMIN/EDITOR/VIEWER (see assets/[id]/page.tsx),
+                  but the role check here is defence-in-depth. Read-only
+                  for VIEWER. */}
+              {userRole !== "INVESTOR" && (
+                <div className="rounded-md border border-dils-200 bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+                      <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+                      Wwft / CDD
+                    </Label>
+                    <Badge
+                      className={cn(
+                        "text-[10px] border-0",
+                        CDD_STATUS_COLORS[(detail.company.cddStatus ?? "NOT_STARTED") as keyof typeof CDD_STATUS_COLORS]
+                      )}
+                    >
+                      {CDD_STATUS_LABELS[(detail.company.cddStatus ?? "NOT_STARTED") as keyof typeof CDD_STATUS_LABELS]}
+                    </Badge>
+                  </div>
+
+                  {editable ? (
+                    <div className="space-y-2">
+                      <Select value={cddStatus} onValueChange={setCddStatus}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CDD_STATUS_LABELS).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sanctionsScreened}
+                          disabled={!!detail.company.sanctionsScreenedAt}
+                          onChange={(e) => setSanctionsScreened(e.target.checked)}
+                        />
+                        Sanctions screened
+                        {detail.company.sanctionsScreenedAt && (
+                          <span className="text-muted-foreground">
+                            &middot; {formatDate(detail.company.sanctionsScreenedAt)}
+                          </span>
+                        )}
+                      </label>
+                      <Textarea
+                        placeholder="Reference to the external Wwft/KYC file (optional)"
+                        value={cddNote}
+                        onChange={(e) => setCddNote(e.target.value.slice(0, 500))}
+                        maxLength={500}
+                        className="min-h-[50px] text-xs"
+                      />
+                      <div className="flex justify-end">
+                        <Button size="sm" className="h-7 text-xs" onClick={handleSaveCdd} disabled={savingCdd}>
+                          {savingCdd ? "Saving…" : "Save"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p>
+                        {detail.company.sanctionsScreenedAt
+                          ? `Sanctions screened ${formatDate(detail.company.sanctionsScreenedAt)}`
+                          : "Sanctions not screened"}
+                      </p>
+                      {detail.company.cddNote && <p>{detail.company.cddNote}</p>}
+                    </div>
+                  )}
+
+                  {detail.company.cddStatus === "CLEARED" && detail.company.cddClearedAt && (
+                    <p className="text-[11px] text-status-success">
+                      Cleared by {detail.company.cddClearedByUser?.name ?? "—"} on{" "}
+                      {formatDate(detail.company.cddClearedAt)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* NBO offer (bid amount + offer PDF). Visible to admins, the
                   selling-side VIEWER, and the INVESTOR themselves — the
                   parent page already gates which trackings a viewer/investor
