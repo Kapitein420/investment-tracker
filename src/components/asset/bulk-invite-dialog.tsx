@@ -67,11 +67,15 @@ export function BulkInviteDialog({ open, onOpenChange, assetId }: Props) {
       const r = await bulkInviteInvestors({ assetId, rows });
       setResult(r);
       const noun = r.totalRows === 1 ? "row" : "rows";
-      if (r.failed === 0 && r.emailsFailed === 0) {
+      if (r.failed === 0 && r.emailsFailed === 0 && r.emailsSuppressed === 0) {
         toast.success(`Imported ${r.succeeded} ${noun} — all emails sent.`);
       } else {
+        const suppressedNote =
+          r.emailsSuppressed > 0
+            ? ` ${r.emailsSuppressed} skipped (opted out).`
+            : "";
         toast.warning(
-          `Imported ${r.succeeded}/${r.totalRows} ${noun}. ${r.failed} failed, ${r.emailsFailed} email${r.emailsFailed === 1 ? "" : "s"} didn't send. See per-row results below.`,
+          `Imported ${r.succeeded}/${r.totalRows} ${noun}. ${r.failed} failed, ${r.emailsFailed} email${r.emailsFailed === 1 ? "" : "s"} didn't send.${suppressedNote} See per-row results below.`,
           { duration: 12000 }
         );
       }
@@ -148,10 +152,11 @@ export function BulkInviteDialog({ open, onOpenChange, assetId }: Props) {
 
         {result && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               <Stat label="Total" value={result.totalRows} />
               <Stat label="Succeeded" value={result.succeeded} tone={result.failed === 0 ? "good" : undefined} />
               <Stat label="Emails sent" value={result.emailsSent} tone={result.emailsSent === result.totalRows ? "good" : undefined} />
+              <Stat label="Opted out" value={result.emailsSuppressed} tone={result.emailsSuppressed > 0 ? undefined : "good"} />
               <Stat label="Failed" value={result.failed + result.emailsFailed} tone={result.failed + result.emailsFailed > 0 ? "bad" : "good"} />
             </div>
 
@@ -194,6 +199,8 @@ export function BulkInviteDialog({ open, onOpenChange, assetId }: Props) {
                         {r.status !== "error" &&
                           (r.emailSent ? (
                             <span className="text-emerald-700">Sent</span>
+                          ) : r.suppressed ? (
+                            <span className="text-amber-600">Opted out</span>
                           ) : (
                             <span className="text-red-600">Failed</span>
                           ))}

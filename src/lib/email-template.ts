@@ -33,13 +33,18 @@ function renderHeader() {
   `;
 }
 
-function renderFooter(meta?: string) {
+function renderFooter(meta?: string, unsubscribeUrl?: string) {
   return `
     <div style="background: ${COLORS.surface}; padding: 24px 32px; border-top: 1px solid ${COLORS.border};">
       <p style="color: ${COLORS.muted}; font-size: 11px; line-height: 1.6; margin: 0 0 12px 0;">
         You're receiving this email because you have access to the DILS Investor Portal.
         Read our <a href="${PRIVACY_URL}" style="color: ${COLORS.ink}; text-decoration: underline;">privacy statement</a>
         for details on how we handle your personal data.
+        ${
+          unsubscribeUrl
+            ? ` Don't want deal emails? <a href="${escape(unsubscribeUrl)}" style="color: ${COLORS.ink}; text-decoration: underline;">Unsubscribe</a>.`
+            : ""
+        }
       </p>
       ${
         meta
@@ -63,6 +68,12 @@ export function renderEmail(opts: {
   heading: string;
   bodyHtml: string;
   meta?: string;
+  /** Recipient's one-click unsubscribe link (src/lib/unsubscribe.ts). When
+   *  set, the footer gains an "Unsubscribe" link next to the privacy
+   *  statement — Telecommunicatiewet 11.7 lid 4 requires one in every
+   *  commercial email. Omit for emails with no single recipient in scope
+   *  (e.g. one HTML string fanned out to a Set of addresses). */
+  unsubscribeUrl?: string;
 }): string {
   return `
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: ${COLORS.paper};">
@@ -74,7 +85,7 @@ export function renderEmail(opts: {
         <div style="background: ${COLORS.brass}; height: 2px; width: 40px; margin: 14px 0 24px 0; line-height: 2px; font-size: 0;">&nbsp;</div>
         ${opts.bodyHtml}
       </div>
-      ${renderFooter(opts.meta)}
+      ${renderFooter(opts.meta, opts.unsubscribeUrl)}
     </div>
   `;
 }

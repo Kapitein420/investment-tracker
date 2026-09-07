@@ -29,6 +29,7 @@ export type BulkInviteRowResult =
       companyName: string;
       emailSent: boolean;
       emailError?: string;
+      suppressed?: boolean;
     }
   | {
       row: number;
@@ -44,6 +45,10 @@ export interface BulkInviteResult {
   failed: number;
   emailsSent: number;
   emailsFailed: number;
+  // Rows where the invite/account were created but the email was withheld
+  // because the recipient had opted out (EmailSuppression) — counted apart
+  // from emailsFailed since nothing actually went wrong.
+  emailsSuppressed: number;
   results: BulkInviteRowResult[];
 }
 
@@ -98,6 +103,7 @@ export async function bulkInviteInvestors({
   const results: BulkInviteRowResult[] = [];
   let emailsSent = 0;
   let emailsFailed = 0;
+  let emailsSuppressed = 0;
   let succeeded = 0;
   let failed = 0;
 
@@ -187,6 +193,7 @@ export async function bulkInviteInvestors({
       });
 
       if (inviteResult.emailSent) emailsSent += 1;
+      else if (inviteResult.suppressed) emailsSuppressed += 1;
       else emailsFailed += 1;
 
       succeeded += 1;
@@ -198,6 +205,7 @@ export async function bulkInviteInvestors({
         companyName: company.name,
         emailSent: inviteResult.emailSent,
         emailError: inviteResult.emailError,
+        suppressed: inviteResult.suppressed,
       });
     } catch (e: any) {
       failed += 1;
@@ -222,6 +230,7 @@ export async function bulkInviteInvestors({
         failed,
         emailsSent,
         emailsFailed,
+        emailsSuppressed,
       },
       userId: user.id,
     },
@@ -237,6 +246,7 @@ export async function bulkInviteInvestors({
     failed,
     emailsSent,
     emailsFailed,
+    emailsSuppressed,
     results,
   };
 }

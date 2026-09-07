@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redactEmail } from "@/lib/log-redact";
+import { isSuppressed, unsubscribeUrl } from "@/lib/unsubscribe";
 
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
@@ -12,6 +13,11 @@ const MAILGUN_FROM =
 
 export interface SendEmailResult {
   messageId: string | null; // Mailgun's "id" — present when delivered to MX, used to correlate webhooks
+  /** Set when the send was skipped instead of attempted. "suppressed" means
+   *  the recipient opted out (EmailSuppression) and category was
+   *  "commercial" — callers can check this to log/report the outcome
+   *  distinctly from a normal send. */
+  skipped?: "suppressed";
 }
 
 // Mailgun tag values must be ASCII [\w.-]+. Prisma cuids are already
@@ -31,6 +37,7 @@ export async function sendEmail({
   from,
   replyTo,
   actor,
+  category = "transactional",
 }: {
   to: string;
   subject: string;
@@ -50,7 +57,17 @@ export async function sendEmail({
    *  - a userId string → tag with that explicit actor
    *  - null → skip tagging (system / cron / unauthenticated callers) */
   actor?: string | null;
+  /** "commercial" mail (deal teasers/invites) is checked against
+   *  EmailSuppression and dropped for opted-out recipients —
+   *  Telecommunicatiewet 11.7 lid 4. "transactional" mail (credentials,
+   *  password resets, NDA approvals) always goes out. */
+  category?: "commercial" | "transactional";
 }): Promise<SendEmailResult> {
+  if (category === "commercial" && (await isSuppressed(to))) {
+    console.log(`[Email suppressed - recipient opted out] To: ${redactEmail(to)}, Subject: ${subject}`);
+    return { messageId: null, skipped: "suppressed" };
+  }
+
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
     // Silent skip in dev; loud failure in production. Previously this branch
     // returned silently in every environment, which let an admin think they'd
@@ -74,6 +91,12 @@ export async function sendEmail({
     html,
   });
   if (replyTo) body.set("h:Reply-To", replyTo);
+  // RFC 8058 one-click unsubscribe — required on every commercial email
+  // (Telecommunicatiewet 11.7 lid 4) and harmless on transactional ones.
+  // Mail clients that support it render an "Unsubscribe" action next to
+  // the sender without the recipient opening the message.
+  body.set("h:List-Unsubscribe", `<${unsubscribeUrl(to)}>`);
+  body.set("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
 
   // Resolve the actor: explicit override beats session pickup, null skips.
   let resolvedActor: string | null = null;
