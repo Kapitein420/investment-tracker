@@ -97,10 +97,12 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // Match everything except Next.js internals + the NextAuth handler
-    // (which manages its own response shape). Auth enforcement is gated
-    // inside `authorized()` so public routes still benefit from the
-    // header strip without being blocked.
-    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
+    // Match everything except Next.js internals, the NextAuth handler
+    // (which manages its own response shape), and the cron routes (which
+    // authenticate via CRON_SECRET, not a session — see
+    // src/app/api/cron/purge/route.ts). Auth enforcement is gated inside
+    // `authorized()` so public routes still benefit from the header strip
+    // without being blocked.
+    "/((?!_next/static|_next/image|favicon.ico|api/auth|api/cron).*)",
   ],
 };
