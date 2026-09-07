@@ -2,7 +2,7 @@
 
 Generated 2026-09-07 against `master` @ `6017154`. Every fact carries a `path:line` reference so a lawyer or engineer can verify it. "NOT FOUND" is a deliberate output: it means the feature or control does not exist in the codebase. This sheet is the evidence base for [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md).
 
-Stack: Next.js 16 App Router, NextAuth 4 (JWT / credentials), Prisma 6 + PostgreSQL (Supabase), Supabase Storage, Mailgun (EU endpoint), optional Upstash Redis. Controller named in-app: "DILS Group B.V." (`src/components/signing/signing-page.tsx:342`) vs "Dils Netherlands B.V." in the unmerged compliance branch — **inconsistent controller identity**.
+Stack: Next.js 16 App Router, NextAuth 4 (JWT / credentials), Prisma 6 + PostgreSQL (Supabase), Supabase Storage, Mailgun (EU endpoint), optional Upstash Redis. Controller named in-app: "DILS Group B.V." (`src/components/signing/signing-page.tsx:342`) vs "Dils Netherlands B.V." in `compliance/README.md` — **inconsistent controller identity**.
 
 ---
 
@@ -78,7 +78,7 @@ IP is computed only as a rate-limit key (`getClientIp` `src/lib/rate-limit.ts:15
 2. `src/components/signing/html-nda-signing-page.tsx:352`: "Draw with your mouse or finger. By signing you agree to the NDA above."
 3. `src/components/signing/html-nda-signing-page.tsx:366`: "By submitting, you confirm the values above are accurate and you have authority to bind {companyName}."
 
-Notes: `privacy@dils.com` conflicts with `privacy.netherlands@dils.com` in the compliance branch; the notice omits retention, legal basis, recipients and transfers; the HTML-NDA page has no privacy notice at all.
+Notes: `privacy@dils.com` conflicts with `privacy.netherlands@dils.com` in `compliance/README.md`; the notice omits retention, legal basis, recipients and transfers; the HTML-NDA page has no privacy notice at all.
 
 ---
 
@@ -175,7 +175,7 @@ Hardening present: PDF magic-byte + MIME + 10 MB checks (`document-actions.ts:17
 
 | Right | Status |
 |---|---|
-| Art. 15 / 20 export | **NOT FOUND** (`src/actions/data-export-actions.ts` exists only on the unmerged branch, and is ADMIN-only there) |
+| Art. 15 / 20 export | **NOT FOUND** (`src/actions/data-export-actions.ts` merged in #170 on 2026-09-07, ADMIN-only, not self-service) |
 | Art. 17 erasure (self-service) | **NOT FOUND** |
 | Art. 16 rectification (self-service) | **NOT FOUND** — investors can change password only |
 | Anonymisation | **NOT FOUND** |
@@ -206,7 +206,7 @@ Hardening present: PDF magic-byte + MIME + 10 MB checks (`document-actions.ts:17
 
 | Service | Vars | Region evidence |
 |---|---|---|
-| Supabase Postgres + Storage | `DATABASE_URL` (`.env.example:19`), `NEXT_PUBLIC_SUPABASE_URL` `:27`, `SUPABASE_SERVICE_ROLE_KEY` `:29` | Not pinned in repo. Compliance branch README asserts EU Ireland `eu-west-1` (claim in an unmerged doc, not enforced by code). |
+| Supabase Postgres + Storage | `DATABASE_URL` (`.env.example:19`), `NEXT_PUBLIC_SUPABASE_URL` `:27`, `SUPABASE_SERVICE_ROLE_KEY` `:29` | Not pinned in repo. Compliance branch README asserts EU Ireland `eu-west-1` (claim in `compliance/README.md`, not enforced by code). |
 | Mailgun | `MAILGUN_API_KEY` `:34`, `MAILGUN_DOMAIN` `:36` (`mg.dils.com`), `MAILGUN_FROM` `:38`, `MAILGUN_API_BASE` `:42` | EU by default; US endpoint documented as an option (`:40-41`). |
 | Mailgun webhook | `MAILGUN_WEBHOOK_SIGNING_KEY` | used `webhook/route.ts:39`; absent from `.env.example`; endpoint 500s if unset (`:40-43`). |
 | Upstash / Vercel KV | `UPSTASH_REDIS_REST_*`, `KV_REST_API_*` (`src/lib/rate-limit.ts:32-56`) | **Region: NOT FOUND**; not in `.env.example`. Stores IPs and emails as key material. |
