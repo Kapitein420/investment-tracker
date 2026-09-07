@@ -94,7 +94,7 @@ Investment-tracker has its own git repo and doesn't inherit the GitHub Actions I
 
 | Layer | Evidence |
 |---|---|
-| **NextAuth with middleware** | [`src/middleware.ts`](src/middleware.ts) — `withAuth` + role-based redirects (`INVESTOR`, `ADMIN`). Routes `/admin`, `/portal`, `/`, `/assets` all gated. |
+| **NextAuth with middleware** | [`src/proxy.ts`](src/proxy.ts) (Next 16 proxy, formerly middleware) — `withAuth` + role-based redirects (`INVESTOR`, `ADMIN`). Routes `/admin`, `/portal`, `/`, `/assets` all gated. |
 | **No client-side Supabase** | Only [`src/lib/supabase-storage.ts`](src/lib/supabase-storage.ts) creates a Supabase client, and it uses `SUPABASE_SERVICE_ROLE_KEY` — pure server-side. No publishable/anon key is ever sent to the browser. |
 | **RLS as defense in depth** | [`supabase-rls-policies.sql`](supabase-rls-policies.sql) enables RLS on all 14 tables (`User`, `Asset`, `Company`, `PipelineStage`, `AssetCompanyTracking`, `StageStatus`, `Comment`, `StageHistory`, `ActivityLog`, `SavedView`, `Document`, `SigningToken`, `InvestorInvite`, `AssetContent`) with explicit deny-to-anon. Service role bypasses, as designed. |
 | **Secrets in env only** | All 10 referenced env vars read via `process.env.X`, no hardcoded fallbacks anywhere in `src/`. |
@@ -128,7 +128,7 @@ Hand these steps to whoever holds the key:
 
 ## Files reviewed
 
-- [src/middleware.ts](src/middleware.ts) — NextAuth route protection
+- [src/proxy.ts](src/proxy.ts) — NextAuth route protection (Next 16 proxy, formerly middleware)
 - [src/lib/email.ts](src/lib/email.ts) — Resend integration
 - [src/lib/supabase-storage.ts](src/lib/supabase-storage.ts) — Supabase client (server-only)
 - [src/lib/auth.ts](src/lib/auth.ts) — NextAuth config

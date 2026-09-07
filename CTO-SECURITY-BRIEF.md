@@ -112,7 +112,7 @@ Headers applied via `next.config.js`:
 
 ## Reviewed components
 
-- `src/middleware.ts` (auth routing)
+- `src/proxy.ts` (auth routing — Next 16 proxy, formerly middleware)
 - `src/lib/auth.ts` (NextAuth config)
 - `src/lib/email.ts` (Resend integration)
 - `src/lib/supabase-storage.ts` (Supabase client, server-only)
