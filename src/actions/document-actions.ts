@@ -1,8 +1,8 @@
 "use server";
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
-import { requireRole, requireUser } from "@/lib/permissions";
+import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
 import { uploadFile, getSignedUrl, downloadFile, uploadBytes, deleteFile } from "@/lib/supabase-storage";
 import { generateSignedPdf, generateSignedPdfFromPlaceholders, type FieldPlacement } from "@/lib/pdf-signing";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
@@ -15,6 +15,7 @@ import {
 } from "@/lib/validators";
 import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -54,7 +55,7 @@ async function renderAndUploadSignedPdf(args: {
   signedAt: Date;
   fieldValues: Record<string, string>;
   assetFieldDefaults: Record<string, string>;
-}): Promise<string> {
+}): Promise<{ path: string; sha256: string }> {
   const { doc, signatureData, signedByName, signedByEmail, signedAt, fieldValues, assetFieldDefaults } = args;
   const pdfStart = Date.now();
   const originalPdfBytes = await downloadFile(doc.fileUrl);
@@ -102,10 +103,11 @@ async function renderAndUploadSignedPdf(args: {
 
   const signedPath = `documents/${doc.trackingId}/signed_${Date.now()}_${doc.fileName}`;
   await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
+  const sha256 = createHash("sha256").update(signedPdfBytes).digest("hex");
   console.log(
     `[renderAndUploadSignedPdf] generated in ${Date.now() - pdfStart}ms for doc ${doc.id}`
   );
-  return signedPath;
+  return { path: signedPath, sha256 };
 }
 
 /**
@@ -144,7 +146,7 @@ async function ensureSignedPdf(documentId: string): Promise<string> {
       ? (doc.fieldConfig as Record<string, string>)
       : {};
 
-  const signedPath = await renderAndUploadSignedPdf({
+  const { path: signedPath, sha256 } = await renderAndUploadSignedPdf({
     doc: doc as any,
     signatureData: doc.signatureData,
     signedByName: doc.signedByName,
@@ -159,7 +161,7 @@ async function ensureSignedPdf(documentId: string): Promise<string> {
   // updateMany matches 0 rows, we re-read, and return the canonical one.
   await prisma.document.updateMany({
     where: { id: doc.id, signedFileUrl: null },
-    data: { signedFileUrl: signedPath },
+    data: { signedFileUrl: signedPath, pdfSha256: sha256 },
   });
   const fresh = await prisma.document.findUniqueOrThrow({
     where: { id: doc.id },
@@ -947,6 +949,16 @@ export async function signDocument(data: {
     throw new Error("This NDA uses the HTML signing flow — wrong signing endpoint.");
   }
 
+  // Actor for the StageHistory/ActivityLog rows this creates: the session
+  // user when the signer is logged in (investor portal), or null on the
+  // anonymous /sign/[token] page, which has no session at all. Never fall
+  // back to document.uploadedByUserId — that credits the admin who uploaded
+  // the doc as the signer. When actor is null, the signing token id
+  // recorded in ActivityLog.metadata is the attribution instead.
+  const actor = await getCurrentUser();
+  const signerIp = await getClientIp();
+  const signerUserAgent = await getClientUserAgent();
+
   // ── Step 2: Atomic commit — claim token + persist signed state ──
   // PDF generation is decoupled from the commit so a slow / failed pdf-lib
   // run during a signing burst can't roll back the signature itself. The
@@ -989,6 +1001,8 @@ export async function signDocument(data: {
         signedByName: validated.signedByName,
         signedByEmail: validated.signedByEmail,
         signatureData: validated.signatureData,
+        signerIp,
+        signerUserAgent,
         // signedFileUrl filled by post-commit gen (or lazy regen)
         // For PLACEHOLDER docs only: stash the merged values so lazy
         // regen can reproduce the PDF. fieldConfig is unused for
@@ -1025,7 +1039,7 @@ export async function signDocument(data: {
         fieldName: "status",
         oldValue: oldStatus,
         newValue: "COMPLETED",
-        changedByUserId: document.uploadedByUserId,
+        changedByUserId: actor?.id ?? null,
       },
     });
 
@@ -1037,8 +1051,11 @@ export async function signDocument(data: {
         metadata: {
           trackingId: document.trackingId,
           signedByName: validated.signedByName,
+          signingTokenId: token.id,
+          signerIp,
+          signerUserAgent,
         },
-        userId: document.uploadedByUserId,
+        userId: actor?.id ?? null,
       },
     });
     });
@@ -1058,7 +1075,7 @@ export async function signDocument(data: {
   // pdf-lib OOM under burst, transient Supabase error) the signature is
   // still permanent — ensureSignedPdf regenerates lazily on first download.
   try {
-    const signedPath = await renderAndUploadSignedPdf({
+    const { path: signedPath, sha256 } = await renderAndUploadSignedPdf({
       doc: document as any,
       signatureData: validated.signatureData,
       signedByName: validated.signedByName,
@@ -1072,7 +1089,7 @@ export async function signDocument(data: {
     // no one's hit getSignedDocumentUrl this fast).
     await prisma.document.updateMany({
       where: { id: document.id, signedFileUrl: null },
-      data: { signedFileUrl: signedPath },
+      data: { signedFileUrl: signedPath, pdfSha256: sha256 },
     });
   } catch (e) {
     console.error(
@@ -1132,6 +1149,11 @@ export async function uploadInvestorNda(formData: FormData) {
   const document = signingToken.document;
   const signedAt = new Date();
 
+  // Actor resolution — see signDocument.
+  const actor = await getCurrentUser();
+  const signerIp = await getClientIp();
+  const signerUserAgent = await getClientUserAgent();
+
   // Upload BEFORE the transaction — Supabase isn't transactional with
   // Postgres, and a long upload inside the txn would hold the row lock
   // longer than necessary. Worst case if the txn fails: an orphan PDF in
@@ -1139,6 +1161,7 @@ export async function uploadInvestorNda(formData: FormData) {
   const safeName = (file.name || "investor-nda.pdf").replace(/[^\w.\-]/g, "_");
   const uploadedPath = `documents/${document.trackingId}/investor_${Date.now()}_${safeName}`;
   await uploadBytes(buffer, uploadedPath, "application/pdf");
+  const pdfSha256 = createHash("sha256").update(buffer).digest("hex");
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -1157,6 +1180,9 @@ export async function uploadInvestorNda(formData: FormData) {
           signedByEmail,
           signatureData: "INVESTOR_UPLOAD",
           signedFileUrl: uploadedPath,
+          pdfSha256,
+          signerIp,
+          signerUserAgent,
           // For HTML-template NDAs the investor uploaded a real PDF — flip
           // mimeType so download/view code paths treat it like a PDF doc.
           // fileUrl is left as the original "html:..." sentinel for audit.
@@ -1193,7 +1219,7 @@ export async function uploadInvestorNda(formData: FormData) {
           fieldName: "status",
           oldValue: oldStatus,
           newValue: "COMPLETED",
-          changedByUserId: document.uploadedByUserId,
+          changedByUserId: actor?.id ?? null,
         },
       });
 
@@ -1207,8 +1233,11 @@ export async function uploadInvestorNda(formData: FormData) {
             signedByName,
             originalFileName: file.name,
             fileSize: file.size,
+            signingTokenId: signingToken.id,
+            signerIp,
+            signerUserAgent,
           },
-          userId: document.uploadedByUserId,
+          userId: actor?.id ?? null,
         },
       });
     });

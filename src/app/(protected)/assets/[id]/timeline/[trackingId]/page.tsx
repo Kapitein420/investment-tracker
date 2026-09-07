@@ -62,7 +62,7 @@ export default async function TimelinePage(
         ? `Lifecycle changed to ${h.newValue}`
         : `${stageLabel} ${h.fieldName}: ${h.oldValue ?? "—"} → ${h.newValue}`,
       description: null,
-      userName: h.changedBy.name,
+      userName: h.changedBy?.name ?? "Signer (signing link)",
       metadata: {
         fieldName: h.fieldName,
         oldValue: h.oldValue,
