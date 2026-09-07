@@ -914,6 +914,7 @@ export async function bulkImportTrackings(
               companyId: company.id,
               name: contactName,
               email: contactEmail,
+              source: "CSV_IMPORT",
             },
           });
           contactsAdded++;

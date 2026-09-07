@@ -40,6 +40,7 @@ function renderFooter(meta?: string, unsubscribeUrl?: string) {
       <p style="color: ${COLORS.muted}; font-size: 11px; line-height: 1.6; margin: 0 0 12px 0;">
         You're receiving this email because you have access to the DILS Investor Portal.
         Read our <a href="${PRIVACY_URL}" style="color: ${COLORS.ink}; text-decoration: underline;">privacy statement</a>
+        &middot; <a href="${getAppUrl()}/privacy" style="color: ${COLORS.ink}; text-decoration: underline;">portal privacy notice</a>
         for details on how we handle your personal data.
         ${
           unsubscribeUrl

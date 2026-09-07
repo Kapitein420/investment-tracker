@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/components/signing/signature-pad";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { signHtmlNda } from "@/actions/html-nda-actions";
 import { uploadInvestorNda } from "@/actions/document-actions";
 import { renderTemplate, injectSignature } from "@/lib/html-nda-template";
@@ -369,6 +370,8 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
               </p>
             </>
           )}
+
+          <PrivacyNotice variant="signing" />
 
           {/* Investor-uploaded NDA — alternative to the signature pad above.
               Same approval gate (admin still has to approve). The uploaded

@@ -234,6 +234,7 @@ async function main() {
           data: {
             companyId: company.id,
             name: row.contactName || null,
+            source: "CSV_IMPORT",
             email: row.email,
           },
         });

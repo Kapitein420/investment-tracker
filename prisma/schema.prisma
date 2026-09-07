@@ -215,14 +215,20 @@ model Company {
 // promotes it into a User + UserCompanyMembership (and only then does an
 // email go out).
 model CompanyContact {
-  id        String   @id @default(cuid())
-  companyId String
-  name      String?
-  email     String
-  role      String?  // optional free-text label e.g. "Investment Manager"
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String?
+  email       String
+  role        String?  // optional free-text label e.g. "Investment Manager"
+  notes       String?
+  // Art. 14(1)(f) GDPR — where this contact's data came from, so the
+  // "notify within a month" clock is provable. Free-text like `role`
+  // above rather than an enum; known values: CSV_IMPORT, STAFF, SELF,
+  // BROKER_LIST. See compliance/code-fact-sheet-2026-09.md §9.
+  source      String?
+  collectedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

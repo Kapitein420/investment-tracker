@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { DynamicFieldInputs, extractCustomFields } from "@/components/signing/dynamic-fields";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { FileText, Check, X, AlertTriangle, Download, Upload, Loader2 } from "lucide-react";
 import { signDocument, rejectDocument, uploadInvestorNda, getSignedDocumentUrl } from "@/actions/document-actions";
 import { toast } from "sonner";
@@ -335,18 +336,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
             )}
 
-            <div className="rounded-md bg-gray-50 border p-3 text-[11px] text-muted-foreground space-y-2">
-              <p className="font-medium text-foreground">Data Privacy Notice</p>
-              <p>
-                By signing this document, you acknowledge that your name, email, signature image,
-                and signing timestamp will be stored by DILS Group B.V. as part of this deal process.
-                This data is used solely for contract execution and legal compliance under GDPR.
-              </p>
-              <p>
-                You have the right to access, rectify, or request deletion of your data. Contact
-                privacy@dils.com for any data protection inquiries.
-              </p>
-            </div>
+            <PrivacyNotice variant="signing" />
 
             {!uploadOpen && (
               <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">

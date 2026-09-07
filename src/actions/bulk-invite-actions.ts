@@ -170,6 +170,7 @@ export async function bulkInviteInvestors({
             companyId: company.id,
             name: contactName,
             email,
+            source: "CSV_IMPORT",
           },
         });
       } else if (!existingContact.name && contactName) {

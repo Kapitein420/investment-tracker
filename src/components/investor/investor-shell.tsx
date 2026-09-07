@@ -53,7 +53,7 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
       <footer className="mt-auto border-t border-dils-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-4 text-[12px] text-muted-foreground sm:flex-row sm:px-6">
           <p>
-            © {new Date().getFullYear()} DILS Group B.V. · P.IVA 07575790154
+            © {new Date().getFullYear()} Dils Netherlands B.V. · KvK 33180131
           </p>
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <a
@@ -64,6 +64,12 @@ export function InvestorShell({ children }: { children: React.ReactNode }) {
             >
               Privacy
             </a>
+            <Link
+              href="/privacy"
+              className="hover:text-dils-black hover:underline underline-offset-2"
+            >
+              Portal privacy notice
+            </Link>
             <Link
               href="/portal/preferences"
               className="hover:text-dils-black hover:underline underline-offset-2"
