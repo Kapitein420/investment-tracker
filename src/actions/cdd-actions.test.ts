@@ -5,12 +5,18 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 // authorised EDITOR) and next/cache (revalidatePath is import-time only
 // here). Everything else — the transaction, the ActivityLog row, the
 // cddClearedAt/cddClearedByUserId bookkeeping — hits real Prisma.
+//
+// requireRole's resolved id must be a real User row: setCompanyCdd writes it
+// into Company.cddClearedByUserId and ActivityLog.userId, both FKs to User.
+// The mock starts with a placeholder and beforeAll below repoints it at a
+// seeded user once one is fetched.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("@/lib/permissions", () => ({
   requireRole: vi.fn().mockResolvedValue({ id: "test", role: "EDITOR" }),
 }));
 
 import { prisma } from "@/lib/db";
+import { requireRole } from "@/lib/permissions";
 import { setCompanyCdd } from "./cdd-actions";
 
 const hasDb = !!process.env.DATABASE_URL;
@@ -27,6 +33,7 @@ describe.skipIf(!hasDb)("setCompanyCdd (Wwft / CDD attestation, G7)", () => {
     companyId = company.id;
     const user = await prisma.user.findFirstOrThrow();
     userId = user.id;
+    vi.mocked(requireRole).mockResolvedValue({ id: userId, role: "EDITOR" } as never);
   });
 
   afterEach(async () => {
