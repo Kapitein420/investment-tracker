@@ -15,6 +15,8 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | 5 | [lawful-basis-and-LIA.md](lawful-basis-and-LIA.md) | Art. 6 | ⚖️ Draft → legal review |
 | 6 | [data-breach-response-runbook.md](data-breach-response-runbook.md) | Art. 33–34 | ✅ Draft (adopt) |
 | 7 | [data-subject-request-procedure.md](data-subject-request-procedure.md) | Art. 12–22 | ✅ Draft (adopt) |
+| 8 | [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md) | All regimes beyond GDPR (Telecommunicatiewet, Wwft, e-sign, trade secrets, WOR, retention) + 15 ranked gaps | 📋 Research (Sept 2026) → prioritise G1–G7 |
+| 9 | [code-fact-sheet-2026-09.md](code-fact-sheet-2026-09.md) | Evidence base with path:line refs and explicit NOT FOUND items | 📋 Re-check per remediation |
 
 ## Code shipped alongside these docs
 
