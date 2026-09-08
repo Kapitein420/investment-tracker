@@ -733,6 +733,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                         : null
                     }
                     locked={ss.status === "COMPLETED"}
+                    companyName={tracking.company.name}
                   />
                 </div>
               )}

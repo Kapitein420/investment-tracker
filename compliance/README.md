@@ -40,6 +40,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | Wwft Art. 3/33 | Buyer-side CDD attestation + NBO soft-gate warning | `src/actions/cdd-actions.ts`, `src/lib/validators.ts`, `src/actions/tracking-actions.ts`, `src/components/asset/tracking-detail-drawer.tsx` |
 | BW 3:15a / eIDAS | Signature certificate page, signer copy email, intent confirmation checkbox | `src/lib/pdf-signing.ts`, `src/actions/document-actions.ts`, `src/actions/html-nda-actions.ts`, `src/components/investor/printable-signed-nda.tsx`, `src/components/signing/*` |
 | BW 6:234 | Portal terms-of-use click-accept with version/timestamp/IP evidence (G13) | `src/lib/terms.ts`, `src/actions/terms-actions.ts`, `src/app/(investor)/portal/terms/page.tsx`, `src/app/(investor)/portal/(gated)/layout.tsx` |
+| BW 3:15a / eIDAS | Uploaded offer-letter evidence parity with the investor NDA upload — PDF hash, submitter IP/UA, attestation checkbox, receipt email | `src/lib/offer-document.ts`, `src/actions/portal-actions.ts`, `src/components/investor/offer-submission.tsx` |
 
 ## Open ops / human actions (cannot be done in code)
 

@@ -400,6 +400,11 @@ export async function uploadOfferDocument(formData: FormData) {
 
   const stageId = await resolveOfferStageId(trackingId);
 
+  // Staff-side record of an offer letter that arrived outside the app (email,
+  // in person) — record the uploading staff member and their IP/UA for the
+  // same audit trail an investor upload gets, but leave attestedAt unset:
+  // this is EDITOR recording a document, not the investor confirming their
+  // own binding submission (see replaceOfferDocument's comment on the field).
   const document = await replaceOfferDocument({
     trackingId,
     stageId,
@@ -409,6 +414,10 @@ export async function uploadOfferDocument(formData: FormData) {
     mimeType: file.type,
     uploadedByUserId: user.id,
     action: "OFFER_DOCUMENT_UPLOADED",
+    signedByName: user.name,
+    signedByEmail: user.email,
+    ip: await getClientIp(),
+    userAgent: await getClientUserAgent(),
   });
 
   revalidatePath("/assets");
