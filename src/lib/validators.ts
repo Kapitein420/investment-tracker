@@ -24,6 +24,63 @@ const NO_BSN_MSG =
   "Please remove the national identification number (BSN) — the portal must not store BSNs.";
 export const noBsn = (v?: string | null) => !containsBSN(v);
 
+// ─── IBAN / passport-ID guard (UAVG Art. 46) ─────────────────────────────────
+// Same rationale as the BSN guard above: bank account numbers and identity
+// document numbers are sensitive/financial identifiers the portal has no
+// statutory basis to store, so free text that carries one is rejected rather
+// than silently persisted.
+
+// ISO 13616 mod-97 check: move the 4 leading chars (country + check digits)
+// to the end, convert letters to numbers (A=10..Z=35), and verify the
+// resulting numeric string mod 97 === 1. Precise by construction — an
+// ordinary reference number matching the IBAN shape almost never also
+// passes the checksum.
+function passesIbanChecksum(iban: string): boolean {
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let remainder = 0;
+  for (let i = 0; i < numeric.length; i++) {
+    remainder = (remainder * 10 + Number(numeric[i])) % 97;
+  }
+  return remainder === 1;
+}
+
+export function containsIban(text?: string | null): boolean {
+  if (!text) return false;
+  const candidates = text.match(/\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/g);
+  return !!candidates?.some((c) => passesIbanChecksum(c.replace(/\s/g, "")));
+}
+
+// Dutch passport/ID document numbers: 9 chars, 2 letters (excluding O) + 6
+// alphanumerics + 1 digit, e.g. NX1234567. Only flagged near a cue word —
+// on its own the shape is too close to internal deal/reference codes.
+const ID_CUE_RE =
+  /(paspoort|passport|identiteitskaart|id-kaart|id card|documentnummer|document number|rijbewijs|driving licen)/i;
+const ID_NUMBER_RE = /\b[A-NP-Z]{2}[A-Z0-9]{6}\d\b/g;
+
+export function containsDutchIdNumber(text?: string | null): boolean {
+  if (!text) return false;
+  let match: RegExpExecArray | null;
+  ID_NUMBER_RE.lastIndex = 0;
+  while ((match = ID_NUMBER_RE.exec(text))) {
+    const start = Math.max(0, match.index - 40);
+    if (ID_CUE_RE.test(text.slice(start, match.index))) return true;
+  }
+  return false;
+}
+
+const NO_IBAN_MSG =
+  "Please remove the bank account number (IBAN) — the portal must not store it.";
+const NO_ID_MSG =
+  "Please remove the identity document number — the portal must not store it.";
+
+// Chained after noBsn wherever both are applied, so this only needs to cover
+// the two newer types; the message names whichever one was found.
+export const noSensitiveIds = (v?: string | null) => !containsIban(v) && !containsDutchIdNumber(v);
+const sensitiveIdMessage = (v?: string | null) => ({
+  message: containsIban(v) ? NO_IBAN_MSG : NO_ID_MSG,
+});
+
 // ─── Asset ──────────────────────────────────────────────────────────────────
 export const createAssetSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -34,7 +91,7 @@ export const createAssetSchema = z.object({
   assetType: z.string().optional(),
   transactionType: z.string().optional(),
   ownerEntity: z.string().optional(),
-  description: z.string().optional().refine(noBsn, NO_BSN_MSG),
+  description: z.string().optional().refine(noBsn, NO_BSN_MSG).refine(noSensitiveIds, sensitiveIdMessage),
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
@@ -55,7 +112,7 @@ export const createCompanySchema = z.object({
   contactName: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),
   contactPhone: z.string().optional(),
-  notes: z.string().optional().refine(noBsn, NO_BSN_MSG),
+  notes: z.string().optional().refine(noBsn, NO_BSN_MSG).refine(noSensitiveIds, sensitiveIdMessage),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();
@@ -68,6 +125,7 @@ export const setCompanyCddSchema = z.object({
     .string()
     .max(500, "Note is too long (max 500 characters)")
     .refine(noBsn, NO_BSN_MSG)
+    .refine(noSensitiveIds, sensitiveIdMessage)
     .optional()
     .nullable(),
   sanctionsScreened: z.boolean(),
@@ -117,7 +175,8 @@ export const createCommentSchema = z.object({
     .string()
     .min(1, "Comment cannot be empty")
     .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`)
-    .refine(noBsn, NO_BSN_MSG),
+    .refine(noBsn, NO_BSN_MSG)
+    .refine(noSensitiveIds, sensitiveIdMessage),
 });
 
 export const updateCommentSchema = z.object({
@@ -125,7 +184,8 @@ export const updateCommentSchema = z.object({
     .string()
     .min(1, "Comment cannot be empty")
     .max(COMMENT_MAX, `Comment is too long (max ${COMMENT_MAX} characters)`)
-    .refine(noBsn, NO_BSN_MSG),
+    .refine(noBsn, NO_BSN_MSG)
+    .refine(noSensitiveIds, sensitiveIdMessage),
 });
 
 // ─── User management ────────────────────────────────────────────────────────

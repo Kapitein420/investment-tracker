@@ -30,7 +30,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | Data-subject access/portability | Per-person data export (JSON) | `src/actions/data-export-actions.ts` |
 | Security (Art. 32) | PII redacted from server logs | `src/lib/log-redact.ts` + call sites |
 | Security (Art. 32) | One-time set-password links replace emailed plaintext passwords; 15-min lockout after 10 failed logins (G9, MFA still open) | `src/lib/password-set-token.ts`, `src/lib/login-lockout.ts` |
-| UAVG Art. 46 | BSN / sensitive-data guard on free-text fields | `src/lib/validators.ts` (`assertNoBSN`) |
+| UAVG Art. 46 | BSN / IBAN / identity-document guard on free-text fields (G14) | `src/lib/validators.ts` (`noBsn`, `noSensitiveIds`) |
 | Transparency | Privacy + cookie links surfaced in-app | login / invite-accept / portal footer |
 | Telecommunicatiewet 11.7 | Unsubscribe link + `List-Unsubscribe` header + suppression on commercial email | `src/lib/unsubscribe.ts` |
 | Telecommunicatiewet 11.7a | Open/click tracking off by default, opt-in via portal preferences, consent evidence in `EmailTrackingConsent` | `src/lib/email-tracking.ts` |
