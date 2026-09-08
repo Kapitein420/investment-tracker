@@ -23,6 +23,21 @@ export function formatDateTime(date: Date | string) {
   }).format(new Date(date));
 }
 
+/**
+ * UTC + Europe/Amsterdam wall-clock, for evidentiary timestamps (signature
+ * certificates, BW 3:15a) where the recorded moment must be unambiguous
+ * regardless of the reader's own timezone or DST.
+ */
+export function formatCertTimestamp(date: Date): string {
+  const utc = date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+  const amsterdam = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Europe/Amsterdam",
+  }).format(date);
+  return `${utc} / ${amsterdam} (Europe/Amsterdam)`;
+}
+
 export function truncate(str: string, maxLength: number) {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength) + "...";

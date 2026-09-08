@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
 import {
@@ -16,6 +17,7 @@ import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
 import { logDownloadAccess } from "@/lib/activity-log";
+import { getAppUrl } from "@/lib/app-url";
 
 const HTML_NDA_FILEURL_PREFIX = "html:";
 
@@ -411,6 +413,7 @@ export async function signHtmlNda(data: {
   signatureData: string;
   signedByName: string;
   signedByEmail: string;
+  intentConfirmed: boolean;
 }) {
   const signingToken = await prisma.signingToken.findUnique({
     where: { token: data.token },
@@ -448,6 +451,15 @@ export async function signHtmlNda(data: {
   ) {
     throw new Error("Invalid signer details");
   }
+  // Mirrors signDocumentSchema's z.literal(true) in document-actions.ts —
+  // signHtmlNda validates its inputs manually rather than through a shared
+  // Zod object, but the intent-to-sign requirement (G8 / BW 3:15a) is the
+  // same, so it's checked the same strict way.
+  try {
+    z.literal(true).parse(data.intentConfirmed);
+  } catch {
+    throw new Error("Please confirm your intent to sign before submitting.");
+  }
 
   const doc = signingToken.document;
   if (doc.mimeType !== "text/html" || !doc.fileUrl.startsWith(HTML_NDA_FILEURL_PREFIX)) {
@@ -468,10 +480,11 @@ export async function signHtmlNda(data: {
   // them in every template.
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: doc.trackingId },
-    select: { asset: { select: { fieldDefaults: true } } },
+    select: { asset: { select: { title: true, fieldDefaults: true } } },
   });
   const assetDefaults =
     (tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {};
+  const assetTitle = tracking?.asset?.title ?? "";
 
   // Merge order (later overrides earlier):
   //   1. investor inputs (lowest)
@@ -512,6 +525,8 @@ export async function signHtmlNda(data: {
   const renderedHtml = renderTemplate(await sanitizeNdaHtml(template.htmlContent), merged);
   const signedHtml = injectSignature(renderedHtml, signatureImg);
 
+  const signedAt = new Date();
+
   try {
     await prisma.$transaction(async (tx) => {
       // Atomic claim — the where clause includes usedAt:null, so if a
@@ -528,12 +543,14 @@ export async function signHtmlNda(data: {
       where: { id: doc.id },
       data: {
         status: "SIGNED",
-        signedAt: new Date(),
+        signedAt,
         signedByName: data.signedByName,
         signedByEmail: data.signedByEmail,
         signatureData: data.signatureData,
         signerIp,
         signerUserAgent,
+        // data.intentConfirmed was checked as z.literal(true) above.
+        intentConfirmedAt: signedAt,
         fieldConfig: {
           values: merged,
           signedHtml,
@@ -594,6 +611,50 @@ export async function signHtmlNda(data: {
   // exact in-transaction call was what bricked PR #58.
   await syncCurrentStageKeyAfterCommit(doc.trackingId);
 
+  // Best-effort copy to the signer (G8 / BW 3:15a). HTML NDAs have no
+  // server-rendered PDF file to attach a signed-URL to — the "printable
+  // render path" (PrintableSignedNda) generates the PDF client-side on
+  // download — so the copy link is the authenticated portal viewer/download
+  // page rather than a 2h Supabase signed URL. Never blocks or undoes the
+  // signature — a mail failure here is logged only.
+  try {
+    const { sendEmail } = await import("@/lib/email");
+    const { renderEmail, renderCta, escapeHtml } = await import("@/lib/email-template");
+    const downloadUrl = `${getAppUrl()}/portal/signed-nda/${doc.id}?download=1`;
+    await sendEmail({
+      to: data.signedByEmail,
+      subject: `Your signed NDA — ${assetTitle}`,
+      category: "transactional",
+      html: renderEmail({
+        heading: "Your NDA is signed",
+        bodyHtml: `
+          <p style="color:#101820;line-height:1.6;font-size:14px;margin:0 0 16px 0;">
+            You've signed the NDA for <strong>${escapeHtml(assetTitle)}</strong>.
+            A signature certificate page recording the evidence of your
+            signature is included in the downloaded copy.
+          </p>
+          <p style="color:#101820;line-height:1.6;font-size:14px;margin:0 0 24px 0;">
+            View and download your signed copy anytime from the portal (login required).
+          </p>
+          ${renderCta("View signed NDA", downloadUrl)}
+        `,
+        meta: assetTitle || undefined,
+      }),
+      actor: null,
+    });
+    await prisma.activityLog.create({
+      data: {
+        entityType: "Document",
+        entityId: doc.id,
+        action: "SIGNED_COPY_SENT",
+        metadata: { trackingId: doc.trackingId },
+        userId: actor?.id ?? null,
+      },
+    });
+  } catch (emailErr) {
+    console.error(`[signHtmlNda] signed-copy email failed for doc ${doc.id}:`, emailErr);
+  }
+
   return { success: true };
 }
 
@@ -614,7 +675,20 @@ export async function getSignedHtmlNda(documentId: string) {
     where: { id: documentId },
     include: {
       tracking: {
-        select: { companyId: true, assetId: true, asset: { select: { title: true } } },
+        select: {
+          companyId: true,
+          assetId: true,
+          asset: { select: { title: true } },
+          company: { select: { name: true } },
+        },
+      },
+      // The token that was actually used to sign — for the certificate's
+      // "Signing token" row on the client-rendered PDF.
+      signingTokens: {
+        where: { usedAt: { not: null } },
+        orderBy: { usedAt: "desc" },
+        take: 1,
+        select: { id: true },
       },
     },
   });
@@ -669,9 +743,16 @@ export async function getSignedHtmlNda(documentId: string) {
     documentId: doc.id,
     assetId: doc.tracking.assetId,
     assetTitle: doc.tracking.asset.title,
+    companyName: showSignerIdentity ? doc.tracking.company.name : null,
     signedAt: doc.signedAt,
     signedByName: showSignerIdentity ? doc.signedByName : null,
     signedByEmail: showSignerIdentity ? doc.signedByEmail : null,
+    // Signature-certificate evidence (G8) — same VIEWER redaction as the
+    // signer identity fields above, since IP/UA are personal data too.
+    signerIp: showSignerIdentity ? doc.signerIp : null,
+    signerUserAgent: showSignerIdentity ? doc.signerUserAgent : null,
+    signingTokenId: showSignerIdentity ? (doc.signingTokens[0]?.id ?? null) : null,
+    intentConfirmedAt: showSignerIdentity ? doc.intentConfirmedAt : null,
     // Sanitise legacy signed copies on render (data:image signature is
     // preserved by sanitizeNdaHtml's URI allow-list).
     signedHtml: cfg?.signedHtml ? await sanitizeNdaHtml(cfg.signedHtml) : null,

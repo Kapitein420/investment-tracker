@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { formatCertTimestamp } from "@/lib/utils";
 
 export interface FieldPlacement {
   type: "signature" | "name" | "date";
@@ -259,6 +260,157 @@ export async function generateSignedPdf(
       }
     }
   }
+
+  return pdfDoc.save();
+}
+
+// ─── Signature certificate (G8 / BW 3:15a) ─────────────────────────────────
+
+export interface SignatureCertificateInfo {
+  documentTitle: string;
+  dealName: string;
+  companyName: string;
+  signerName: string;
+  signerEmail: string;
+  signedAt: Date;
+  signerIp: string | null;
+  signerUserAgent: string | null;
+  signingTokenId: string;
+  /** SHA-256 hex of the PDF bytes BEFORE this certificate page is appended. */
+  documentSha256: string;
+  intentConfirmedAt: Date;
+}
+
+const CERT_MARGIN = 50;
+const CERT_TITLE_SIZE = 16;
+const CERT_LABEL_SIZE = 8;
+const CERT_VALUE_SIZE = 10;
+const CERT_ROW_GAP = 16;
+
+/** Greedy line-wrap that also hard-splits a single token wider than
+ *  maxWidth (e.g. the 64-char SHA-256 hash, which has no spaces to wrap on). */
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let current = "";
+  const flush = () => {
+    if (current) lines.push(current);
+    current = "";
+  };
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    let remaining = word;
+    while (font.widthOfTextAtSize(remaining, size) > maxWidth) {
+      let cut = remaining.length;
+      while (cut > 1 && font.widthOfTextAtSize(remaining.slice(0, cut), size) > maxWidth) {
+        cut--;
+      }
+      flush();
+      lines.push(remaining.slice(0, cut));
+      remaining = remaining.slice(cut);
+    }
+    const candidate = current ? `${current} ${remaining}` : remaining;
+    if (font.widthOfTextAtSize(candidate, size) > maxWidth && current) {
+      flush();
+      current = remaining;
+    } else {
+      current = candidate;
+    }
+  }
+  flush();
+  return lines.length ? lines : [""];
+}
+
+/**
+ * Append a plain "Signature certificate" page to a signed PDF — the
+ * completion-certificate evidence BW 3:15a expects alongside the signature
+ * itself (compliance gap G8). Matches the last page's dimensions so the
+ * certificate doesn't look like a foreign insert.
+ *
+ * `documentSha256` must be computed over `pdfBytes` (i.e. BEFORE this call)
+ * — the certificate records the hash of the document it certifies, not of
+ * itself. The caller then re-hashes the RETURNED bytes for storage, so
+ * Document.pdfSha256 always matches what a downloader actually receives.
+ */
+export async function appendSignatureCertificatePage(
+  pdfBytes: Buffer | Uint8Array,
+  info: SignatureCertificateInfo
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const lastPage = pdfDoc.getPages().at(-1);
+  const { width, height } = lastPage ? lastPage.getSize() : { width: 595.28, height: 841.89 };
+  const page = pdfDoc.addPage([width, height]);
+  const contentWidth = width - CERT_MARGIN * 2;
+
+  let y = height - CERT_MARGIN - CERT_TITLE_SIZE;
+  page.drawText("Signature certificate", {
+    x: CERT_MARGIN,
+    y,
+    size: CERT_TITLE_SIZE,
+    font: fontBold,
+    color: rgb(0.06, 0.09, 0.13),
+  });
+  y -= 18;
+  page.drawLine({
+    start: { x: CERT_MARGIN, y },
+    end: { x: width - CERT_MARGIN, y },
+    thickness: 0.75,
+    color: rgb(0.85, 0.85, 0.85),
+  });
+  y -= 22;
+
+  const rows: Array<[string, string]> = [
+    ["Document", info.documentTitle],
+    ["Deal / asset", info.dealName],
+    ["Company", info.companyName],
+    ["Signer", `${info.signerName} <${info.signerEmail}>`],
+    ["Signed at", formatCertTimestamp(info.signedAt)],
+    ["Signer IP address", info.signerIp ?? "unavailable"],
+    ["Browser identifier", info.signerUserAgent ?? "unavailable"],
+    ["Signing token", info.signingTokenId],
+    ["Document SHA-256 (before this certificate page)", info.documentSha256],
+    ["Intent confirmed", `yes (${formatCertTimestamp(info.intentConfirmedAt)})`],
+  ];
+
+  for (const [label, value] of rows) {
+    page.drawText(label.toUpperCase(), {
+      x: CERT_MARGIN,
+      y,
+      size: CERT_LABEL_SIZE,
+      font,
+      color: rgb(0.45, 0.45, 0.45),
+    });
+    y -= CERT_LABEL_SIZE + 4;
+
+    for (const line of wrapText(value, fontBold, CERT_VALUE_SIZE, contentWidth)) {
+      page.drawText(line, {
+        x: CERT_MARGIN,
+        y,
+        size: CERT_VALUE_SIZE,
+        font: fontBold,
+        color: rgb(0.06, 0.09, 0.13),
+      });
+      y -= CERT_VALUE_SIZE + 4;
+    }
+    y -= CERT_ROW_GAP;
+  }
+
+  y -= 6;
+  page.drawLine({
+    start: { x: CERT_MARGIN, y },
+    end: { x: width - CERT_MARGIN, y },
+    thickness: 0.75,
+    color: rgb(0.85, 0.85, 0.85),
+  });
+  y -= 20;
+  page.drawText("Recorded by Dils Netherlands B.V. · Investor Portal", {
+    x: CERT_MARGIN,
+    y,
+    size: CERT_LABEL_SIZE,
+    font,
+    color: rgb(0.45, 0.45, 0.45),
+  });
 
   return pdfDoc.save();
 }

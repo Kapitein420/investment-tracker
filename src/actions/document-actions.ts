@@ -4,7 +4,12 @@ import { createHash, randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
 import { uploadFile, getSignedUrl, downloadFile, uploadBytes, deleteFile } from "@/lib/supabase-storage";
-import { generateSignedPdf, generateSignedPdfFromPlaceholders, type FieldPlacement } from "@/lib/pdf-signing";
+import {
+  generateSignedPdf,
+  generateSignedPdfFromPlaceholders,
+  appendSignatureCertificatePage,
+  type FieldPlacement,
+} from "@/lib/pdf-signing";
 import { scanPlaceholders } from "@/lib/pdf-placeholder-scan";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -56,8 +61,17 @@ async function renderAndUploadSignedPdf(args: {
   signedAt: Date;
   fieldValues: Record<string, string>;
   assetFieldDefaults: Record<string, string>;
+  /** Completion-certificate evidence appended to the final PDF (G8 / BW 3:15a). */
+  certificate: {
+    dealName: string;
+    companyName: string;
+    signerIp: string | null;
+    signerUserAgent: string | null;
+    signingTokenId: string;
+    intentConfirmedAt: Date;
+  };
 }): Promise<{ path: string; sha256: string }> {
-  const { doc, signatureData, signedByName, signedByEmail, signedAt, fieldValues, assetFieldDefaults } = args;
+  const { doc, signatureData, signedByName, signedByEmail, signedAt, fieldValues, assetFieldDefaults, certificate } = args;
   const pdfStart = Date.now();
   const originalPdfBytes = await downloadFile(doc.fileUrl);
 
@@ -102,9 +116,29 @@ async function renderAndUploadSignedPdf(args: {
     );
   }
 
+  // Append the completion-certificate page (G8 / BW 3:15a) before hashing.
+  // The certificate records the hash of the document it certifies — the
+  // pre-certificate bytes — and Document.pdfSha256 must cover exactly what
+  // a downloader receives, so the two hashes are computed either side of
+  // this call, never the same value.
+  const preCertSha256 = createHash("sha256").update(signedPdfBytes).digest("hex");
+  const finalPdfBytes = await appendSignatureCertificatePage(signedPdfBytes, {
+    documentTitle: doc.fileName,
+    dealName: certificate.dealName,
+    companyName: certificate.companyName,
+    signerName: signedByName,
+    signerEmail: signedByEmail,
+    signedAt,
+    signerIp: certificate.signerIp,
+    signerUserAgent: certificate.signerUserAgent,
+    signingTokenId: certificate.signingTokenId,
+    documentSha256: preCertSha256,
+    intentConfirmedAt: certificate.intentConfirmedAt,
+  });
+
   const signedPath = `documents/${doc.trackingId}/signed_${Date.now()}_${doc.fileName}`;
-  await uploadBytes(signedPdfBytes, signedPath, "application/pdf");
-  const sha256 = createHash("sha256").update(signedPdfBytes).digest("hex");
+  await uploadBytes(finalPdfBytes, signedPath, "application/pdf");
+  const sha256 = createHash("sha256").update(finalPdfBytes).digest("hex");
   console.log(
     `[renderAndUploadSignedPdf] generated in ${Date.now() - pdfStart}ms for doc ${doc.id}`
   );
@@ -124,7 +158,21 @@ async function ensureSignedPdf(documentId: string): Promise<string> {
   const doc = await prisma.document.findUniqueOrThrow({
     where: { id: documentId },
     include: {
-      tracking: { select: { asset: { select: { fieldDefaults: true } } } },
+      tracking: {
+        select: {
+          asset: { select: { title: true, fieldDefaults: true } },
+          company: { select: { name: true } },
+        },
+      },
+      // The token that was actually used to sign, for the certificate's
+      // "Signing token" row — a doc can carry stale unused tokens (re-issued
+      // links) so filter down to the one that was consumed.
+      signingTokens: {
+        where: { usedAt: { not: null } },
+        orderBy: { usedAt: "desc" },
+        take: 1,
+        select: { id: true },
+      },
     },
   });
 
@@ -156,6 +204,18 @@ async function ensureSignedPdf(documentId: string): Promise<string> {
     fieldValues: persistedValues,
     assetFieldDefaults:
       ((doc.tracking?.asset?.fieldDefaults as Record<string, string> | null) ?? {}),
+    certificate: {
+      dealName: doc.tracking?.asset?.title ?? "",
+      companyName: doc.tracking?.company?.name ?? "",
+      signerIp: doc.signerIp,
+      signerUserAgent: doc.signerUserAgent,
+      signingTokenId: doc.signingTokens[0]?.id ?? "unknown",
+      // Lazy regen only runs for a doc that's already SIGNED — intent was
+      // confirmed at sign time (or predates the G8 checkbox), so fall back
+      // to signedAt rather than claim a confirmation moment that never
+      // happened.
+      intentConfirmedAt: doc.intentConfirmedAt ?? doc.signedAt,
+    },
   });
 
   // Race-safe: if another concurrent call already stored a path, this
@@ -934,6 +994,7 @@ export async function signDocument(data: {
   signedByEmail: string;
   signatureData: string;
   fieldValues?: Record<string, string>;
+  intentConfirmed: boolean;
 }) {
   const validated = signDocumentSchema.parse(data);
 
@@ -946,7 +1007,10 @@ export async function signDocument(data: {
       document: {
         include: {
           tracking: {
-            select: { asset: { select: { fieldDefaults: true } } },
+            select: {
+              asset: { select: { title: true, fieldDefaults: true } },
+              company: { select: { name: true } },
+            },
           },
         },
       },
@@ -1020,6 +1084,8 @@ export async function signDocument(data: {
         signatureData: validated.signatureData,
         signerIp,
         signerUserAgent,
+        // validated.intentConfirmed is z.literal(true) — always true here.
+        intentConfirmedAt: signedAt,
         // signedFileUrl filled by post-commit gen (or lazy regen)
         // For PLACEHOLDER docs only: stash the merged values so lazy
         // regen can reproduce the PDF. fieldConfig is unused for
@@ -1100,6 +1166,14 @@ export async function signDocument(data: {
       signedAt,
       fieldValues: validated.fieldValues ?? {},
       assetFieldDefaults,
+      certificate: {
+        dealName: document.tracking?.asset?.title ?? "",
+        companyName: document.tracking?.company?.name ?? "",
+        signerIp,
+        signerUserAgent,
+        signingTokenId: token.id,
+        intentConfirmedAt: signedAt,
+      },
     });
     // Race-safe write — only fill in if still null (won't clobber a lazy
     // regen that already raced ahead, although under normal circumstances
@@ -1108,6 +1182,49 @@ export async function signDocument(data: {
       where: { id: document.id, signedFileUrl: null },
       data: { signedFileUrl: signedPath, pdfSha256: sha256 },
     });
+
+    // Best-effort copy to the signer (G8 / BW 3:15a: the signer holds an
+    // independent copy, not just a portal record). Never blocks or undoes
+    // the signature — a mail failure here is logged only.
+    try {
+      const downloadUrl = await getSignedUrl(signedPath, 7200);
+      const { sendEmail } = await import("@/lib/email");
+      const { renderEmail, renderCta, escapeHtml } = await import("@/lib/email-template");
+      const assetTitle = document.tracking?.asset?.title ?? "";
+      await sendEmail({
+        to: validated.signedByEmail,
+        subject: `Your signed ${document.fileName}`,
+        category: "transactional",
+        html: renderEmail({
+          heading: "Your document is signed",
+          bodyHtml: `
+            <p style="color:#101820;line-height:1.6;font-size:14px;margin:0 0 16px 0;">
+              You've signed <strong>${escapeHtml(document.fileName)}</strong>${
+            assetTitle ? ` for ${escapeHtml(assetTitle)}` : ""
+          }. A signature certificate page recording the evidence of your
+              signature has been added to the document.
+            </p>
+            <p style="color:#101820;line-height:1.6;font-size:14px;margin:0 0 24px 0;">
+              This link expires in 2 hours; you can always re-download from the portal.
+            </p>
+            ${renderCta("Download signed document", downloadUrl)}
+          `,
+          meta: assetTitle || undefined,
+        }),
+        actor: null,
+      });
+      await prisma.activityLog.create({
+        data: {
+          entityType: "Document",
+          entityId: document.id,
+          action: "SIGNED_COPY_SENT",
+          metadata: { trackingId: document.trackingId },
+          userId: actor?.id ?? null,
+        },
+      });
+    } catch (emailErr) {
+      console.error(`[signDocument] signed-copy email failed for doc ${document.id}:`, emailErr);
+    }
   } catch (e) {
     console.error(
       `[signDocument] post-commit PDF render failed for doc ${document.id} — will regen on first download:`,

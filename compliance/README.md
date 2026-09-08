@@ -38,6 +38,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | NCSC coordinated vulnerability disclosure | `security.txt` + reporting policy | `public/.well-known/security.txt`, `.github/SECURITY.md` |
 | Art. 13/14 | In-app `/privacy` notice + shared `PrivacyNotice` component + `CompanyContact.source`/`collectedAt` | `src/components/privacy-notice.tsx` |
 | Wwft Art. 3/33 | Buyer-side CDD attestation + NBO soft-gate warning | `src/actions/cdd-actions.ts`, `src/lib/validators.ts`, `src/actions/tracking-actions.ts`, `src/components/asset/tracking-detail-drawer.tsx` |
+| BW 3:15a / eIDAS | Signature certificate page, signer copy email, intent confirmation checkbox | `src/lib/pdf-signing.ts`, `src/actions/document-actions.ts`, `src/actions/html-nda-actions.ts`, `src/components/investor/printable-signed-nda.tsx`, `src/components/signing/*` |
 
 ## Open ops / human actions (cannot be done in code)
 
