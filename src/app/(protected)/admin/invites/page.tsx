@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { InvitesAdmin, type InviteEvents } from "@/components/admin/invites-admin";
 import { normalise } from "@/lib/email-tracking";
+import { TERMS_VERSION } from "@/lib/terms";
 
 export default async function AdminInvitesPage() {
   const user = await getCurrentUser();
@@ -30,6 +31,20 @@ export default async function AdminInvitesPage() {
       createdAt: true,
     },
   });
+
+  // Terms-of-use acceptance (G13) — one query for the whole page rather
+  // than N+1 per investor row. investorUsers is already the full INVESTOR
+  // list above; this just narrows it to who has accepted the current
+  // version (see components/admin/invites-admin.tsx "Terms" indicator).
+  const investorUserIds = investorUsers.map((u) => u.id);
+  const termsAcceptances =
+    investorUserIds.length === 0
+      ? []
+      : await prisma.termsAcceptance.findMany({
+          where: { userId: { in: investorUserIds }, termsVersion: TERMS_VERSION },
+          select: { userId: true },
+        });
+  const termsAcceptedUserIds = termsAcceptances.map((t) => t.userId);
 
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
@@ -141,6 +156,8 @@ export default async function AdminInvitesPage() {
       inviteEvents={inviteEvents}
       suppressedEmails={suppressedEmails}
       trackingConsentEmails={trackingConsentEmails}
+      termsAcceptedUserIds={termsAcceptedUserIds}
+      termsVersion={TERMS_VERSION}
     />
   );
 }

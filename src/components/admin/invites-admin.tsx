@@ -127,6 +127,8 @@ export function InvitesAdmin({
   inviteEvents = {},
   suppressedEmails = [],
   trackingConsentEmails = [],
+  termsAcceptedUserIds = [],
+  termsVersion,
 }: {
   invites: InviteRow[];
   investorUsers: InvestorUser[];
@@ -137,9 +139,15 @@ export function InvitesAdmin({
   suppressedEmails?: string[];
   /** Normalised (trimmed+lowercased) emails with active tracking consent. */
   trackingConsentEmails?: string[];
+  /** IDs of investorUsers who accepted `termsVersion` — drives the "Terms" chip (G13). */
+  termsAcceptedUserIds?: string[];
+  /** lib/terms.ts TERMS_VERSION — passed in rather than imported, since that module pulls
+   *  in Prisma and this is a client component. */
+  termsVersion?: string;
 }) {
   const suppressedSet = useMemo(() => new Set(suppressedEmails), [suppressedEmails]);
   const trackingConsentSet = useMemo(() => new Set(trackingConsentEmails), [trackingConsentEmails]);
+  const termsAcceptedSet = useMemo(() => new Set(termsAcceptedUserIds), [termsAcceptedUserIds]);
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyId, setCompanyId] = useState("");
@@ -409,19 +417,39 @@ export function InvitesAdmin({
                         <Badge className="bg-dils-100 text-dils-600 border-0 text-xs">
                           No account
                         </Badge>
-                      ) : group.account.isActive ? (
-                        <div className="space-y-0.5">
-                          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
-                            <Check className="mr-1 h-3 w-3" />Active
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground/70">
-                            Since {formatDate(group.account.createdAt)}
-                          </p>
-                        </div>
                       ) : (
-                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
-                          <X className="mr-1 h-3 w-3" />Deactivated
-                        </Badge>
+                        <div className="space-y-1">
+                          {group.account.isActive ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                              <Check className="mr-1 h-3 w-3" />Active
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+                              <X className="mr-1 h-3 w-3" />Deactivated
+                            </Badge>
+                          )}
+                          {group.account.isActive && (
+                            <p className="text-[10px] text-muted-foreground/70">
+                              Since {formatDate(group.account.createdAt)}
+                            </p>
+                          )}
+                          {/* Terms-of-use click-accept evidence (G13) */}
+                          {termsAcceptedSet.has(group.account.id) ? (
+                            <Badge
+                              className="bg-emerald-50 text-emerald-700 border-0 text-[10px]"
+                              title={`Accepted the DILS general terms, version ${termsVersion}`}
+                            >
+                              Terms ✓ {termsVersion}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              className="bg-dils-100 text-dils-600 border-0 text-[10px]"
+                              title="Has not yet accepted the current DILS general terms"
+                            >
+                              Terms —
+                            </Badge>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">

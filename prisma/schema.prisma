@@ -105,6 +105,7 @@ model User {
   grantedViewerAccess AssetViewerAccess[]     @relation("ViewerAccessGranter")
   passwordSetTokens   PasswordSetToken[]
   cddCleared          Company[]               @relation("CompanyCddClearer")
+  termsAcceptances    TermsAcceptance[]
 }
 
 // ─── 1c. PasswordSetToken ───────────────────────────────────────────────────
@@ -575,4 +576,24 @@ model EmailTrackingConsent {
   ip            String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+// ─── 17. TermsAcceptance ─────────────────────────────────────────────────
+// BW 6:234 click-accept evidence (G13): general terms must be presented
+// before contracting and stay retrievable — a click-accept on first login is
+// routine and binding on business users. termsVersion pins the accepted text
+// (src/lib/terms.ts TERMS_VERSION) so a future revision asks again without
+// touching old rows; the unique pair means re-accepting the same version is
+// a no-op upsert rather than a growing log.
+model TermsAcceptance {
+  id           String   @id @default(cuid())
+  userId       String
+  termsVersion String
+  acceptedAt   DateTime @default(now())
+  ip           String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, termsVersion])
 }
