@@ -1,5 +1,7 @@
 # Code fact sheet — Investment Tracker (for legal mapping)
 
+**Superseded in part on 2026-09-07 — see §14.**
+
 Generated 2026-09-07 against `master` @ `6017154`. Every fact carries a `path:line` reference so a lawyer or engineer can verify it. "NOT FOUND" is a deliberate output: it means the feature or control does not exist in the codebase. This sheet is the evidence base for [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md).
 
 Stack: Next.js 16 App Router, NextAuth 4 (JWT / credentials), Prisma 6 + PostgreSQL (Supabase), Supabase Storage, Mailgun (EU endpoint), optional Upstash Redis. Controller named in-app: "DILS Group B.V." (`src/components/signing/signing-page.tsx:342`) vs "Dils Netherlands B.V." in `compliance/README.md` — **inconsistent controller identity**.
@@ -236,3 +238,29 @@ Retention schedule proposes: SigningToken 30 d after expiry; unaccepted Investor
 **Applies cleanly:** `git merge-tree --write-tree master claude/trusting-elion-63a5ed` → exit 0, zero conflicts. Master changes since June (`cea9a21`, `45c2d80`, `0f999bd`) do not collide with the branch hunks.
 
 **Still NOT FOUND after the merge:** signature-time IP/UA capture; PDF hash; completion certificate; copy-to-signer; consent checkbox; email tracking controls; unsubscribe / `List-Unsubscribe`; document download logging; MFA (plan only); account lockout; reset-token flow; self-service export/erasure/rectification; true anonymisation on removal; `security.txt`/VDP; scheduled purge; Vercel region pinning; the unguarded timeline page; misattributed actor on `DOCUMENT_SIGNED`/`HTML_NDA_SIGNED`.
+
+---
+
+## 14. Changes since `6017154`
+
+Re-checked against `origin/master` (head `c52527c` at verification time, 2026-09-07 evening) with `grep`/`sed -n` — not copied from any PR description. Section numbers below match §1–§13 above; a section not listed here is unchanged from the original sheet.
+
+**§2 (signing evidence).** IP/UA and a PDF hash are now captured and persisted: `Document.signerIp`, `Document.signerUserAgent` (`prisma/schema.prisma:454-455`), `Document.pdfSha256` (`prisma/schema.prisma:458`); computed at `src/actions/document-actions.ts:976-977` (PDF flow) and `:1171-1172,1181` (HTML-NDA flow), stored at `:1021-1022` / `:1200-1202`. Still NOT FOUND: completion certificate, copy-to-signer email, consent/intent checkbox — grep for these terms across `src/actions/document-actions.ts` and the signing components returns nothing.
+
+**§3 (audit log).** `ActivityLog.userId` is now nullable — `userId String?` (`prisma/schema.prisma:407`) — removing the structural reason signing events had to be attributed to the uploading admin. A new action type, `DOCUMENT_ACCESSED`, is now logged for every role (not just INVESTOR): `src/actions/document-actions.ts:672`, `src/actions/html-nda-actions.ts:655`, `src/actions/content-actions.ts:279` (alongside the pre-existing `CONTENT_ACCESSED` at `:264,:320`). The previously-unguarded timeline page (`src/app/(protected)/assets/[id]/timeline/[trackingId]/page.tsx`) now delegates to `loadTrackingTimeline`, which calls `requireAssetAccess` (`src/lib/timeline.ts:25`) and gates staff-identity visibility with `canSeeContactDetails` (`src/lib/timeline.ts:62`).
+
+**§4 (portal texts).** A shared `<PrivacyNotice>` component exists (`src/components/privacy-notice.tsx`, 63 lines) and is rendered on `src/app/login/page.tsx`, `src/app/forgot-password/page.tsx`, `src/app/request-access/page.tsx`, `src/components/investor/signing-modal.tsx`, `src/components/signing/html-nda-signing-page.tsx` and `src/components/signing/signing-page.tsx` — closing the "no privacy link on these pages" gap. A new route `src/app/privacy/page.tsx` names the correct controller: "Controller: Dils Netherlands B.V. · KvK 33.180.131 ·" (`:45`). The investor-portal footer no longer carries the Italian VAT number — `src/components/investor/investor-shell.tsx:56` now reads "© {year} Dils Netherlands B.V. · KvK 33180131", with a "Portal privacy notice" link to `/privacy` (`:67-72`) and a "Preferences" link to `/portal/preferences` (`:73-78`) added alongside the pre-existing external links.
+
+**§5 (email).** `o:tracking`, `o:tracking-opens` and `o:tracking-clicks` are now sent on every send, gated per-recipient by consent: `src/lib/email.ts:108-110` calls `hasTrackingConsent` and applies `trackingOptions()` (`src/lib/email-tracking.ts:66-70`), defaulting to `no`. `h:List-Unsubscribe` / `h:List-Unsubscribe-Post` headers are sent on every message (`src/lib/email.ts:99-100`). Two new models back this: `EmailSuppression` (`prisma/schema.prisma:547-553`) and `EmailTrackingConsent` (`prisma/schema.prisma:563-575`, includes `noticeVersion`, `source`, `ip`, `grantedAt`/`revokedAt`). Unsubscribe logic lives in `src/lib/unsubscribe.ts`.
+
+**§7 (access control & security).** One-time set-password links replace emailed plaintext passwords: `PasswordSetToken` model (`prisma/schema.prisma:117-132`, stores only a SHA-256 `tokenHash`) plus `src/lib/set-password-actions.ts`. Account lockout is now implemented: `User.failedLoginCount` / `User.lockedUntil` (`prisma/schema.prisma:87-88`) plus decision logic in `src/lib/login-lockout.ts` (15-minute lock). MFA/2FA/WebAuthn: unchanged — still NOT FOUND (grep for `totp|mfa|2fa|webauthn|authenticator` across `src/**/*.ts(x)` still returns zero real hits; `compliance/mfa-implementation-plan.md` remains a plan only). The timeline-page guard is covered under §3 above.
+
+**§8 (data-subject rights).** Unchanged — `exportUserData` (`src/actions/data-export-actions.ts:18-19`) is still gated `requireRole("ADMIN")`, with no self-service caller anywhere in `src/app`. Self-service erasure and rectification: still NOT FOUND (no route or action beyond the investor's own password change).
+
+**§9 (CSV import / bulk).** `CompanyContact` gained `source` and `collectedAt` columns (`prisma/schema.prisma:275-276`), addressing the "no source/provenance column" gap — a comment at `:271-274` documents the Art. 14(1)(f) rationale and the known `source` values (`CSV_IMPORT`, `STAFF`, `SELF`, `BROKER_LIST`). Whether every ingestion path (`bulkInviteInvestors`, the reimport/backfill scripts, `/request-access`) actually populates it was not re-verified line-by-line in this pass.
+
+**§11 (env / regions).** `vercel.json` now exists (previously NOT FOUND): `"regions": ["fra1"]` (`vercel.json:2`) pins Vercel functions to Frankfurt, and a `crons` entry (`:3-8`) schedules `/api/cron/purge` at `30 3 * * *` UTC, backed by `src/app/api/cron/purge/route.ts` (auth via `CRON_SECRET`, `:35`; dry-run unless `PURGE_ENABLED=true`, `:41`). Upstash region: unchanged, still NOT FOUND in `.env.example` or `src/lib/rate-limit.ts`.
+
+**§12 (tests / CI).** `public/.well-known/security.txt` now exists (previously NOT FOUND), 4 lines, contact `mailto:privacy.netherlands@dils.com`, `Expires: 2027-09-07`, `Canonical: https://www.dils-investorportal.nl/.well-known/security.txt`. A `.github/SECURITY.md` was also added. SAST/CodeQL, secret scanning, DAST, coverage gate, SBOM: unchanged, still NOT FOUND in `.github/workflows/ci.yml`.
+
+**Not re-verified in this pass:** §1 data-inventory deletion paths beyond `removeInvestor` (see gap analysis §9 G3); §6 cookies/third parties; §10 AI; §13 branch-merge mechanics (the branch is now merged, superseding that section's premise — see §1 above and gap analysis §9 G1).

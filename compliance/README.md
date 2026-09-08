@@ -15,8 +15,8 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | 5 | [lawful-basis-and-LIA.md](lawful-basis-and-LIA.md) | Art. 6 | ⚖️ Draft → legal review |
 | 6 | [data-breach-response-runbook.md](data-breach-response-runbook.md) | Art. 33–34 | ✅ Draft (adopt) |
 | 7 | [data-subject-request-procedure.md](data-subject-request-procedure.md) | Art. 12–22 | ✅ Draft (adopt) |
-| 8 | [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md) | All regimes beyond GDPR (Telecommunicatiewet, Wwft, e-sign, trade secrets, WOR, retention) + 15 ranked gaps | 📋 Research (Sept 2026) → prioritise G1–G7 |
-| 9 | [code-fact-sheet-2026-09.md](code-fact-sheet-2026-09.md) | Evidence base with path:line refs and explicit NOT FOUND items | 📋 Re-check per remediation |
+| 8 | [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md) | All regimes beyond GDPR (Telecommunicatiewet, Wwft, e-sign, trade secrets, WOR, retention) + 15 ranked gaps | 📋 Research (Sept 2026) → §9 status table |
+| 9 | [code-fact-sheet-2026-09.md](code-fact-sheet-2026-09.md) | Evidence base with path:line refs and explicit NOT FOUND items | 📋 Evidence (partly superseded, see §14) |
 | 10 | [dpia-screening-staff-audit-log.md](dpia-screening-staff-audit-log.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
 | 11 | [dpia-screening-investor-portal.md](dpia-screening-investor-portal.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
 | 12 | [staff-monitoring-protocol.md](staff-monitoring-protocol.md) | WOR art. 27 lid 1 k+l; AP OR-privacyboekje | 📋 Draft → Noah/OR |
