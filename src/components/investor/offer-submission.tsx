@@ -18,6 +18,7 @@ import { submitInvestorOffer } from "@/actions/portal-actions";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { openInNewTab } from "@/lib/open-in-new-tab";
 import { formatBid, formatDate } from "@/lib/utils";
+import { PrivacyNotice } from "@/components/privacy-notice";
 
 // Mirrors the admin OfferSection's currency list — the same three the
 // bidCurrency column is written with anywhere else in the app.
@@ -32,6 +33,8 @@ interface OfferSubmissionProps {
   offerDocument: { id: string; fileName: string } | null;
   /** NBO stage is COMPLETED — the deal team has closed it. */
   locked: boolean;
+  /** Shown in the attestation checkbox label. */
+  companyName: string;
 }
 
 export function OfferSubmission({
@@ -41,6 +44,7 @@ export function OfferSubmission({
   bidSubmittedAt,
   offerDocument,
   locked,
+  companyName,
 }: OfferSubmissionProps) {
   const router = useRouter();
   const hasOffer = bidAmount != null && String(bidAmount).trim() !== "";
@@ -49,6 +53,7 @@ export function OfferSubmission({
   const [amount, setAmount] = useState(hasOffer ? String(bidAmount) : "");
   const [currency, setCurrency] = useState(bidCurrency ?? "EUR");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [attested, setAttested] = useState(false);
   const [submitting, startSubmit] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +70,9 @@ export function OfferSubmission({
       return;
     }
     setFileName(file.name);
+    // Don't carry a confirmation over to a file the investor hasn't
+    // reviewed yet — re-tick per file.
+    setAttested(false);
   }
 
   function handleSubmit() {
@@ -73,7 +81,10 @@ export function OfferSubmission({
     fd.append("trackingId", trackingId);
     fd.append("amount", amount.trim());
     fd.append("currency", currency);
-    if (file) fd.append("file", file);
+    if (file) {
+      fd.append("file", file);
+      fd.append("attestation", attested ? "true" : "false");
+    }
 
     startSubmit(async () => {
       try {
@@ -85,6 +96,7 @@ export function OfferSubmission({
         toast.success("Offer submitted. The deal team has been notified.");
         setEditing(false);
         setFileName(null);
+        setAttested(false);
         if (fileRef.current) fileRef.current.value = "";
         router.refresh();
       } catch (e: any) {
@@ -235,13 +247,27 @@ export function OfferSubmission({
                 </span>
               )}
             </div>
+            {fileName && (
+              <label className="mt-2.5 flex items-start gap-2.5 rounded-md border border-dils-200 bg-dils-50/40 p-3 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={attested}
+                  onChange={(e) => setAttested(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span className="text-xs leading-relaxed text-foreground">
+                  This is our signed, binding offer letter and I have authority to submit
+                  it on behalf of {companyName}.
+                </span>
+              </label>
+            )}
           </div>
         </div>
 
         <div className="mt-4 flex items-center gap-2">
           <Button
             className="bg-banner-info-foreground text-white hover:bg-banner-info-foreground/90"
-            disabled={submitting || amount.trim() === ""}
+            disabled={submitting || amount.trim() === "" || (!!fileName && !attested)}
             onClick={handleSubmit}
           >
             {submitting ? "Submitting…" : hasOffer ? "Submit revision" : "Submit offer"}
@@ -255,6 +281,7 @@ export function OfferSubmission({
                 setAmount(String(bidAmount));
                 setCurrency(bidCurrency ?? "EUR");
                 setFileName(null);
+                setAttested(false);
                 if (fileRef.current) fileRef.current.value = "";
               }}
             >
@@ -266,6 +293,9 @@ export function OfferSubmission({
           <Mail className="h-3 w-3" strokeWidth={2} />
           Sends an email to the deal team
         </p>
+        <div className="mt-3">
+          <PrivacyNotice variant="compact" />
+        </div>
       </div>
     </div>
   );

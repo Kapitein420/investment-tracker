@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { uploadFile, deleteFile } from "@/lib/supabase-storage";
 
@@ -92,6 +93,20 @@ export async function replaceOfferDocument(args: {
   /** Extra metadata merged into the ActivityLog entry. */
   metadata?: Record<string, unknown>;
   extraWrites?: (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => Promise<void>;
+  // BW 3:15a (G8) evidence — mirrors uploadInvestorNda's evidence set so an
+  // uploaded offer letter carries the same proof as an uploaded NDA. The
+  // offer letter is signed OUTSIDE the app (by the investor, offline), so
+  // there's no in-app signature to certify — these fields just record who
+  // submitted the file and under what circumstances, not that Dils
+  // witnessed a signature.
+  signedByName?: string | null;
+  signedByEmail?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  /** Set only when the submitter ticked an attestation checkbox; null for a
+   * staff-side upload — a staff member recording a letter is not the
+   * investor attesting to it. */
+  attestedAt?: Date | null;
 }) {
   const {
     trackingId,
@@ -104,6 +119,11 @@ export async function replaceOfferDocument(args: {
     action,
     metadata,
     extraWrites,
+    signedByName,
+    signedByEmail,
+    ip,
+    userAgent,
+    attestedAt,
   } = args;
 
   const safeName = (fileName || "offer.pdf").replace(/[^\w.\-]/g, "_");
@@ -140,6 +160,12 @@ export async function replaceOfferDocument(args: {
           // status stays PENDING (the existing DocumentStatus enum has no
           // "REFERENCE"-style value); downstream code keys off `kind`,
           // not `status`, for offer docs.
+          pdfSha256: createHash("sha256").update(buffer).digest("hex"),
+          signedByName: signedByName ?? null,
+          signedByEmail: signedByEmail ?? null,
+          signerIp: ip ?? null,
+          signerUserAgent: userAgent ?? null,
+          intentConfirmedAt: attestedAt ?? null,
         },
       });
 

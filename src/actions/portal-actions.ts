@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
@@ -10,19 +11,9 @@ import {
   resolveOfferStageId,
   replaceOfferDocument,
 } from "@/lib/offer-document";
-import { z } from "zod";
-
-// Offer amounts are stored as Decimal(14,2) — cap the input below that so a
-// fat-fingered figure fails validation instead of a Postgres numeric overflow.
-const MAX_BID = 999_999_999_999;
-
-const submitOfferSchema = z.object({
-  amount: z.coerce
-    .number({ invalid_type_error: "Enter a valid amount" })
-    .positive("Enter an amount greater than zero")
-    .max(MAX_BID, "That amount looks too large — check the figure"),
-  currency: z.enum(["EUR", "USD", "GBP"]),
-});
+import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
+import { getSignedUrl } from "@/lib/supabase-storage";
+import { submitOfferSchema } from "@/lib/validators";
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -532,9 +523,16 @@ export async function submitInvestorOffer(
   const trackingId = (formData.get("trackingId") as string | null) ?? "";
   if (!trackingId) return { ok: false, error: "Missing deal reference" };
 
+  // Read the file up front — the schema needs to know whether one is
+  // attached to decide if attestation is required.
+  const file = formData.get("file") as File | null;
+  const hasNewFile = !!file && file.size > 0;
+
   const parsed = submitOfferSchema.safeParse({
     amount: formData.get("amount"),
     currency: formData.get("currency"),
+    hasFile: hasNewFile,
+    attestation: formData.get("attestation") === "true",
   });
   if (!parsed.success) {
     return {
@@ -592,9 +590,7 @@ export async function submitInvestorOffer(
   // The PDF is optional throughout — an investor can record an indicative
   // figure now and attach the signed letter on a later submission. Omitting
   // it on a re-submit keeps whatever is already on file rather than
-  // clearing it.
-  const file = formData.get("file") as File | null;
-  const hasNewFile = !!file && file.size > 0;
+  // clearing it. (file / hasNewFile read above, ahead of schema validation.)
   const existingOffer = hasNewFile
     ? null
     : await prisma.document.findFirst({
@@ -605,6 +601,10 @@ export async function submitInvestorOffer(
   const oldBid =
     tracking.bidAmount == null ? null : tracking.bidAmount.toString();
   const submittedAt = new Date();
+  // Set below, before the transaction, when a file is attached — read by
+  // writeBid's OFFER_SUBMITTED log so the hash lands in the same audit
+  // entry as the bid, not just on the Document row.
+  let offerFileSha256: string | null = null;
 
   // Shared with the document path below so a submission carrying a PDF
   // commits the bid and the document in a single transaction.
@@ -660,16 +660,19 @@ export async function submitInvestorOffer(
           companyName: tracking.company.name,
           amount: String(amount),
           currency,
+          ...(offerFileSha256 ? { pdfSha256: offerFileSha256 } : {}),
         },
         userId: user.id,
       },
     });
   };
 
+  let offerDoc: Awaited<ReturnType<typeof replaceOfferDocument>> | null = null;
   if (hasNewFile) {
     const buffer = await readOfferPdf(file!);
+    offerFileSha256 = createHash("sha256").update(buffer).digest("hex");
     const stageId = await resolveOfferStageId(trackingId);
-    await replaceOfferDocument({
+    offerDoc = await replaceOfferDocument({
       trackingId,
       stageId,
       buffer,
@@ -680,6 +683,11 @@ export async function submitInvestorOffer(
       action: "OFFER_DOCUMENT_SUBMITTED",
       metadata: { amount: String(amount), currency, source: "investor" },
       extraWrites: writeBid,
+      signedByName: user.name,
+      signedByEmail: user.email,
+      ip: await getClientIp(),
+      userAgent: await getClientUserAgent(),
+      attestedAt: submittedAt,
     });
   } else {
     await prisma.$transaction(writeBid);
@@ -695,7 +703,96 @@ export async function submitInvestorOffer(
     letter: hasNewFile ? "new" : existingOffer ? "existing" : "none",
   });
 
+  if (offerDoc) {
+    await sendOfferReceipt({
+      userId: user.id,
+      toEmail: user.email,
+      assetTitle: tracking.asset.title,
+      amount,
+      currency,
+      fileName: file!.name,
+      pdfSha256: offerDoc.pdfSha256,
+      submittedAt,
+      document: offerDoc,
+    });
+  }
+
   return { ok: true };
+}
+
+/**
+ * Best-effort receipt to the investor who submitted a signed offer letter
+ * (G8 / BW 3:15a: the submitter holds an independent copy, not just a
+ * portal record — same rationale as signDocument's signed-copy email).
+ * Never blocks or undoes the submission; a mail failure is logged only.
+ */
+async function sendOfferReceipt(args: {
+  userId: string;
+  toEmail: string;
+  assetTitle: string;
+  amount: number;
+  currency: string;
+  fileName: string;
+  pdfSha256: string | null;
+  submittedAt: Date;
+  document: { id: string; fileUrl: string };
+}): Promise<void> {
+  const { userId, toEmail, assetTitle, amount, currency, fileName, pdfSha256, submittedAt, document } =
+    args;
+
+  try {
+    const formatted = new Intl.NumberFormat("nl-NL", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+    const submittedAtAmsterdam = `${new Intl.DateTimeFormat("en-GB", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Europe/Amsterdam",
+    }).format(submittedAt)} (Europe/Amsterdam)`;
+    const downloadUrl = await getSignedUrl(document.fileUrl, 7200);
+
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
+        <h2 style="font-size:18px; margin:0 0 12px;">Your offer has been received</h2>
+        <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+          We've received your offer for <strong>${escapeHtml(assetTitle)}</strong>, including
+          your uploaded offer letter.
+        </p>
+        <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer</td><td><strong>${escapeHtml(formatted)}</strong></td></tr>
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">File</td><td>${escapeHtml(fileName)}</td></tr>
+          ${pdfSha256 ? `<tr><td style="padding:2px 12px 2px 0; color:#6B7280;">SHA-256</td><td style="font-family:monospace; font-size:11px;">${escapeHtml(pdfSha256)}</td></tr>` : ""}
+          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Submitted</td><td>${escapeHtml(submittedAtAmsterdam)}</td></tr>
+        </table>
+        <p style="font-size:13px; line-height:1.55; margin:0 0 12px;">
+          <a href="${downloadUrl}" style="color:#1D4ED8;">Download your offer letter</a>
+          — this link expires in 2 hours; the portal keeps a copy you can reach anytime from
+          the deal page.
+        </p>
+      </div>
+    `.trim();
+
+    await sendEmail({
+      to: toEmail,
+      subject: `Your offer for ${assetTitle} has been received`,
+      category: "transactional",
+      html,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        entityType: "Document",
+        entityId: document.id,
+        action: "OFFER_RECEIPT_SENT",
+        metadata: { toEmail },
+        userId,
+      },
+    });
+  } catch (e) {
+    console.error(`[submitInvestorOffer] receipt email failed for doc ${document.id}:`, e);
+  }
 }
 
 /**
