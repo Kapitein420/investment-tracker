@@ -149,11 +149,11 @@ Sender `src/lib/email.ts`. Endpoint default `https://api.eu.mailgun.net/v3` (`:4
 
 ## 7. Access control & security
 
-Roles `prisma/schema.prisma:10-15`: `ADMIN`, `EDITOR`, `VIEWER`, `INVESTOR`. Hierarchy `src/lib/permissions.ts:20-25`; `canSeeContactDetails` :60-62 (VIEWER excluded); `getViewerAccessibleAssetIds` :77-106 (fails closed); `requireAssetAccess` :114-127. Route gating `src/proxy.ts:31-56`. Tests `src/lib/permissions.test.ts`.
+Roles `prisma/schema.prisma:10-15`: `ADMIN`, `EDITOR`, `VIEWER`, `INVESTOR`. Hierarchy `src/lib/permissions.ts:20-25`; `canSeeContactDetails` :60-62 (VIEWER excluded); `getViewerAccessibleAssetIds` :77-106 (fails closed); `requireAssetAccess` :114-127. Route gating `src/proxy.ts:54-79`. Tests `src/lib/permissions.test.ts`.
 
 **MFA / 2FA / WebAuthn: NOT FOUND** (grep `totp|mfa|2fa|otp|webauthn|authenticator` → zero real hits). Single-factor for all roles incl. ADMIN.
 
-**Password policy:** admin-created users min 6 chars (`src/lib/validators.ts:96`); self-change min 10 chars, no complexity by design (`src/actions/change-password-actions.ts:12, :35-37`); system-issued 16 chars via `crypto.randomInt` (`src/lib/security.ts:21-28`). Breach/HIBP check, history, rotation: NOT FOUND. Hashing bcrypt cost 12 (`src/lib/security.ts:9`). Force-change-on-first-login exists but OFF by default (`src/proxy.ts:19-29`).
+**Password policy:** admin-created users min 6 chars (`src/lib/validators.ts:96`); self-change min 10 chars, no complexity by design (`src/actions/change-password-actions.ts:12, :35-37`); system-issued 16 chars via `crypto.randomInt` (`src/lib/security.ts:21-28`). Breach/HIBP check, history, rotation: NOT FOUND. Hashing bcrypt cost 12 (`src/lib/security.ts:9`). Force-change-on-first-login exists but OFF by default (`src/proxy.ts:32-52`).
 
 **Session:** 8 h / refresh 1 h (`src/lib/auth.ts:31-32`); JWT invalidated on deactivation or password rotation (`:150-186`, `:191-193`). No idle timeout, no session list, no "log out everywhere".
 
