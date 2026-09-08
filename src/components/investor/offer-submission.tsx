@@ -69,10 +69,6 @@ export function OfferSubmission({
 
   function handleSubmit() {
     const file = fileRef.current?.files?.[0] ?? null;
-    if (!file && !offerDocument) {
-      toast.error("Attach your signed offer as a PDF");
-      return;
-    }
     const fd = new FormData();
     fd.append("trackingId", trackingId);
     fd.append("amount", amount.trim());
@@ -165,8 +161,9 @@ export function OfferSubmission({
           {hasOffer ? "Revise your offer" : "Submit your non-binding offer"}
         </h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the amount you are offering and attach your signed offer letter
-          as a PDF. The deal team is notified as soon as you submit.
+          Enter the amount you are offering. You can attach your signed offer
+          letter as a PDF now or add it on a later submission. The deal team is
+          notified as soon as you submit.
         </p>
 
         <div className="mt-4 space-y-3">
@@ -205,7 +202,7 @@ export function OfferSubmission({
 
           <div>
             <Label className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
-              Signed offer letter (PDF)
+              Signed offer letter (PDF, optional)
             </Label>
             <input
               ref={fileRef}
@@ -234,7 +231,7 @@ export function OfferSubmission({
                 </span>
               ) : (
                 <span className="text-xs text-muted-foreground">
-                  Required · max 10MB
+                  Optional · max 10MB
                 </span>
               )}
             </div>

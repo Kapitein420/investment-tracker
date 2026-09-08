@@ -589,17 +589,18 @@ export async function submitInvestorOffer(
     };
   }
 
-  // The PDF is required on a first submission and optional afterwards:
-  // re-submitting to revise the amount keeps the offer letter on file.
+  // The PDF is optional throughout — an investor can record an indicative
+  // figure now and attach the signed letter on a later submission. Omitting
+  // it on a re-submit keeps whatever is already on file rather than
+  // clearing it.
   const file = formData.get("file") as File | null;
-  const existingOffer = await prisma.document.findFirst({
-    where: { trackingId, kind: "OFFER" },
-    select: { id: true },
-  });
   const hasNewFile = !!file && file.size > 0;
-  if (!hasNewFile && !existingOffer) {
-    return { ok: false, error: "Attach your signed offer as a PDF" };
-  }
+  const existingOffer = hasNewFile
+    ? null
+    : await prisma.document.findFirst({
+        where: { trackingId, kind: "OFFER" },
+        select: { id: true },
+      });
 
   const oldBid =
     tracking.bidAmount == null ? null : tracking.bidAmount.toString();
@@ -687,7 +688,12 @@ export async function submitInvestorOffer(
   // POST-COMMIT: roll currentStageKey forward (NBO -> IN_PROGRESS).
   await syncCurrentStageKeyAfterCommit(trackingId);
 
-  await notifyDealTeamOfOffer({ tracking, amount, currency, hasNewFile });
+  await notifyDealTeamOfOffer({
+    tracking,
+    amount,
+    currency,
+    letter: hasNewFile ? "new" : existingOffer ? "existing" : "none",
+  });
 
   return { ok: true };
 }
@@ -708,9 +714,10 @@ async function notifyDealTeamOfOffer(args: {
   };
   amount: number;
   currency: string;
-  hasNewFile: boolean;
+  /** Whether this submission carried a PDF, reused the one on file, or has none. */
+  letter: "new" | "existing" | "none";
 }): Promise<void> {
-  const { tracking, amount, currency, hasNewFile } = args;
+  const { tracking, amount, currency, letter } = args;
 
   const recipients: string[] = [];
   if (tracking.ownerUser?.email) {
@@ -748,7 +755,7 @@ async function notifyDealTeamOfOffer(args: {
         <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer</td><td><strong>${escapeHtml(formatted)}</strong></td></tr>
         <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Investor contact</td><td>${escapeHtml(investorContact)}</td></tr>
         <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Email</td><td>${escapeHtml(investorEmail)}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer letter</td><td>${hasNewFile ? "Attached to the deal (PDF)" : "Unchanged - previously submitted PDF still on file"}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer letter</td><td>${letter === "new" ? "Attached to the deal (PDF)" : letter === "existing" ? "Unchanged - previously submitted PDF still on file" : "Not attached - amount only"}</td></tr>
       </table>
       <p style="font-size:13px; line-height:1.55; margin:0;">
         The offer and its PDF are on the deal row in the pipeline. Wwft reminder: buyer CDD
