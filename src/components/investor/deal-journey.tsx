@@ -14,6 +14,7 @@ import { assetTypeToUnit } from "@/lib/stages";
 import { orderedHighlightEntries } from "@/lib/highlights";
 import { SigningModal } from "@/components/investor/signing-modal";
 import { InvestorNdaDownload } from "@/components/investor/investor-nda-download";
+import { OfferSubmission } from "@/components/investor/offer-submission";
 import { getSignedDocumentUrl } from "@/actions/document-actions";
 import { openInNewTab } from "@/lib/open-in-new-tab";
 import { recordInvestorStageEvent, requestViewing } from "@/actions/portal-actions";
@@ -173,6 +174,11 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
       }
     });
   }
+
+  // The investor's own submitted offer letter, surfaced by the NBO block
+  // rather than the generic per-stage document list.
+  const offerDoc =
+    tracking.documents.find((d: any) => d.kind === "OFFER") ?? null;
 
   // Progress calculation
   const completedCount = stages.filter((s: any) => s.status === "COMPLETED").length;
@@ -705,8 +711,34 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                 </div>
               )}
 
+              {/* NBO: the investor submits their own offer here. Rendered
+                  outside the empty-state branch so it survives the deal team
+                  also sharing documents or content on this stage. */}
+              {isExpanded && ss.stage.key === "nbo" && (
+                <div
+                  className={cn(
+                    "px-5 py-4 sm:px-6 sm:py-5",
+                    (stageDocs.length > 0 || stageContent.length > 0) &&
+                      "border-t border-dils-100"
+                  )}
+                >
+                  <OfferSubmission
+                    trackingId={tracking.id}
+                    bidAmount={tracking.bidAmount ?? null}
+                    bidCurrency={tracking.bidCurrency ?? null}
+                    bidSubmittedAt={tracking.bidSubmittedAt ?? null}
+                    offerDocument={
+                      offerDoc
+                        ? { id: offerDoc.id, fileName: offerDoc.fileName }
+                        : null
+                    }
+                    locked={ss.status === "COMPLETED"}
+                  />
+                </div>
+              )}
+
               {/* Empty state — richer teaser or generic message */}
-              {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && (
+              {isExpanded && stageDocs.length === 0 && stageContent.length === 0 && ss.stage.key !== "nbo" && (
                 <div className="px-5 py-4 sm:px-6 sm:py-5">
                   {ss.stage.key === "teaser" ? (() => {
                     const teaserContent = contents.find(
