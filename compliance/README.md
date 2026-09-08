@@ -39,6 +39,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | Art. 13/14 | In-app `/privacy` notice + shared `PrivacyNotice` component + `CompanyContact.source`/`collectedAt` | `src/components/privacy-notice.tsx` |
 | Wwft Art. 3/33 | Buyer-side CDD attestation + NBO soft-gate warning | `src/actions/cdd-actions.ts`, `src/lib/validators.ts`, `src/actions/tracking-actions.ts`, `src/components/asset/tracking-detail-drawer.tsx` |
 | BW 3:15a / eIDAS | Signature certificate page, signer copy email, intent confirmation checkbox | `src/lib/pdf-signing.ts`, `src/actions/document-actions.ts`, `src/actions/html-nda-actions.ts`, `src/components/investor/printable-signed-nda.tsx`, `src/components/signing/*` |
+| BW 6:234 | Portal terms-of-use click-accept with version/timestamp/IP evidence (G13) | `src/lib/terms.ts`, `src/actions/terms-actions.ts`, `src/app/(investor)/portal/terms/page.tsx`, `src/app/(investor)/portal/(gated)/layout.tsx` |
 
 ## Open ops / human actions (cannot be done in code)
 
@@ -53,6 +54,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 - [ ] **Table the audit log for OR instemming; complete the placeholders** in docs 10–13 (OR status, assessor/DPO names, account volume) — see [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md).
 - [ ] **Set `CRON_SECRET` in Vercel; flip `PURGE_ENABLED` after sign-off; confirm `fra1` region after first deploy.**
 - [ ] ⚖️ **Counsel to confirm buy-side CDD scope per pipeline stage** (identity + UBO + sanctions only, or full CDD, and at which stage) — see [legal-landscape-and-gap-analysis-2026-09.md](legal-landscape-and-gap-analysis-2026-09.md) §6 Q2.
+- [ ] ⚖️ **Counsel: confirm dils.nl algemene voorwaarden cover portal use, or supply portal-specific terms** → bump `TERMS_VERSION` in `src/lib/terms.ts` (re-prompts every investor for a fresh click-accept).
 
 ## Transfer-verification checklist (Art. 44–49)
 
