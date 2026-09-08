@@ -65,9 +65,9 @@ DATABASE_URL="$(grep '^DATABASE_URL' .env | cut -d= -f2- | tr -d '"')" \
 
 ## Traps
 
-- Stale worktree `node_modules` + the sandbox blocking `npm install` — copy
-  the missing package directories from a sibling worktree on the same
-  lockfile.
+- Stale worktree `node_modules` — run `npm ci` in the worktree. The global
+  worktree-guard hook allows `ci` there since 2026-09-07; `install`/`add`/`remove`
+  are still denied.
 - Run `npx prisma generate` after merging in schema changes, before `tsc`.
 - `psql` is not on PATH — use the script above for all DB lookups.
 - The permission classifier denies prod DB queries. Never plan a
