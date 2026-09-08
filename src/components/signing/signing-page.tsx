@@ -43,6 +43,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [intentConfirmed, setIntentConfirmed] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<"signed" | "rejected" | null>(null);
@@ -125,6 +126,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
     if (!signerEmail) return toast.error("Please enter your email address.");
     if (!signatureData) return toast.error("Please draw your signature before submitting.");
     if (!allCustomFieldsFilled) return toast.error("Please fill in every document field marked required.");
+    if (!intentConfirmed) return toast.error("Please confirm your intent to sign before submitting.");
 
     setSubmitting(true);
     try {
@@ -134,6 +136,7 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
         signedByEmail: signerEmail,
         signatureData,
         fieldValues,
+        intentConfirmed,
       });
       setCompleted("signed");
     } catch (e: any) {
@@ -336,6 +339,21 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
               </div>
             )}
 
+            {!uploadOpen && (
+              <label className="flex items-start gap-3 rounded-md border border-dils-200 bg-dils-50/40 p-3 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={intentConfirmed}
+                  onChange={(e) => setIntentConfirmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span className="text-xs leading-relaxed text-foreground">
+                  I intend this electronic signature to be my legally binding signature on this
+                  document, and I have authority to sign for {doc.tracking.company.name}.
+                </span>
+              </label>
+            )}
+
             <PrivacyNotice variant="signing" />
 
             {!uploadOpen && (
@@ -348,7 +366,8 @@ export function SigningPage({ document: doc, token }: SigningPageProps) {
                     !signerName ||
                     !signerEmail ||
                     !signatureData ||
-                    !allCustomFieldsFilled
+                    !allCustomFieldsFilled ||
+                    !intentConfirmed
                   }
                   className="w-full sm:flex-1"
                 >

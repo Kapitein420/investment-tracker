@@ -456,6 +456,10 @@ model Document {
   // SHA-256 hex of the bytes at signedFileUrl. Must be written in the same
   // statement as signedFileUrl, and cleared whenever signedFileUrl is cleared.
   pdfSha256        String?
+  // Set at signing when the signer ticked the "I intend this electronic
+  // signature to be my legally binding signature..." checkbox (BW 3:15a
+  // evidence, G8). Null for documents signed before this checkbox existed.
+  intentConfirmedAt DateTime?
   fieldConfig      Json?
   placeholderMap   Json? // Detected placeholders: { "SIGNATURE": {page, x, y, width, height, fontSize}, ... }
   placementMode    String         @default("GRID") // "GRID" | "PLACEHOLDER" | "MANUAL"

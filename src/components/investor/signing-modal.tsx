@@ -66,6 +66,7 @@ export function SigningModal({
   const [signerName, setSignerName] = useState(defaultName ?? "");
   const [signerEmail, setSignerEmail] = useState(defaultEmail ?? "");
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [intentConfirmed, setIntentConfirmed] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<"signed" | "rejected" | null>(null);
@@ -112,6 +113,7 @@ export function SigningModal({
       setSignerName(defaultName ?? "");
       setSignerEmail(defaultEmail ?? "");
       setSignatureData(null);
+      setIntentConfirmed(false);
       setRejectionReason("");
       setSubmitting(false);
       setFieldValues({});
@@ -131,6 +133,7 @@ export function SigningModal({
     if (!signerEmail) return toast.error("Please enter your email address.");
     if (!signatureData) return toast.error("Please draw your signature before submitting.");
     if (!allCustomFieldsFilled) return toast.error("Please fill in every document field marked required.");
+    if (!intentConfirmed) return toast.error("Please confirm your intent to sign before submitting.");
 
     setSubmitting(true);
     try {
@@ -140,6 +143,7 @@ export function SigningModal({
         signedByEmail: signerEmail,
         signatureData,
         fieldValues,
+        intentConfirmed,
       });
       setCompleted("signed");
     } catch (e: any) {
@@ -390,6 +394,21 @@ export function SigningModal({
                   </div>
                 )}
 
+                {!uploadOpen && (
+                  <label className="flex items-start gap-3 rounded-md border border-dils-200 bg-dils-50/40 p-3 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={intentConfirmed}
+                      onChange={(e) => setIntentConfirmed(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0"
+                    />
+                    <span className="text-xs leading-relaxed text-foreground">
+                      I intend this electronic signature to be my legally binding signature on
+                      this document, and I have authority to sign for {companyName}.
+                    </span>
+                  </label>
+                )}
+
                 <PrivacyNotice variant="signing" />
 
                 {!uploadOpen && (
@@ -402,7 +421,8 @@ export function SigningModal({
                         !signerName ||
                         !signerEmail ||
                         !signatureData ||
-                        !allCustomFieldsFilled
+                        !allCustomFieldsFilled ||
+                        !intentConfirmed
                       }
                       className="w-full sm:flex-1"
                     >

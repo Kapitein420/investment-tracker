@@ -36,6 +36,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
   const [email, setEmail] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [signature, setSignature] = useState<string | null>(null);
+  const [intentConfirmed, setIntentConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
 
@@ -154,7 +155,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
   }
 
   function canSubmit() {
-    if (!name.trim() || !email.trim() || !signature) return false;
+    if (!name.trim() || !email.trim() || !signature || !intentConfirmed) return false;
     for (const f of investorFields) {
       if (f.required !== false && !values[f.key]?.trim()) return false;
     }
@@ -171,6 +172,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
     );
     if (missingField) return toast.error(`"${missingField.label}" is required.`);
     if (!signature) return toast.error("Please draw your signature before submitting.");
+    if (!intentConfirmed) return toast.error("Please confirm your intent to sign before submitting.");
 
     setSubmitting(true);
     try {
@@ -180,6 +182,7 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
         signatureData: signature,
         signedByName: name,
         signedByEmail: email,
+        intentConfirmed,
       });
       setCompleted(true);
       toast.success("NDA signed — thanks!");
@@ -357,6 +360,19 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
                 </div>
               </div>
 
+              <label className="flex items-start gap-3 rounded-md border border-dils-200 bg-dils-50/40 p-3 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={intentConfirmed}
+                  onChange={(e) => setIntentConfirmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span className="text-xs leading-relaxed text-foreground">
+                  I intend this electronic signature to be my legally binding signature on this
+                  document, and I have authority to sign for {data.companyName}.
+                </span>
+              </label>
+
               <Button
                 className="w-full"
                 disabled={!canSubmit() || submitting || uploading}
@@ -364,10 +380,6 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
               >
                 {submitting ? "Submitting…" : "Sign and submit"}
               </Button>
-
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                By submitting, you confirm the values above are accurate and you have authority to bind {data.companyName}.
-              </p>
             </>
           )}
 

@@ -249,6 +249,12 @@ export const signDocumentSchema = z.object({
     .record(z.string().regex(/^[A-Z_][A-Z0-9_]*$/), z.string().max(1000))
     .optional()
     .default({}),
+  // Must be the literal `true` — the signer explicitly ticked "I intend
+  // this electronic signature to be my legally binding signature..."
+  // (BW 3:15a evidence, G8). Anything else (missing, false) fails parse.
+  intentConfirmed: z.literal(true, {
+    errorMap: () => ({ message: "Please confirm your intent to sign before submitting." }),
+  }),
 });
 
 export const rejectDocumentSchema = z.object({

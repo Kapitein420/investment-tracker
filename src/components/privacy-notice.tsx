@@ -13,8 +13,8 @@ const DILS_STATEMENT_URL = "https://dils.nl/privacyverklaring/";
  * - "signing": the fuller notice shown next to a signature pad, listing
  *   what signing evidence is captured (name, email, signature image,
  *   timestamp, IP, browser identifier — see Document.signerIp /
- *   signerUserAgent / pdfSha256, prisma/schema.prisma) and how long it's
- *   kept.
+ *   signerUserAgent / pdfSha256 / intentConfirmedAt, prisma/schema.prisma)
+ *   and how long it's kept.
  */
 export function PrivacyNotice({ variant }: { variant: "compact" | "signing" }) {
   if (variant === "compact") {
@@ -44,8 +44,9 @@ export function PrivacyNotice({ variant }: { variant: "compact" | "signing" }) {
       <p>
         By signing this document, you acknowledge that Dils Netherlands B.V. will store your
         name, email, signature image, signing timestamp, IP address and browser identifier as
-        part of this deal process. This data is used solely for contract execution and legal
-        compliance under the GDPR, and is kept for 7 years as part of the deal record.
+        part of this deal process, and a signature certificate page is added to the document.
+        This data is used solely for contract execution and legal compliance under the GDPR,
+        and is kept for 7 years as part of the deal record.
       </p>
       <p>
         You have the right to access, rectify, or request deletion of your data. Read the{" "}

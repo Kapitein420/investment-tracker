@@ -7,17 +7,31 @@ import { Button } from "@/components/ui/button";
 import { Download, ArrowLeft, Mail, Printer } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { formatCertTimestamp } from "@/lib/utils";
 
 interface Props {
   data: {
     documentId: string;
     assetId: string | null;
     assetTitle: string;
+    companyName?: string | null;
     signedAt: Date | null;
     signedByName: string | null;
     signedByEmail: string | null;
+    signerIp?: string | null;
+    signerUserAgent?: string | null;
+    signingTokenId?: string | null;
+    intentConfirmedAt?: Date | null;
     signedHtml: string;
   };
+}
+
+/** SHA-256 hex of a UTF-8 string, via the browser's SubtleCrypto. */
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // A4 page in millimetres
@@ -223,6 +237,74 @@ export function PrintableSignedNda({ data }: Props) {
         drawHeader();
         drawFooter(p + 1, pageCount);
       }
+
+      // ─── Signature certificate page (G8 / BW 3:15a) ──────────────────
+      // HTML NDAs have no server-rendered PDF — signedHtml (persisted at
+      // signing) is the canonical record, and this client-side PDF is
+      // (re)generated fresh on every download, so its bytes aren't stable
+      // across downloads the way pdf-signing.ts's certificate + pdfSha256
+      // are for the real-PDF flow. The hash below is over that canonical
+      // signedHtml string instead — stable across downloads and the closest
+      // equivalent to "hash of the document before the certificate page".
+      pdf.addPage();
+      const certX = MARGIN_MM;
+      let certY = MARGIN_MM + 10;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.setTextColor(16, 24, 32);
+      pdf.text("Signature certificate", certX, certY);
+      certY += 6;
+      pdf.setDrawColor(217, 219, 223);
+      pdf.setLineWidth(0.3);
+      pdf.line(certX, certY, PAGE_WIDTH_MM - MARGIN_MM, certY);
+      certY += 10;
+
+      const certWidthMm = PAGE_WIDTH_MM - MARGIN_MM * 2;
+      const documentSha256 = await sha256Hex(data.signedHtml);
+      const certRows: Array<[string, string]> = [
+        ["Document", `NDA — ${data.assetTitle}`],
+        ["Deal / asset", data.assetTitle],
+        ["Company", data.companyName ?? "unavailable"],
+        ["Signer", `${data.signedByName ?? "unavailable"} <${data.signedByEmail ?? "unavailable"}>`],
+        ["Signed at", data.signedAt ? formatCertTimestamp(new Date(data.signedAt)) : "unavailable"],
+        ["Signer IP address", data.signerIp ?? "unavailable"],
+        ["Browser identifier", data.signerUserAgent ?? "unavailable"],
+        ["Signing token", data.signingTokenId ?? "unavailable"],
+        ["Document SHA-256 (signed record, pre-certificate)", documentSha256],
+        [
+          "Intent confirmed",
+          data.intentConfirmedAt
+            ? `yes (${formatCertTimestamp(new Date(data.intentConfirmedAt))})`
+            : "unavailable",
+        ],
+      ];
+
+      for (const [label, value] of certRows) {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(107, 114, 128);
+        pdf.text(label.toUpperCase(), certX, certY);
+        certY += 5;
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10);
+        pdf.setTextColor(16, 24, 32);
+        const lines: string[] = pdf.splitTextToSize(value, certWidthMm);
+        for (const line of lines) {
+          pdf.text(line, certX, certY);
+          certY += 5;
+        }
+        certY += 4;
+      }
+
+      certY += 4;
+      pdf.setDrawColor(217, 219, 223);
+      pdf.line(certX, certY, PAGE_WIDTH_MM - MARGIN_MM, certY);
+      certY += 8;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(107, 114, 128);
+      pdf.text("Recorded by Dils Netherlands B.V. · Investor Portal", certX, certY);
 
       const safeName = (data.signedByName || "investor")
         .replace(/[^a-z0-9]+/gi, "-")
