@@ -1,27 +1,82 @@
 import { describe, it, expect } from "vitest";
 import {
-  createCompanySchema,
   createCommentSchema,
+  createCompanySchema,
   createUserSchema,
   savedViewSchema,
   setPasswordSchema,
   signDocumentSchema,
+  submitOfferSchema,
   updateTrackingSchema,
-} from "./validators";
+} from "@/lib/validators";
 
-// Pins the *behaviour* of the zod schemas — what parses, what doesn't, and
-// what a parse produces — ahead of the zod 3 -> 4 upgrade (#116).
-//
-// Deliberately asserts accept/reject and parsed values, never error-message
-// text or issue shape: zod 4 reformats both, and that churn is not a
+describe("submitOfferSchema (investor NBO offer, G8 offer-letter parity)", () => {
+  const base = { amount: 1_000_000, currency: "EUR" as const };
+
+  it("accepts an amount-only submission with no attestation", () => {
+    const result = submitOfferSchema.safeParse({ ...base, hasFile: false });
+    expect(result.success).toBe(true);
+  });
+
+  it("ignores a stray attestation field on the no-file branch", () => {
+    const result = submitOfferSchema.safeParse({
+      ...base,
+      hasFile: false,
+      attestation: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a file submission missing attestation", () => {
+    const result = submitOfferSchema.safeParse({ ...base, hasFile: true });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a file submission with attestation explicitly false", () => {
+    const result = submitOfferSchema.safeParse({
+      ...base,
+      hasFile: true,
+      attestation: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a file submission with attestation ticked", () => {
+    const result = submitOfferSchema.safeParse({
+      ...base,
+      hasFile: true,
+      attestation: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("still enforces the shared amount/currency rules on both branches", () => {
+    expect(
+      submitOfferSchema.safeParse({ hasFile: false, amount: -5, currency: "EUR" }).success
+    ).toBe(false);
+    expect(
+      submitOfferSchema.safeParse({
+        hasFile: true,
+        attestation: true,
+        amount: 100,
+        currency: "JPY",
+      }).success
+    ).toBe(false);
+  });
+});
+
+// ─── zod 4 upgrade guard (#116) ────────────────────────────────
+// Pins the *behaviour* of the schemas below — what parses, what does not, and
+// what a parse produces. Asserts accept/reject and parsed values only, never
+// message text or issue shape: zod 4 reformats both, and that churn is not a
 // regression. A validator that silently starts accepting or rejecting
 // different input is.
 //
-// bsn-guard.test.ts already covers the containsBSN / containsIban /
-// containsDutchIdNumber helpers directly. This file covers the schemas that
-// wire them up, plus the constructs zod 4 changed: .email(), .url(),
-// z.record() with a key schema, z.coerce, z.literal(), and the ""
-// escape hatch on optional url/email fields.
+// bsn-guard.test.ts already covers containsBSN / containsIban /
+// containsDutchIdNumber directly, so this covers the schemas wiring them onto
+// free-text fields, plus the constructs zod 4 changed: .email(), .url(),
+// z.record() with a key schema, z.coerce, z.literal(), and the "" escape
+// hatch on optional url/email fields.
 
 const validSignPayload = {
   token: "tok_abc123",
