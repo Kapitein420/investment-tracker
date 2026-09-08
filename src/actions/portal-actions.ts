@@ -3,8 +3,26 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { StageStatusValue } from "@prisma/client";
+import { Prisma, StageStatusValue } from "@prisma/client";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
+import {
+  readOfferPdf,
+  resolveOfferStageId,
+  replaceOfferDocument,
+} from "@/lib/offer-document";
+import { z } from "zod";
+
+// Offer amounts are stored as Decimal(14,2) — cap the input below that so a
+// fat-fingered figure fails validation instead of a Postgres numeric overflow.
+const MAX_BID = 999_999_999_999;
+
+const submitOfferSchema = z.object({
+  amount: z.coerce
+    .number({ invalid_type_error: "Enter a valid amount" })
+    .positive("Enter an amount greater than zero")
+    .max(MAX_BID, "That amount looks too large — check the figure"),
+  currency: z.enum(["EUR", "USD", "GBP"]),
+});
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -482,4 +500,270 @@ export async function getAssetContentForInvestor(
   });
 
   return content.length > 0 ? content : null;
+}
+
+/**
+ * Investor-side NBO offer submission.
+ *
+ * The mirror image of the admin's OfferSection: writes the same
+ * bidAmount / bidCurrency / bidSubmittedAt on the tracking and the same
+ * Document(kind="OFFER"), so an investor-submitted offer is
+ * indistinguishable downstream from one an admin keyed in on their
+ * behalf — the seller-side VIEWER and the pipeline table pick it up with
+ * no extra plumbing.
+ *
+ * Gated on the NBO stage being unlocked (Viewing COMPLETED) and not yet
+ * COMPLETED — once the deal team closes the stage the investor can no
+ * longer overwrite the recorded bid.
+ *
+ * Re-submittable: the amount can be revised, and a new PDF atomically
+ * replaces the previous one. Omitting the file on a re-submit keeps the
+ * document already on file.
+ */
+export async function submitInvestorOffer(
+  formData: FormData
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+
+  if (user.role !== "INVESTOR" && user.role !== "ADMIN") {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const trackingId = (formData.get("trackingId") as string | null) ?? "";
+  if (!trackingId) return { ok: false, error: "Missing deal reference" };
+
+  const parsed = submitOfferSchema.safeParse({
+    amount: formData.get("amount"),
+    currency: formData.get("currency"),
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid offer",
+    };
+  }
+  const { amount, currency } = parsed.data;
+
+  const tracking = await prisma.assetCompanyTracking.findUnique({
+    where: { id: trackingId },
+    include: {
+      asset: { select: { id: true, title: true, address: true, city: true } },
+      company: {
+        select: { id: true, name: true, contactEmail: true, contactName: true },
+      },
+      ownerUser: { select: { id: true, name: true, email: true } },
+      stageStatuses: { include: { stage: true } },
+    },
+  });
+
+  if (!tracking) return { ok: false, error: "Deal not found" };
+  if (tracking.lifecycleStatus === "DROPPED") {
+    return { ok: false, error: "This deal is no longer active" };
+  }
+
+  if (user.role === "INVESTOR") {
+    const { getUserCompanyIds } = await import("@/lib/user-companies");
+    const companyIds = await getUserCompanyIds(user.id);
+    if (!companyIds.includes(tracking.companyId)) {
+      return { ok: false, error: "Forbidden" };
+    }
+  }
+
+  const unlocked = computeUnlockedStages(tracking.stageStatuses);
+  if (!unlocked.nbo) {
+    return {
+      ok: false,
+      error: "Complete the viewing stage before submitting an offer.",
+    };
+  }
+
+  const nboStatus = tracking.stageStatuses.find((ss) => ss.stage.key === "nbo");
+  if (!nboStatus) {
+    return { ok: false, error: "NBO stage not configured for this asset." };
+  }
+  if (nboStatus.status === "COMPLETED") {
+    return {
+      ok: false,
+      error:
+        "The deal team has closed this stage — contact them to revise your offer.",
+    };
+  }
+
+  // The PDF is required on a first submission and optional afterwards:
+  // re-submitting to revise the amount keeps the offer letter on file.
+  const file = formData.get("file") as File | null;
+  const existingOffer = await prisma.document.findFirst({
+    where: { trackingId, kind: "OFFER" },
+    select: { id: true },
+  });
+  const hasNewFile = !!file && file.size > 0;
+  if (!hasNewFile && !existingOffer) {
+    return { ok: false, error: "Attach your signed offer as a PDF" };
+  }
+
+  const oldBid =
+    tracking.bidAmount == null ? null : tracking.bidAmount.toString();
+  const submittedAt = new Date();
+
+  // Shared with the document path below so a submission carrying a PDF
+  // commits the bid and the document in a single transaction.
+  const writeBid = async (tx: Prisma.TransactionClient) => {
+    await tx.assetCompanyTracking.update({
+      where: { id: trackingId },
+      data: {
+        bidAmount: amount,
+        bidCurrency: currency,
+        bidSubmittedAt: submittedAt,
+      },
+    });
+
+    await tx.stageHistory.create({
+      data: {
+        trackingId,
+        stageId: nboStatus.stageId,
+        fieldName: "bidAmount",
+        oldValue: oldBid,
+        newValue: String(amount),
+        changedByUserId: user.id,
+        note: "investor:OFFER_SUBMITTED",
+      },
+    });
+
+    if (nboStatus.status === "NOT_STARTED") {
+      await tx.stageStatus.update({
+        where: { id: nboStatus.id },
+        data: { status: "IN_PROGRESS", updatedByUserId: user.id },
+      });
+      await tx.stageHistory.create({
+        data: {
+          trackingId,
+          stageId: nboStatus.stageId,
+          fieldName: "status",
+          oldValue: nboStatus.status,
+          newValue: "IN_PROGRESS",
+          changedByUserId: user.id,
+          note: "investor:OFFER_SUBMITTED",
+        },
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        entityType: "AssetCompanyTracking",
+        entityId: trackingId,
+        action: "OFFER_SUBMITTED",
+        metadata: {
+          trackingId,
+          assetId: tracking.assetId,
+          companyId: tracking.companyId,
+          companyName: tracking.company.name,
+          amount: String(amount),
+          currency,
+        },
+        userId: user.id,
+      },
+    });
+  };
+
+  if (hasNewFile) {
+    const buffer = await readOfferPdf(file!);
+    const stageId = await resolveOfferStageId(trackingId);
+    await replaceOfferDocument({
+      trackingId,
+      stageId,
+      buffer,
+      fileName: file!.name,
+      fileSize: file!.size,
+      mimeType: file!.type,
+      uploadedByUserId: user.id,
+      action: "OFFER_DOCUMENT_SUBMITTED",
+      metadata: { amount: String(amount), currency, source: "investor" },
+      extraWrites: writeBid,
+    });
+  } else {
+    await prisma.$transaction(writeBid);
+  }
+
+  // POST-COMMIT: roll currentStageKey forward (NBO -> IN_PROGRESS).
+  await syncCurrentStageKeyAfterCommit(trackingId);
+
+  await notifyDealTeamOfOffer({ tracking, amount, currency, hasNewFile });
+
+  return { ok: true };
+}
+
+/**
+ * Email the tracking owner (or every admin as fallback) that an offer
+ * landed. Non-fatal: the offer is already persisted by the time this runs.
+ */
+async function notifyDealTeamOfOffer(args: {
+  tracking: {
+    asset: { title: string; address: string | null; city: string | null };
+    company: {
+      name: string;
+      contactEmail: string | null;
+      contactName: string | null;
+    };
+    ownerUser: { email: string | null } | null;
+  };
+  amount: number;
+  currency: string;
+  hasNewFile: boolean;
+}): Promise<void> {
+  const { tracking, amount, currency, hasNewFile } = args;
+
+  const recipients: string[] = [];
+  if (tracking.ownerUser?.email) {
+    recipients.push(tracking.ownerUser.email);
+  } else {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { email: true },
+    });
+    for (const a of admins) {
+      if (a.email) recipients.push(a.email);
+    }
+  }
+  if (recipients.length === 0) return;
+
+  const formatted = new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+  const investorContact = tracking.company.contactName ?? tracking.company.name;
+  const investorEmail = tracking.company.contactEmail ?? "(no contact email)";
+  const location = tracking.asset.address
+    ? ` (${escapeHtml(tracking.asset.address)}, ${escapeHtml(tracking.asset.city ?? "")})`
+    : "";
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
+      <h2 style="font-size:18px; margin:0 0 12px;">Non-binding offer submitted</h2>
+      <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+        <strong>${escapeHtml(tracking.company.name)}</strong> has submitted an offer for
+        <strong>${escapeHtml(tracking.asset.title)}</strong>${location}.
+      </p>
+      <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
+        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer</td><td><strong>${escapeHtml(formatted)}</strong></td></tr>
+        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Investor contact</td><td>${escapeHtml(investorContact)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Email</td><td>${escapeHtml(investorEmail)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer letter</td><td>${hasNewFile ? "Attached to the deal (PDF)" : "Unchanged - previously submitted PDF still on file"}</td></tr>
+      </table>
+      <p style="font-size:13px; line-height:1.55; margin:0;">
+        The offer and its PDF are on the deal row in the pipeline. Wwft reminder: buyer CDD
+        must be cleared before accepting.
+      </p>
+    </div>
+  `.trim();
+
+  await Promise.allSettled(
+    recipients.map((to) =>
+      sendEmail({
+        to,
+        subject: `Offer submitted · ${tracking.asset.title} · ${tracking.company.name}`,
+        html,
+      })
+    )
+  );
 }

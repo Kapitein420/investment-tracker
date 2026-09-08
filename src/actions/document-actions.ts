@@ -17,6 +17,12 @@ import { formatDate } from "@/lib/utils";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
 import { logDownloadAccess } from "@/lib/activity-log";
+import { getUserCompanyIds } from "@/lib/user-companies";
+import {
+  readOfferPdf,
+  resolveOfferStageId,
+  replaceOfferDocument,
+} from "@/lib/offer-document";
 
 const DEFAULT_FIELD_CONFIG: FieldPlacement[] = [
   { type: "signature", page: -1, position: "bottom-center" },
@@ -327,121 +333,23 @@ export async function uploadOfferDocument(formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) throw new Error("No file provided");
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error("File too large. Maximum size is 10MB.");
-  }
-  if (file.type !== "application/pdf" && file.type !== "application/x-pdf") {
-    throw new Error("Only PDF files are allowed");
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (!buffer.slice(0, 4).toString().startsWith("%PDF")) {
-    throw new Error("Invalid PDF file (failed magic byte check)");
-  }
+  const buffer = await readOfferPdf(file);
 
   const trackingId = formData.get("trackingId") as string;
   if (!trackingId) throw new Error("trackingId is required");
 
-  // OFFER docs anchor to the NBO stage. Bid data lives on the tracking
-  // itself; the stage anchor only controls where it appears in journey
-  // views. If the NBO stage has been renamed/disabled, fall back to the
-  // tracking's current stage so the FK constraint is still satisfied.
-  const tracking = await prisma.assetCompanyTracking.findUniqueOrThrow({
-    where: { id: trackingId },
-    select: { id: true, currentStageKey: true },
+  const stageId = await resolveOfferStageId(trackingId);
+
+  const document = await replaceOfferDocument({
+    trackingId,
+    stageId,
+    buffer,
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    uploadedByUserId: user.id,
+    action: "OFFER_DOCUMENT_UPLOADED",
   });
-  const nboStage = await prisma.pipelineStage.findUnique({
-    where: { key: "nbo" },
-    select: { id: true },
-  });
-  let stageId: string | undefined = nboStage?.id;
-  if (!stageId && tracking.currentStageKey) {
-    const fallback = await prisma.pipelineStage.findUnique({
-      where: { key: tracking.currentStageKey },
-      select: { id: true },
-    });
-    stageId = fallback?.id;
-  }
-  if (!stageId) {
-    throw new Error(
-      "No NBO stage configured on this pipeline — add one under Admin → Stages first."
-    );
-  }
-
-  const safeName = (file.name || "offer.pdf").replace(/[^\w.\-]/g, "_");
-  const path = `documents/${trackingId}/offer_${Date.now()}_${safeName}`;
-  const storagePath = await uploadFile(buffer, path, file.type);
-
-  // Atomic replace: remove any prior OFFER doc on this tracking, then
-  // create the new one. Storage cleanup for the old file is best-effort
-  // outside the transaction.
-  const previousOffers = await prisma.document.findMany({
-    where: { trackingId, kind: "OFFER" },
-    select: { id: true, fileUrl: true, signedFileUrl: true },
-  });
-
-  let document;
-  try {
-    document = await prisma.$transaction(async (tx) => {
-      if (previousOffers.length > 0) {
-        await tx.signingToken.deleteMany({
-          where: { documentId: { in: previousOffers.map((d) => d.id) } },
-        });
-        await tx.document.deleteMany({
-          where: { id: { in: previousOffers.map((d) => d.id) } },
-        });
-      }
-
-      const doc = await tx.document.create({
-        data: {
-          trackingId,
-          stageId: stageId!,
-          kind: "OFFER",
-          fileName: file.name,
-          fileUrl: storagePath,
-          mimeType: file.type,
-          fileSize: file.size,
-          uploadedByUserId: user.id,
-          // status stays PENDING (the existing DocumentStatus enum has no
-          // "REFERENCE"-style value); downstream code keys off `kind`,
-          // not `status`, for offer docs.
-        },
-      });
-
-      await tx.activityLog.create({
-        data: {
-          entityType: "Document",
-          entityId: doc.id,
-          action: "OFFER_DOCUMENT_UPLOADED",
-          metadata: { trackingId, fileName: file.name, fileSize: file.size },
-          userId: user.id,
-        },
-      });
-
-      return doc;
-    });
-  } catch (e) {
-    // Tx failed — the just-uploaded file is now an orphan in Supabase.
-    // Best-effort cleanup; log only, never shadow the original error.
-    try {
-      await deleteFile(storagePath);
-    } catch (cleanupErr) {
-      console.error("[uploadOfferDocument] orphan cleanup failed:", cleanupErr);
-    }
-    throw e;
-  }
-
-  for (const old of previousOffers) {
-    for (const u of [old.fileUrl, old.signedFileUrl]) {
-      if (!u || u.startsWith("http") || isHtmlNdaSentinel(u)) continue;
-      try {
-        await deleteFile(u);
-      } catch (e) {
-        console.error(`[uploadOfferDocument] cleanup failed for ${u}:`, e);
-      }
-    }
-  }
 
   revalidatePath("/assets");
   return { document };
@@ -617,9 +525,15 @@ export async function getSignedDocumentUrl(documentId: string) {
     include: { tracking: { select: { companyId: true, assetId: true } } },
   });
 
-  // Investors can only access their own company's documents.
-  if (user.role === "INVESTOR" && doc.tracking.companyId !== user.companyId) {
-    throw new Error("Forbidden");
+  // Investors can only access their own company's documents. Checked
+  // against every membership, not the legacy User.companyId scalar — an
+  // investor holding the deal under a non-primary company would otherwise
+  // be refused their own offer letter (same fix requestViewing carries).
+  if (user.role === "INVESTOR") {
+    const companyIds = await getUserCompanyIds(user.id);
+    if (!companyIds.includes(doc.tracking.companyId)) {
+      throw new Error("Forbidden");
+    }
   }
 
   // VIEWER (opdrachtgever / client) can download signed docs only on
