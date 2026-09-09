@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { SetPasswordClient } from "@/components/set-password-client";
 import { findValidPasswordSetToken } from "@/lib/password-set-token";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, emailLinkPageCap, getClientIp } from "@/lib/rate-limit";
 
 /**
  * Public, unauthenticated landing page for the one-time set-password links
@@ -15,10 +15,12 @@ export default async function SetPasswordPage(props: {
 }) {
   const params = await props.params;
 
-  // Same 30/min per-IP cap as /sign/[token]: tokens are 256-bit so
-  // brute-force is infeasible, this just stops a probe hammering the lookup.
+  // Same per-IP cap as /sign/[token]: tokens are 256-bit so brute-force is
+  // infeasible, this just stops a probe hammering the lookup. Tripled under
+  // AUTH_LIMIT_BOOST because a firm's mail gateway pre-fetches every invite
+  // link in a bulk send from a single egress IP. See emailLinkPageCap.
   const ip = await getClientIp();
-  const rl = await checkRateLimit(`set-password-page:${ip}`, 30, 60);
+  const rl = await checkRateLimit(`set-password-page:${ip}`, emailLinkPageCap(), 60);
   if (!rl.allowed) {
     return (
       <Notice title="Too many attempts">

@@ -11,10 +11,15 @@ This repo gates auth rate limits behind the `AUTH_LIMIT_BOOST` env var. When the
 |---|---|---|
 | Login (per email) | 15 / 15min | **45 / 15min** |
 | Login (per IP) | 60 / 15min | **180 / 15min** |
-| Password reset (per email) | 3 / hour | **9 / hour** |
-| Password reset (per IP) | 10 / hour | **30 / hour** |
+| Password reset (per email) | 2 / hour | **6 / hour** |
+| Password reset (per IP) | 6 / hour | **18 / hour** |
+| Email-link pages, per IP | 30 / min | **90 / min** |
 
-The implementation is in [src/lib/auth.ts](src/lib/auth.ts) and [src/actions/auth-actions.ts](src/actions/auth-actions.ts) — both read `process.env.AUTH_LIMIT_BOOST` once per request, so toggling is just an env-var change + redeploy.
+"Email-link pages" are the unauthenticated landing pages an emailed link opens — `/set-password/[token]`, `/sign/[token]`, and the one-click unsubscribe endpoint. They share the boost because investor firms browse from a handful of NAT addresses *and* their mail gateways pre-fetch every link in an inbound message for scanning, so a bulk send arrives as a burst of requests from one IP before any human clicks.
+
+The implementation is in [src/lib/auth.ts](src/lib/auth.ts), [src/actions/auth-actions.ts](src/actions/auth-actions.ts) and `emailLinkPageCap()` in [src/lib/rate-limit.ts](src/lib/rate-limit.ts) — all read `process.env.AUTH_LIMIT_BOOST` once per request, so toggling is just an env-var change + redeploy.
+
+Launch mode is one item on a longer pre-send list — see [compliance/bulk-send-readiness-runbook.md](compliance/bulk-send-readiness-runbook.md) if this is a bulk investor send rather than a routine burst.
 
 ## What this skill does
 

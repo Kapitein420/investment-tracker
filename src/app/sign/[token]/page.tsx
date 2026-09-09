@@ -4,7 +4,7 @@ import { getDocumentForSigning } from "@/actions/document-actions";
 import { getHtmlNdaForSigning } from "@/actions/html-nda-actions";
 import { SigningPage } from "@/components/signing/signing-page";
 import { HtmlNdaSigningPage } from "@/components/signing/html-nda-signing-page";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, emailLinkPageCap, getClientIp } from "@/lib/rate-limit";
 import { CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 
 export default async function SignPage(props: { params: Promise<{ token: string }> }) {
@@ -15,8 +15,12 @@ export default async function SignPage(props: { params: Promise<{ token: string 
   // is already infeasible — this is defence-in-depth: cap per-IP visits so a
   // leaked/guessed-token probe can't hammer the lookup. 30/min comfortably
   // covers a real signer (re-loads, the two lookups per visit count as one).
+  //
+  // The cap triples under AUTH_LIMIT_BOOST: this page is pre-fetched by
+  // corporate mail-scanning gateways from one shared IP per firm, so a bulk
+  // send can burn the standing 30 before a human clicks. See emailLinkPageCap.
   const ip = await getClientIp();
-  const rl = await checkRateLimit(`sign-page:${ip}`, 30, 60);
+  const rl = await checkRateLimit(`sign-page:${ip}`, emailLinkPageCap(), 60);
   if (!rl.allowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">

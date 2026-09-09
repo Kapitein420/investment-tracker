@@ -18,6 +18,31 @@
  */
 
 /**
+ * Per-IP cap for the unauthenticated pages an emailed link lands on:
+ * /set-password/[token], /sign/[token], and the RFC 8058 one-click
+ * unsubscribe endpoint.
+ *
+ * These are the endpoints hit from *shared* corporate egress IPs. A firm's
+ * mail gateway (Mimecast, Proofpoint, Microsoft Defender Safe Links)
+ * pre-fetches every URL in every inbound message for scanning, so a bulk
+ * send to twenty people at one investor arrives as twenty near-simultaneous
+ * GETs from a single address — before any human clicks anything. At the
+ * standing 30/min that is comfortable; on a launch-day blast it is not, and
+ * the failure mode is an investor seeing "Too many attempts" on a link they
+ * never got to use.
+ *
+ * The cap is not brute-force protection: the tokens behind these pages are
+ * 256 bits of CSPRNG output (see password-set-token.ts), so it only stops a
+ * probe hammering the lookup. Tripling it for a launch window under the same
+ * AUTH_LIMIT_BOOST flag the login path reads is therefore cheap — and it
+ * keeps one switch, flipped by the /launch-mode skill, covering every
+ * endpoint a bulk send touches rather than just the login form.
+ */
+export function emailLinkPageCap(): number {
+  return process.env.AUTH_LIMIT_BOOST === "true" ? 90 : 30;
+}
+
+/**
  * Resolve the Upstash REST URL + token from any of the env-var name
  * patterns Vercel Marketplace + manual setups produce:
  *  - Standard: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
