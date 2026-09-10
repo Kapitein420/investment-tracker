@@ -277,3 +277,27 @@ describe("savedViewSchema", () => {
     expect(savedViewSchema.safeParse({ name: "", filterConfig: {} }).success).toBe(false);
   });
 });
+
+// The sensitive-id message is value-dependent: it names whichever identifier
+// was actually found, so the person can remove the right thing. That reads the
+// rejected input back out of the issue, which is the one place a zod upgrade
+// could silently degrade it into always naming the fallback (ID document).
+describe("sensitive-id guard message", () => {
+  const comment = (body: string) => createCommentSchema.safeParse({ trackingId: "t1", body });
+
+  it("names the IBAN when the free text carries a bank account number", () => {
+    const result = comment("pay to NL91ABNA0417164300 please");
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((i) => i.message)).toContain(
+      "Please remove the bank account number (IBAN) — the portal must not store it."
+    );
+  });
+
+  it("names the identity document when the free text carries one", () => {
+    const result = comment("paspoort NX1234567 attached");
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((i) => i.message)).toContain(
+      "Please remove the identity document number — the portal must not store it."
+    );
+  });
+});

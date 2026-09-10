@@ -77,9 +77,10 @@ const NO_ID_MSG =
 // Chained after noBsn wherever both are applied, so this only needs to cover
 // the two newer types; the message names whichever one was found.
 export const noSensitiveIds = (v?: string | null) => !containsIban(v) && !containsDutchIdNumber(v);
-const sensitiveIdMessage = (v?: string | null) => ({
-  message: containsIban(v) ? NO_IBAN_MSG : NO_ID_MSG,
-});
+const sensitiveIdMessage = {
+  error: (issue: { input: unknown }) =>
+    containsIban(issue.input as string | null | undefined) ? NO_IBAN_MSG : NO_ID_MSG,
+};
 
 // ─── Asset ──────────────────────────────────────────────────────────────────
 export const createAssetSchema = z.object({
@@ -234,7 +235,7 @@ export const updatePipelineStageSchema = z.object({
 export const savedViewSchema = z.object({
   name: z.string().min(1, "View name is required"),
   assetId: z.string().optional(),
-  filterConfig: z.record(z.any()),
+  filterConfig: z.record(z.string(), z.any()),
 });
 
 // ─── Document ──────────────────────────────────────────────────────────────
@@ -253,7 +254,7 @@ export const signDocumentSchema = z.object({
   // this electronic signature to be my legally binding signature..."
   // (BW 3:15a evidence, G8). Anything else (missing, false) fails parse.
   intentConfirmed: z.literal(true, {
-    errorMap: () => ({ message: "Please confirm your intent to sign before submitting." }),
+    error: "Please confirm your intent to sign before submitting.",
   }),
 });
 
@@ -290,7 +291,7 @@ const MAX_BID = 999_999_999_999;
 
 const offerAmountFields = {
   amount: z.coerce
-    .number({ invalid_type_error: "Enter a valid amount" })
+    .number({ error: "Enter a valid amount" })
     .positive("Enter an amount greater than zero")
     .max(MAX_BID, "That amount looks too large — check the figure"),
   currency: z.enum(["EUR", "USD", "GBP"]),
@@ -307,10 +308,7 @@ export const submitOfferSchema = z.discriminatedUnion("hasFile", [
     hasFile: z.literal(true),
     ...offerAmountFields,
     attestation: z.literal(true, {
-      errorMap: () => ({
-        message:
-          "Confirm this is your signed, binding offer letter before submitting",
-      }),
+      error: "Confirm this is your signed, binding offer letter before submitting",
     }),
   }),
 ]);
