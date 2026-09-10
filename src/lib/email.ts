@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redactEmail } from "@/lib/log-redact";
 import { isSuppressed, unsubscribeUrl } from "@/lib/unsubscribe";
 import { hasTrackingConsent, trackingOptions } from "@/lib/email-tracking";
+import { htmlToText } from "@/lib/html-to-text";
 
 const MAILGUN_API_BASE =
   process.env.MAILGUN_API_BASE || "https://api.eu.mailgun.net/v3";
@@ -91,6 +92,13 @@ export async function sendEmail({
     subject,
     html,
   });
+  // Ship a text/plain alternative alongside the HTML. Passing both makes
+  // Mailgun build a multipart/alternative message; an HTML-only message
+  // scores as MIME_HTML_ONLY in SpamAssassin and is weighted the same way
+  // by several corporate gateways, which is a needless handicap on a bulk
+  // investor send. Also the only thing plain-text mail clients can render.
+  const text = htmlToText(html);
+  if (text) body.set("text", text);
   if (replyTo) body.set("h:Reply-To", replyTo);
   // RFC 8058 one-click unsubscribe — required on every commercial email
   // (Telecommunicatiewet 11.7 lid 4) and harmless on transactional ones.

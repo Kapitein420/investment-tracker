@@ -21,6 +21,8 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | 11 | [dpia-screening-investor-portal.md](dpia-screening-investor-portal.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
 | 12 | [staff-monitoring-protocol.md](staff-monitoring-protocol.md) | WOR art. 27 lid 1 k+l; AP OR-privacyboekje | 📋 Draft → Noah/OR |
 | 13 | [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md) | WOR art. 27 lid 1 k+l | 📋 Draft → Noah/OR |
+| 14 | [email-dns-authentication.md](email-dns-authentication.md) | SPF/DKIM/DMARC for `mg.dils.com`; Gmail/Yahoo/Microsoft bulk-sender rules | 🔧 Ops — DNS not yet published |
+| 15 | [bulk-send-readiness-runbook.md](bulk-send-readiness-runbook.md) | Pre-send checklist: mail auth, web-filter categorisation, portal reachability | 🔧 Ops (adopt before next bulk send) |
 
 ## Code shipped alongside these docs
 
