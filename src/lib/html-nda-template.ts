@@ -4,6 +4,17 @@
 // text, and the vendor identity block hard-coded (Orizon B.V. / Noventa).
 // If a future asset needs a different vendor block, edit the template
 // per-asset via the admin UI.
+//
+// Two corrections against the original Word file (2026-09-17):
+//   1. Articles 3 and 5 referred to "Eigenaar", a party the declaration
+//      never defines — the defined counterparty is "Verkoper". Left as
+//      was, the art. 5 indemnity and the art. 3 warranty ran to nobody.
+//   2. Article 2f limited reproduction to "het onder d. bedoelde gebruik",
+//      but d. is the safekeeping obligation, not a use. Now points at e.,
+//      the preceding use clause. Both scope to deelname aan het
+//      Verkoopproces, so the practical limit is unchanged.
+// Existing assets keep their own copy in AssetContent.htmlContent — see
+// scripts/backfill-nda-template-fixes.ts.
 
 export interface TemplateField {
   key: string;
@@ -133,18 +144,18 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
     <li><span class="letter">c.</span><span class="text">de Vertrouwelijke Informatie niet, geheel of gedeeltelijk, te verstrekken of anderszins bekend te maken aan andere personen dan een Betrokkene die van deze informatie kennis moet kunnen nemen voor de door hem uit te voeren werkzaamheden;</span></li>
     <li><span class="letter">d.</span><span class="text">de Vertrouwelijke Informatie vertrouwelijk te behandelen, zorgvuldig te (doen) bewaren en ervoor te zorgen dat een derde niet in strijd met deze geheimhoudingsverklaring van zulke Vertrouwelijke Informatie kennis krijgt;</span></li>
     <li><span class="letter">e.</span><span class="text">de Vertrouwelijke Informatie uitsluitend te &lsquo;doen&rsquo; gebruiken voor zover dat noodzakelijk is met het oog op deelname aan het Verkoopproces;</span></li>
-    <li><span class="letter">f.</span><span class="text">de Vertrouwelijke Informatie uitsluitend te vermenigvuldigen voor zover dat noodzakelijk is met het oog op het onder d. bedoelde gebruik; en</span></li>
+    <li><span class="letter">f.</span><span class="text">de Vertrouwelijke Informatie uitsluitend te vermenigvuldigen voor zover dat noodzakelijk is met het oog op het onder e. bedoelde gebruik; en</span></li>
     <li><span class="letter">g.</span><span class="text">alle correspondentie of communicatie met betrekking tot het Verkoopproces uitsluitend te richten aan <span class="field-inline">{{BROKER_NAME}}</span> en geen contact te zoeken met enige directeur of medewerker verbonden aan de Verkoper en/of aan NLV B.V., huurders of gebruikers van de registergoederen met betrekking tot de Verkoopprocedure, tenzij schriftelijk met de Verkoper of <span class="field-inline">{{BROKER_NAME}}</span> overeengekomen.</span></li>
   </ol>
 
   <h2>3. OPENBAARMAKING AAN EN GEBRUIK DOOR EEN BETROKKENE</h2>
-  <p>Gegadigde is gerechtigd Vertrouwelijke Informatie zonder toestemming van Verkoper aan een Betrokkene openbaar te maken, voor zover dat noodzakelijk is het met oog op deelname aan het Verkoopproces, en mits de betreffende Betrokkene zich tot het in deze geheimhoudingsverklaring bepaalde heeft verplicht. Op eerste verzoek zal Gegadigde haar Adviseur eenzelfde geheimhoudingsverklaring laten tekenen als de onderhavige. Adviseur die reeds op grond van hun professie een geheimhoudingsplicht hebben, zoals advocaten en notarissen, behoeven deze verklaring niet te tekenen. Gegadigde staat er jegens Eigenaar voor in, dat haar medewerkers en ingeschakelde Adviseur respectievelijk de hiervoor bedoelde geheimhoudingsverplichting nakomt.</p>
+  <p>Gegadigde is gerechtigd Vertrouwelijke Informatie zonder toestemming van Verkoper aan een Betrokkene openbaar te maken, voor zover dat noodzakelijk is het met oog op deelname aan het Verkoopproces, en mits de betreffende Betrokkene zich tot het in deze geheimhoudingsverklaring bepaalde heeft verplicht. Op eerste verzoek zal Gegadigde haar Adviseur eenzelfde geheimhoudingsverklaring laten tekenen als de onderhavige. Adviseur die reeds op grond van hun professie een geheimhoudingsplicht hebben, zoals advocaten en notarissen, behoeven deze verklaring niet te tekenen. Gegadigde staat er jegens Verkoper voor in, dat haar medewerkers en ingeschakelde Adviseur respectievelijk de hiervoor bedoelde geheimhoudingsverplichting nakomt.</p>
 
   <h2>4. GEEN EXCLUSIVITEIT</h2>
   <p>De Gegadigde zal op geen enkel moment aanspraak kunnen maken op exclusiviteit en het is de Verkoper op ieder moment toegestaan om enige onderhandelingen met Gegadigde te beëindigen, om het Verkoopproces te bespreken met enige andere potentiële koper of om het Verkoopproces te beëindigen, tenzij met Gegadigde schriftelijk anders is overeengekomen.</p>
 
   <h2>5. SCHENDING VAN DE GEHEIMHOUDINGSVERKLARING</h2>
-  <p>In geval van schending door Gegadigde of een Betrokkene van het in deze geheimhoudingsverklaring bepaalde, is Gegadigde aansprakelijk &ndash; zowel jegens Eigenaar als enige andere partij die als gevolg van die schending schade lijdt &ndash; voor alle de door die schending ontstane schade. Gegadigde vrijwaart Eigenaar en voormelde partijen voor enige aanspraken van derden dienaangaande. Eigenaar heeft het recht Gegadigde uit te sluiten van het verkoopproces.</p>
+  <p>In geval van schending door Gegadigde of een Betrokkene van het in deze geheimhoudingsverklaring bepaalde, is Gegadigde aansprakelijk &ndash; zowel jegens Verkoper als enige andere partij die als gevolg van die schending schade lijdt &ndash; voor alle de door die schending ontstane schade. Gegadigde vrijwaart Verkoper en voormelde partijen voor enige aanspraken van derden dienaangaande. Verkoper heeft het recht Gegadigde uit te sluiten van het verkoopproces.</p>
 
   <h2>6. EINDE VERKOOPPROCES</h2>
   <p>Indien het Verkoopproces anders eindigt dan door gunning aan Gegadigde:</p>
