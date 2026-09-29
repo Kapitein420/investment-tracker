@@ -21,6 +21,7 @@ The portal is operated by **Dils Netherlands B.V.** (KvK 33.180.131 · BTW NL007
 | 11 | [dpia-screening-investor-portal.md](dpia-screening-investor-portal.md) | Art. 35 GDPR / WP248 | 📋 Draft → Noah/OR |
 | 12 | [staff-monitoring-protocol.md](staff-monitoring-protocol.md) | WOR art. 27 lid 1 k+l; AP OR-privacyboekje | 📋 Draft → Noah/OR |
 | 13 | [or-instemmingsverzoek-audit-log.md](or-instemmingsverzoek-audit-log.md) | WOR art. 27 lid 1 k+l | 📋 Draft → Noah/OR |
+| 14 | [bridging-arrangement-2026-09.md](bridging-arrangement-2026-09.md) | Art. 5(2), 24, 28 — accountability while accounts are personally held | 📋 Draft → counsel + sign |
 
 ## Code shipped alongside these docs
 
