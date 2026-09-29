@@ -70,7 +70,7 @@ Tailwind + shadcn/ui, Vitest. See [README.md](../README.md) for local setup and
 
 | Item | Impact | State |
 |---|---|---|
-| Duplicate company names in production (two companies called "DRC") | Signed-document access can be denied when an investor's legacy `User.companyId` differs from the tracking's company. `src/actions/document-actions.ts` still checks the legacy single company, not `getUserCompanyIds()` | Open — migrate the check, reconcile the rows |
+| Duplicate company names in production (two companies called "DRC") | Access can be denied when an investor's legacy `User.companyId` differs from the tracking's company. Signed-URL issuance in `document-actions.ts` is membership-aware (`getUserCompanyIds()`), but other checks still compare the legacy single company: `document-actions.ts` (~l.720), `content-actions.ts`, `portal-actions.ts` | Open — migrate the remaining checks, reconcile the rows |
 | `npm run lint` is broken | `next lint` was removed in Next 16 and there is no ESLint config; linting has never run | Open |
 | `revalidatePath` → tag-based revalidation | ~60 call sites in `src/actions/*`; performance only | Open, needs a plan |
 | `next build` needs `DATABASE_URL` set | Prisma is constructed at module scope; any dummy value works | By design; the `Dockerfile` does not account for it |
