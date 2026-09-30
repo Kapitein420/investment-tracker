@@ -16,6 +16,8 @@ import { getSignedUrl } from "@/lib/supabase-storage";
 import { isDirectIm } from "@/lib/access-mode";
 import { promoteDirectImTrackings } from "@/lib/direct-im";
 import { submitOfferSchema } from "@/lib/validators";
+import { renderEmail } from "@/lib/email-template";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -800,26 +802,30 @@ async function sendOfferReceipt(args: {
     }).format(submittedAt)} (Europe/Amsterdam)`;
     const downloadUrl = await getSignedUrl(document.fileUrl, 7200);
 
-    const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
-        <h2 style="font-size:18px; margin:0 0 12px;">Your offer has been received</h2>
-        <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+    // Same branded shell (logo, heading, footer) as the invite and password
+    // mails — this receipt used to ship as a bare, unstyled <div>.
+    const html = renderEmail({
+      heading: "Your offer has been received",
+      meta: assetTitle,
+      unsubscribeUrl: unsubscribeUrl(toEmail),
+      bodyHtml: `
+        <p style="color: #101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
           We've received your offer for <strong>${escapeHtml(assetTitle)}</strong>, including
           your uploaded offer letter.
         </p>
-        <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer</td><td><strong>${escapeHtml(formatted)}</strong></td></tr>
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">File</td><td>${escapeHtml(fileName)}</td></tr>
-          ${pdfSha256 ? `<tr><td style="padding:2px 12px 2px 0; color:#6B7280;">SHA-256</td><td style="font-family:monospace; font-size:11px;">${escapeHtml(pdfSha256)}</td></tr>` : ""}
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Submitted</td><td>${escapeHtml(submittedAtAmsterdam)}</td></tr>
+        <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
+          <tr><td style="padding:10px 14px; width:110px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Offer</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;"><strong>${escapeHtml(formatted)}</strong></td></tr>
+          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">File</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(fileName)}</td></tr>
+          ${pdfSha256 ? `<tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">SHA-256</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB; font-family:monospace; font-size:11px; word-break:break-all;">${escapeHtml(pdfSha256)}</td></tr>` : ""}
+          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Submitted</td><td style="padding:10px 14px;">${escapeHtml(submittedAtAmsterdam)}</td></tr>
         </table>
-        <p style="font-size:13px; line-height:1.55; margin:0 0 12px;">
-          <a href="${downloadUrl}" style="color:#1D4ED8;">Download your offer letter</a>
+        <p style="color: #101820; font-size:13px; line-height:1.6; margin:0;">
+          <a href="${downloadUrl}" style="color:#101820; text-decoration:underline; font-weight:700;">Download your offer letter</a>
           — this link expires in 2 hours; the portal keeps a copy you can reach anytime from
           the deal page.
         </p>
-      </div>
-    `.trim();
+      `,
+    });
 
     await sendEmail({
       to: toEmail,
