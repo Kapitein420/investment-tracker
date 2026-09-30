@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Plus, Search, Download, Upload, Building, MapPin, Filter, BarChart3, Table2, FileStack,
+  ArrowLeft, Plus, Search, Download, Upload, Building, MapPin, Filter, BarChart3, Table2, FileStack, MousePointerClick,
 } from "lucide-react";
 import Link from "next/link";
 import { canEdit } from "@/lib/permissions";
@@ -19,6 +19,8 @@ import { PipelineOverview } from "@/components/asset/pipeline-overview";
 import { AddTrackingDialog } from "@/components/asset/add-tracking-dialog";
 import { TrackingDetailDrawer } from "@/components/asset/tracking-detail-drawer";
 import { ContentTab } from "@/components/asset/content-tab";
+import { ClickActivityTab } from "@/components/asset/click-activity-tab";
+import { AccessModeSelect } from "@/components/asset/access-mode-select";
 import { ImportDialog } from "@/components/asset/import-dialog";
 import { BulkInviteDialog } from "@/components/asset/bulk-invite-dialog";
 import { Users } from "lucide-react";
@@ -40,7 +42,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(null);
-  const [view, setView] = useState<"table" | "overview" | "content">("overview");
+  const [view, setView] = useState<"table" | "overview" | "content" | "activity">("overview");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
 
@@ -138,6 +140,9 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                   {asset.transactionType}
                 </span>
               )}
+              {editable && (
+                <AccessModeSelect assetId={asset.id} value={asset.accessMode ?? "STANDARD"} />
+              )}
               {asset.brokerLabel && <span>Broker: <strong className="font-medium text-dils-black">{asset.brokerLabel}</strong></span>}
               {isViewerRole && (
                 <span className="inline-flex items-center gap-1 rounded border border-banner-info-foreground/30 bg-banner-info px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-banner-info-foreground">
@@ -175,7 +180,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               <button
                 onClick={() => setView("content")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 border-r border-dils-200 px-3.5 py-2 text-[13px] font-medium transition-colors",
                   view === "content"
                     ? "bg-soft-bg-surface-alt text-foreground font-semibold shadow-[inset_0_-2px_0_0_theme(colors.banner-info.foreground)]"
                     : "text-muted-foreground hover:bg-soft-bg-surface-alt hover:text-foreground"
@@ -184,6 +189,20 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
                 <FileStack className="h-3.5 w-3.5" />
                 Content
               </button>
+              {editable && (
+                <button
+                  onClick={() => setView("activity")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium transition-colors",
+                    view === "activity"
+                      ? "bg-soft-bg-surface-alt text-foreground font-semibold shadow-[inset_0_-2px_0_0_theme(colors.banner-info.foreground)]"
+                      : "text-muted-foreground hover:bg-soft-bg-surface-alt hover:text-foreground"
+                  )}
+                >
+                  <MousePointerClick className="h-3.5 w-3.5" />
+                  Clicks
+                </button>
+              )}
             </div>
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
@@ -391,6 +410,10 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
       ) : view === "overview" ? (
         <div className="flex-1 overflow-auto px-4 py-6 sm:px-6">
           <PipelineOverview trackings={asset.trackings} stages={stages} />
+        </div>
+      ) : view === "activity" ? (
+        <div className="flex-1 overflow-auto px-4 py-6 sm:px-6">
+          <ClickActivityTab assetId={asset.id} />
         </div>
       ) : (
         <div className="flex-1 overflow-auto px-4 py-6 sm:px-6">

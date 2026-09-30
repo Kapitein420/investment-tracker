@@ -51,6 +51,18 @@ enum InterestLevel {
   NONE
 }
 
+// How an investor moves through an asset's pipeline.
+//  STANDARD  – Teaser → NDA (sign + admin approval) → IM → Viewing → NBO.
+//  DIRECT_IM – Teaser + immediate IM access. The portal terms click-accept
+//              (TermsAcceptance) replaces the NDA and there is no viewing
+//              stage; NBO unlocks as soon as the IM is open.
+// Read when an investor is invited, so changing it later only affects new
+// invites — existing trackings keep the stage statuses they were seeded with.
+enum AccessMode {
+  STANDARD
+  DIRECT_IM
+}
+
 enum ContentType {
   PDF
   LANDING_PAGE
@@ -175,6 +187,7 @@ model Asset {
   // investor might have typed — they are the source of truth for
   // project-level info such as building name, vendor, address.
   fieldDefaults   Json?
+  accessMode      AccessMode @default(STANDARD)
   createdById     String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

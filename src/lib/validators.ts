@@ -91,6 +91,7 @@ export const createAssetSchema = z.object({
   assetType: z.string().optional(),
   transactionType: z.string().optional(),
   ownerEntity: z.string().optional(),
+  accessMode: z.enum(["STANDARD", "DIRECT_IM"]).optional(),
   description: z.string().optional().refine(noBsn, NO_BSN_MSG).refine(noSensitiveIds, sensitiveIdMessage),
 });
 

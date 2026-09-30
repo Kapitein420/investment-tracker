@@ -148,6 +148,13 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
       }
       return ss;
     })
+    // Direct-IM assets: terms click-accept replaces the NDA and there is no
+    // viewing, so neither stage is shown (NBO follows the IM directly).
+    .filter(
+      (ss: any) =>
+        tracking.asset?.accessMode !== "DIRECT_IM" ||
+        (ss.stage?.key !== "nda" && ss.stage?.key !== "viewing")
+    )
     .sort((a: any, b: any) => a.stage.sequence - b.stage.sequence);
 
   const [signingDoc, setSigningDoc] = useState<any>(null);
@@ -239,6 +246,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           trackingId: tracking.id,
           stageKey,
           event: "DOWNLOADED",
+          documentId: docId,
         }).catch(() => {});
       }
     } catch {
@@ -627,6 +635,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                     trackingId: tracking.id,
                                     stageKey: ss.stage.key,
                                     event: "DOWNLOADED",
+                                    contentId: content.id,
                                   }).catch(() => {});
                                 }}
                               >
@@ -657,6 +666,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                   trackingId: tracking.id,
                                   stageKey: ss.stage.key,
                                   event: "DOWNLOADED",
+                                  contentId: content.id,
                                 }).catch(() => {});
                               }}
                             >

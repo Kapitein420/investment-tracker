@@ -13,6 +13,8 @@ import {
 } from "@/lib/offer-document";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
 import { getSignedUrl } from "@/lib/supabase-storage";
+import { isDirectIm } from "@/lib/access-mode";
+import { promoteDirectImTrackings } from "@/lib/direct-im";
 import { submitOfferSchema } from "@/lib/validators";
 
 // Stage unlock rules:
@@ -24,7 +26,8 @@ import { submitOfferSchema } from "@/lib/validators";
 //   approvedAt around so the re-signed copy auto-re-approves; that
 //   in-between state has approvedAt set but status NOT_STARTED, and IM /
 //   Viewing must re-lock during the re-sign window.
-// - nbo: unlocked if viewing is COMPLETED
+// - nbo: unlocked if viewing is COMPLETED (DIRECT_IM assets have no viewing
+//   stage: nbo unlocks with the IM, and viewing never unlocks)
 const isNdaApprovedAndSigned = (
   stages: Map<string, { status: string; approvedAt: Date | null }>
 ): boolean => {
@@ -48,7 +51,8 @@ function computeUnlockedStages(
     stage: { key: string };
     status: string;
     approvedAt: Date | null;
-  }>
+  }>,
+  accessMode?: string | null
 ): Record<string, boolean> {
   const stageMap = new Map(
     stageStatuses.map((ss) => [
@@ -60,6 +64,11 @@ function computeUnlockedStages(
   const unlocked: Record<string, boolean> = {};
   for (const [key, rule] of Object.entries(STAGE_UNLOCK_RULES)) {
     unlocked[key] = rule(stageMap);
+  }
+
+  if (isDirectIm(accessMode)) {
+    unlocked.viewing = false;
+    unlocked.nbo = isNdaApprovedAndSigned(stageMap);
   }
 
   return unlocked;
@@ -100,7 +109,10 @@ export async function getInvestorDeals() {
 
   return trackings.map((tracking) => ({
     ...tracking,
-    unlockedStages: computeUnlockedStages(tracking.stageStatuses),
+    unlockedStages: computeUnlockedStages(
+      tracking.stageStatuses,
+      tracking.asset.accessMode
+    ),
   }));
 }
 
@@ -158,6 +170,10 @@ export async function recordInvestorStageEvent(input: {
   trackingId: string;
   stageKey: string;
   event: InvestorStageEvent;
+  /** Which document was clicked — AssetContent (IM/teaser material) or a
+   *  per-investor Document. Logged so the deal team sees clicks per file. */
+  contentId?: string;
+  documentId?: string;
 }): Promise<{ ok: boolean; transitioned: boolean }> {
   const user = await requireUser();
 
@@ -202,6 +218,23 @@ export async function recordInvestorStageEvent(input: {
   const willTransition =
     next != null && STATUS_RANK[next] > STATUS_RANK[stageStatus.status];
 
+  // Resolve the clicked document's title server-side (never trust a
+  // client-supplied label); ids that don't belong to this deal are dropped.
+  let clicked: { contentId?: string; documentId?: string; documentTitle?: string } = {};
+  if (input.contentId) {
+    const c = await prisma.assetContent.findFirst({
+      where: { id: input.contentId, assetId: tracking.assetId },
+      select: { id: true, title: true },
+    });
+    if (c) clicked = { contentId: c.id, documentTitle: c.title };
+  } else if (input.documentId) {
+    const d = await prisma.document.findFirst({
+      where: { id: input.documentId, trackingId: tracking.id },
+      select: { id: true, fileName: true },
+    });
+    if (d) clicked = { documentId: d.id, documentTitle: d.fileName };
+  }
+
   await prisma.$transaction(async (tx) => {
     if (willTransition && next != null) {
       await tx.stageStatus.update({
@@ -236,6 +269,7 @@ export async function recordInvestorStageEvent(input: {
           assetId: tracking.assetId,
           stageKey: stageStatus.stage.key,
           event: input.event,
+          ...clicked,
           from: stageStatus.status,
           to: willTransition ? next : stageStatus.status,
         },
@@ -274,7 +308,7 @@ export async function requestViewing(
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
     include: {
-      asset: { select: { id: true, title: true, address: true, city: true } },
+      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true } },
       company: { select: { id: true, name: true, contactEmail: true, contactName: true } },
       ownerUser: { select: { id: true, name: true, email: true } },
       stageStatuses: {
@@ -284,6 +318,10 @@ export async function requestViewing(
   });
 
   if (!tracking) return { ok: false, error: "Deal not found" };
+
+  if (isDirectIm(tracking.asset.accessMode)) {
+    return { ok: false, error: "This asset has no viewing step." };
+  }
 
   // Sprint B PR-2: investors can hold this asset under any of the
   // companies they belong to. The legacy User.companyId check rejected
@@ -446,6 +484,10 @@ export async function getAssetContentForInvestor(
     throw new Error("Investor has no associated company");
   }
 
+  // Direct-IM assets: terms click-accept stands in for the NDA — make sure
+  // the stages reflect it before the unlock checks below run.
+  await promoteDirectImTrackings(user.id);
+
   // Verify the investor's company has a tracking for this asset
   const tracking = await prisma.assetCompanyTracking.findFirst({
     where: {
@@ -545,7 +587,7 @@ export async function submitInvestorOffer(
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
     include: {
-      asset: { select: { id: true, title: true, address: true, city: true } },
+      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true } },
       company: {
         select: { id: true, name: true, contactEmail: true, contactName: true },
       },
@@ -567,11 +609,16 @@ export async function submitInvestorOffer(
     }
   }
 
-  const unlocked = computeUnlockedStages(tracking.stageStatuses);
+  const unlocked = computeUnlockedStages(
+    tracking.stageStatuses,
+    tracking.asset.accessMode
+  );
   if (!unlocked.nbo) {
     return {
       ok: false,
-      error: "Complete the viewing stage before submitting an offer.",
+      error: isDirectIm(tracking.asset.accessMode)
+        ? "Accept the terms of use to open the IM before submitting an offer."
+        : "Complete the viewing stage before submitting an offer.",
     };
   }
 
