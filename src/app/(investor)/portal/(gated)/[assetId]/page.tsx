@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { getSignedUrl } from "@/lib/supabase-storage";
 import { DealJourney } from "@/components/investor/deal-journey";
 import { getUserCompanyIds } from "@/lib/user-companies";
+import { promoteDirectImTrackings } from "@/lib/direct-im";
 
 export default async function InvestorDealPage(props: { params: Promise<{ assetId: string }> }) {
   const params = await props.params;
@@ -15,6 +16,10 @@ export default async function InvestorDealPage(props: { params: Promise<{ assetI
   // memberships rather than only the legacy User.companyId scalar.
   const companyIds = await getUserCompanyIds(user.id);
   if (companyIds.length === 0) redirect("/portal");
+
+  // Direct-IM assets: terms click-accept (gated by this route's layout) is
+  // the NDA step — open the IM before the tracking is read below.
+  if (user.role === "INVESTOR") await promoteDirectImTrackings(user.id);
 
   const tracking = await prisma.assetCompanyTracking.findFirst({
     where: {

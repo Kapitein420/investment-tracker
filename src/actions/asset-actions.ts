@@ -242,3 +242,55 @@ export async function getAssetById(id: string) {
 
   return asset;
 }
+
+
+/**
+ * Per-document click log for one asset: every Open / Download an investor
+ * made on a document, newest first. Backed by the INVESTOR_STAGE_EVENT rows
+ * that recordInvestorStageEvent writes (contentId / documentId + title).
+ * Page-level VIEWED_DOCUMENT / OPENED events carry no document and are left
+ * out — this answers "who clicked which file, and when".
+ */
+export async function getAssetClickActivity(assetId: string) {
+  await requireRole("EDITOR");
+
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      action: "INVESTOR_STAGE_EVENT",
+      entityType: "StageStatus",
+      AND: [
+        { metadata: { path: ["assetId"], equals: assetId } },
+        { metadata: { path: ["event"], equals: "DOWNLOADED" } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: {
+      id: true,
+      createdAt: true,
+      metadata: true,
+      user: { select: { name: true, email: true, company: { select: { name: true } } } },
+    },
+  });
+
+  return logs
+    .map((l) => {
+      const m = (l.metadata ?? {}) as {
+        contentId?: string;
+        documentId?: string;
+        documentTitle?: string;
+        stageKey?: string;
+      };
+      return {
+        id: l.id,
+        at: l.createdAt.toISOString(),
+        investor: l.user?.name ?? l.user?.email ?? "Unknown",
+        email: l.user?.email ?? null,
+        company: l.user?.company?.name ?? null,
+        stageKey: m.stageKey ?? null,
+        documentTitle: m.documentTitle ?? null,
+        hasDocument: !!(m.contentId || m.documentId),
+      };
+    })
+    .filter((r) => r.hasDocument);
+}

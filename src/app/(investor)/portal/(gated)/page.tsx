@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { DealCard } from "@/components/investor/deal-card";
 import { Briefcase } from "lucide-react";
 import { getUserCompanyIds } from "@/lib/user-companies";
+import { promoteDirectImTrackings } from "@/lib/direct-im";
 
 export default async function InvestorPortalPage() {
   const user = await getCurrentUser();
@@ -22,6 +23,10 @@ export default async function InvestorPortalPage() {
     // memberships → login (their account is broken; admin should re-invite).
     redirect(user.role === "ADMIN" ? "/" : "/login");
   }
+
+  // Direct-IM assets: open the IM for an investor who has accepted the
+  // terms (covers investors invited before they logged in).
+  if (user.role === "INVESTOR") await promoteDirectImTrackings(user.id).catch(() => {});
 
   // Performance / failure mode: under burst load (100 concurrent landings)
   // we saw ~9% 500s on this page. Wrap the queries in a try/catch with a

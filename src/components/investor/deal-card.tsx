@@ -61,7 +61,14 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
 }
 
 export function DealCard({ tracking }: DealCardProps) {
-  const nextAction = getNextAction(tracking.stageStatuses, tracking.documents);
+  const direct = tracking.asset?.accessMode === "DIRECT_IM";
+  // Direct-IM: no NDA (terms click-accept) and no viewing stage.
+  const visibleStatuses = direct
+    ? tracking.stageStatuses.filter(
+        (ss: any) => ss.stage.key !== "nda" && ss.stage.key !== "viewing"
+      )
+    : tracking.stageStatuses;
+  const nextAction = getNextAction(visibleStatuses, tracking.documents);
   // Exclude OFFER-kind docs — those are admin-uploaded reference PDFs
   // surfaced to the seller, not "awaiting your signature" for the investor.
   const pendingDocs = tracking.documents?.filter(
@@ -69,7 +76,7 @@ export function DealCard({ tracking }: DealCardProps) {
   ).length ?? 0;
   const unit = assetTypeToUnit(tracking.asset.assetType);
 
-  const sortedStages = [...tracking.stageStatuses].sort(
+  const sortedStages = [...visibleStatuses].sort(
     (a: any, b: any) => a.stage.sequence - b.stage.sequence
   );
 

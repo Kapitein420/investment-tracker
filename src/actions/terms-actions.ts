@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/permissions";
 import { getClientIp, getClientUserAgent } from "@/lib/rate-limit";
+import { promoteDirectImTrackings } from "@/lib/direct-im";
 import { recordTermsAcceptance, TERMS_VERSION } from "@/lib/terms";
 
 /**
@@ -41,6 +42,9 @@ export async function acceptTerms(formData: FormData): Promise<void> {
       userId: (sessionUser as any).id as string,
     },
   });
+
+  // Direct-IM assets treat this acceptance as the NDA step — open the IM now.
+  await promoteDirectImTrackings((sessionUser as any).id as string).catch(() => {});
 
   redirect("/portal");
 }

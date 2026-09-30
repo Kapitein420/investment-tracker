@@ -1,5 +1,6 @@
 "use server";
 
+import { promoteDirectImTrackings } from "@/lib/direct-im";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -142,9 +143,12 @@ export async function sendInvestorInvite({
       });
 
       // Case-insensitive key match so we're tolerant of seed casing drift
+      // DIRECT_IM: only the teaser is open at invite time — NDA/IM are
+      // promoted by promoteDirectImTrackings once terms are click-accepted.
+      const direct = asset.accessMode === "DIRECT_IM";
       const isEarlyStage = (key: string) => {
         const k = key.toLowerCase();
-        return k === "teaser" || k === "nda";
+        return k === "teaser" || (k === "nda" && !direct);
       };
 
       if (activeStages.length > 0) {
@@ -168,7 +172,8 @@ export async function sendInvestorInvite({
             assetId,
             companyId,
             inviteId: invite.id,
-            seededStages: ["teaser", "nda"],
+            seededStages: direct ? ["teaser"] : ["teaser", "nda"],
+            accessMode: asset.accessMode,
           },
           userId: user.id,
         },
@@ -182,7 +187,13 @@ export async function sendInvestorInvite({
   // per-investor Document with its own SigningToken. Without this, the
   // investor never sees a "Sign Now" button because the portal only shows
   // per-tracking Documents, not the asset-level master PDF.
-  try {
+  if (asset.accessMode === "DIRECT_IM") {
+    // No NDA to sign. If this investor already accepted the current terms
+    // (e.g. invited to a second asset) open the IM immediately.
+    await promoteDirectImTrackings(investorUser.id).catch(() => {});
+  }
+  // Direct-IM assets skip the NDA clone entirely (`if` guards the try/catch).
+  if (asset.accessMode !== "DIRECT_IM") try {
     const tracking = await prisma.assetCompanyTracking.findUnique({
       where: { assetId_companyId: { assetId, companyId } },
       select: { id: true },
@@ -397,7 +408,7 @@ export async function sendInvestorInvite({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below — full details unlock in the portal once you sign the NDA.
+            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below — ${asset.accessMode === "DIRECT_IM" ? "the full Information Memorandum opens in the portal as soon as you accept the terms of use." : "full details unlock in the portal once you sign the NDA."}
           </p>
           ${teaserPreviewHtml}
           ${credentialsBlock}
