@@ -427,24 +427,27 @@ export async function requestViewing(
   if (recipients.length > 0) {
     const investorContact = tracking.company.contactName ?? tracking.company.name;
     const investorEmail = tracking.company.contactEmail ?? "(no contact email)";
-    const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
-        <h2 style="font-size:18px; margin:0 0 12px;">Property viewing requested</h2>
-        <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+    // One HTML string fanned out to the whole deal team, so no per-recipient
+    // unsubscribe link (see renderEmail).
+    const html = renderEmail({
+      heading: "Property viewing requested",
+      meta: tracking.asset.title,
+      bodyHtml: `
+        <p style="color:#101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
           <strong>${escapeHtml(tracking.company.name)}</strong> has requested a viewing for
           <strong>${escapeHtml(tracking.asset.title)}</strong>${tracking.asset.address ? ` (${escapeHtml(tracking.asset.address)}, ${escapeHtml(tracking.asset.city ?? "")})` : ""}.
         </p>
-        <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Investor contact</td><td>${escapeHtml(investorContact)}</td></tr>
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Email</td><td>${escapeHtml(investorEmail)}</td></tr>
-          <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Asset</td><td>${escapeHtml(tracking.asset.title)}</td></tr>
+        <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
+          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Investor contact</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorContact)}</td></tr>
+          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Email</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorEmail)}</td></tr>
+          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Asset</td><td style="padding:10px 14px;">${escapeHtml(tracking.asset.title)}</td></tr>
         </table>
-        <p style="font-size:13px; line-height:1.55; margin:0;">
+        <p style="color:#101820; font-size:13px; line-height:1.6; margin:0;">
           Please reach out to schedule a date. The deal page in Investor Portal now shows
           this row with the Viewing stage marked <em>In progress</em>.
         </p>
-      </div>
-    `.trim();
+      `,
+    });
 
     // Fire all emails in parallel; failures are non-fatal — the request is
     // already persisted, the worst case is the broker has to spot it manually
@@ -894,25 +897,28 @@ async function notifyDealTeamOfOffer(args: {
   const location = tracking.asset.address
     ? ` (${escapeHtml(tracking.asset.address)}, ${escapeHtml(tracking.asset.city ?? "")})`
     : "";
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1F2937; max-width:560px;">
-      <h2 style="font-size:18px; margin:0 0 12px;">Non-binding offer submitted</h2>
-      <p style="font-size:14px; line-height:1.55; margin:0 0 12px;">
+  // One HTML string fanned out to the whole deal team, so no per-recipient
+  // unsubscribe link (see renderEmail).
+  const html = renderEmail({
+    heading: "Non-binding offer submitted",
+    meta: tracking.asset.title,
+    bodyHtml: `
+      <p style="color:#101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
         <strong>${escapeHtml(tracking.company.name)}</strong> has submitted an offer for
         <strong>${escapeHtml(tracking.asset.title)}</strong>${location}.
       </p>
-      <table style="font-size:13px; line-height:1.6; margin:0 0 16px; border-collapse:collapse;">
-        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer</td><td><strong>${escapeHtml(formatted)}</strong></td></tr>
-        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Investor contact</td><td>${escapeHtml(investorContact)}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Email</td><td>${escapeHtml(investorEmail)}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0; color:#6B7280;">Offer letter</td><td>${letter === "new" ? "Attached to the deal (PDF)" : letter === "existing" ? "Unchanged - previously submitted PDF still on file" : "Not attached - amount only"}</td></tr>
+      <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
+        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Offer</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;"><strong>${escapeHtml(formatted)}</strong></td></tr>
+        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Investor contact</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorContact)}</td></tr>
+        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Email</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorEmail)}</td></tr>
+        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Offer letter</td><td style="padding:10px 14px;">${letter === "new" ? "Attached to the deal (PDF)" : letter === "existing" ? "Unchanged - previously submitted PDF still on file" : "Not attached - amount only"}</td></tr>
       </table>
-      <p style="font-size:13px; line-height:1.55; margin:0;">
+      <p style="color:#101820; font-size:13px; line-height:1.6; margin:0;">
         The offer and its PDF are on the deal row in the pipeline. Wwft reminder: buyer CDD
         must be cleared before accepting.
       </p>
-    </div>
-  `.trim();
+    `,
+  });
 
   await Promise.allSettled(
     recipients.map((to) =>
