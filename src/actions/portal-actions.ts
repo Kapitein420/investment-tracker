@@ -18,6 +18,7 @@ import { promoteDirectImTrackings } from "@/lib/direct-im";
 import { submitOfferSchema } from "@/lib/validators";
 import { renderEmail } from "@/lib/email-template";
 import { unsubscribeUrl } from "@/lib/unsubscribe";
+import { dealTeamRecipients } from "@/lib/deal-team";
 
 // Stage unlock rules:
 // - teaser: always unlocked
@@ -410,19 +411,8 @@ export async function requestViewing(
   // POST-COMMIT: roll currentStageKey forward (Viewing → IN_PROGRESS).
   await syncCurrentStageKeyAfterCommit(tracking.id);
 
-  // Determine recipients: tracking owner, fallback to all admins
-  const recipients: string[] = [];
-  if (tracking.ownerUser?.email) {
-    recipients.push(tracking.ownerUser.email);
-  } else {
-    const admins = await prisma.user.findMany({
-      where: { role: "ADMIN" },
-      select: { email: true },
-    });
-    for (const a of admins) {
-      if (a.email) recipients.push(a.email);
-    }
-  }
+  // Recipients: tracking owner, else the configured fallback (never all admins).
+  const recipients = dealTeamRecipients(tracking.ownerUser?.email, "viewing request");
 
   if (recipients.length > 0) {
     const investorContact = tracking.company.contactName ?? tracking.company.name;
@@ -872,18 +862,7 @@ async function notifyDealTeamOfOffer(args: {
 }): Promise<void> {
   const { tracking, amount, currency, letter } = args;
 
-  const recipients: string[] = [];
-  if (tracking.ownerUser?.email) {
-    recipients.push(tracking.ownerUser.email);
-  } else {
-    const admins = await prisma.user.findMany({
-      where: { role: "ADMIN" },
-      select: { email: true },
-    });
-    for (const a of admins) {
-      if (a.email) recipients.push(a.email);
-    }
-  }
+  const recipients = dealTeamRecipients(tracking.ownerUser?.email, "offer submitted");
   if (recipients.length === 0) return;
 
   const formatted = new Intl.NumberFormat("nl-NL", {
