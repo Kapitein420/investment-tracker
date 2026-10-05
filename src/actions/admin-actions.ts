@@ -286,7 +286,7 @@ export async function resetUserPassword(userId: string) {
   try {
     await sendEmail({
       to: user.email,
-      subject: "Set a new password — DILS Investor Portal",
+      subject: "Set a new password for the DILS Investor Portal",
       html: renderEmail({
         heading: "Set a new password",
         bodyHtml: `

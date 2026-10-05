@@ -207,7 +207,7 @@ export async function approveStage(trackingId: string, stageKey: string) {
             Array.from(recipients).map((to) =>
               sendEmail({
                 to,
-                subject: `NDA Approved — ${tracking.asset.title}`,
+                subject: `NDA approved: ${tracking.asset.title}`,
                 html: htmlFor(to),
               })
             )

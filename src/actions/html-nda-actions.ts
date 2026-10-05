@@ -623,7 +623,7 @@ export async function signHtmlNda(data: {
     const downloadUrl = `${getAppUrl()}/portal/signed-nda/${doc.id}?download=1`;
     await sendEmail({
       to: data.signedByEmail,
-      subject: `Your signed NDA — ${assetTitle}`,
+      subject: `Your signed NDA: ${assetTitle}`,
       category: "transactional",
       html: renderEmail({
         heading: "Your NDA is signed",
