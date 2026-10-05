@@ -294,3 +294,48 @@ export async function getAssetClickActivity(assetId: string) {
     })
     .filter((r) => r.hasDocument);
 }
+
+/**
+ * Portal logins by investors who have a deal on this asset, newest first.
+ * Logins are portal-wide (not per asset), so this scopes by the investor's
+ * company membership rather than by an assetId on the event.
+ */
+export async function getAssetLoginActivity(assetId: string) {
+  await requireRole("EDITOR");
+
+  const trackings = await prisma.assetCompanyTracking.findMany({
+    where: { assetId },
+    select: { companyId: true },
+  });
+  const companyIds = trackings.map((t) => t.companyId);
+  if (companyIds.length === 0) return [];
+
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      action: "LOGIN",
+      entityType: "User",
+      user: {
+        role: "INVESTOR",
+        OR: [
+          { companyId: { in: companyIds } },
+          { memberships: { some: { companyId: { in: companyIds } } } },
+        ],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      createdAt: true,
+      user: { select: { name: true, email: true, company: { select: { name: true } } } },
+    },
+  });
+
+  return logs.map((l) => ({
+    id: l.id,
+    at: l.createdAt.toISOString(),
+    investor: l.user?.name ?? l.user?.email ?? "Unknown",
+    email: l.user?.email ?? null,
+    company: l.user?.company?.name ?? null,
+  }));
+}
