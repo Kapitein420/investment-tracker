@@ -36,7 +36,7 @@ export default async function SetPasswordPage(props: {
   if (!token) {
     return (
       <Notice title="This link is no longer valid">
-        Set-password links expire and can only be used once. Request a new one
+        These links expire and can only be used once. Request a new one
         from the sign-in page, or contact the deal team.
       </Notice>
     );

@@ -1,33 +1,30 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { BCRYPT_COST } from "@/lib/security";
+import { BCRYPT_COST, generatePassword } from "@/lib/security";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { setPasswordSchema } from "@/lib/validators";
 import {
   claimPasswordSetToken,
   hashPasswordSetToken,
 } from "@/lib/password-set-token";
 
-export interface SetPasswordResult {
-  ok: boolean;
-  error?: string;
-}
+export type RevealPasswordResult =
+  | { ok: true; password: string; email: string }
+  | { ok: false; error: string };
 
 /**
- * Redeem a one-time set-password link (compliance gap G9) — the flow that
- * replaced emailing plaintext passwords.
+ * Redeem a one-time link (compliance gap G9): generate the account's new
+ * password and return it to the page once. The password never travels by
+ * email; the link is what the mailbox owner holds.
  *
  * Public and unauthenticated: the token in the URL is the only credential,
- * same trust model as /sign/[token].
+ * same trust model as /sign/[token]. Redeeming is a button press on the page
+ * (not a GET) so mail scanners that prefetch links can't burn the link.
  */
-export async function setPasswordWithToken(input: {
-  token: string;
-  newPassword: string;
-  confirmPassword: string;
-}): Promise<SetPasswordResult> {
+export async function revealPasswordWithToken(
+  token: string
+): Promise<RevealPasswordResult> {
   // Same 30/min per-IP cap as the /sign/[token] page. The page itself is
   // limited too; this covers a client that posts the action directly.
   const ip = await getClientIp();
@@ -36,15 +33,7 @@ export async function setPasswordWithToken(input: {
     return { ok: false, error: "Too many attempts. Please wait a minute and try again." };
   }
 
-  const parsed = setPasswordSchema.safeParse({
-    newPassword: input.newPassword,
-    confirmPassword: input.confirmPassword,
-  });
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid password." };
-  }
-
-  const tokenHash = hashPasswordSetToken(input.token ?? "");
+  const tokenHash = hashPasswordSetToken(token ?? "");
   const row = await prisma.passwordSetToken.findUnique({
     where: { tokenHash },
     select: {
@@ -59,7 +48,8 @@ export async function setPasswordWithToken(input: {
     return { ok: false, error: "This link is no longer valid. Request a new one." };
   }
 
-  const passwordHash = await bcrypt.hash(parsed.data.newPassword, BCRYPT_COST);
+  const password = generatePassword();
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -73,7 +63,8 @@ export async function setPasswordWithToken(input: {
         data: {
           passwordHash,
           // Stamping this invalidates every session minted earlier (see the
-          // jwt callback in lib/auth) and clears the first-login gate.
+          // jwt callback in lib/auth) and clears the first-login gate, so
+          // the investor is not forced to pick a password of their own.
           passwordChangedAt: new Date(),
           // Any lock from failed guesses is moot once the password is
           // replaced by whoever controls the mailbox.
@@ -87,7 +78,7 @@ export async function setPasswordWithToken(input: {
           entityType: "User",
           entityId: row.user.id,
           action: "PASSWORD_SET_VIA_LINK",
-          metadata: { email: row.user.email, purpose: row.purpose },
+          metadata: { email: row.user.email, purpose: row.purpose, generated: true },
           // The actor is the account holder redeeming their own link. There
           // is no session on this page, so unlike the /sign/[token] flow
           // (#172) the token's own userId IS the honest attribution.
@@ -99,11 +90,9 @@ export async function setPasswordWithToken(input: {
     if (e?.message === "TOKEN_UNAVAILABLE") {
       return { ok: false, error: "This link is no longer valid. Request a new one." };
     }
-    console.error("[setPasswordWithToken] failed:", e);
-    return { ok: false, error: "Couldn't set your password. Please try again." };
+    console.error("[revealPasswordWithToken] failed:", e);
+    return { ok: false, error: "Couldn't generate your password. Please try again." };
   }
 
-  // Outside the try — redirect() signals by throwing, so catching it here
-  // would swallow the navigation and report a server error instead.
-  redirect("/login?set=1");
+  return { ok: true, password, email: row.user.email };
 }

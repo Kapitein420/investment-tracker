@@ -204,19 +204,6 @@ export const createUserSchema = z.object({
   accessibleAssetIds: z.array(z.string()).optional(),
 });
 
-// ─── Set password via one-time link ─────────────────────────────────────────
-// 10 chars, no complexity rule — same policy as the self-change flow in
-// change-password-actions (NIST SP 800-63B).
-export const setPasswordSchema = z
-  .object({
-    newPassword: z.string().min(10, "Password must be at least 10 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine((d) => d.newPassword === d.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
 export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
@@ -326,5 +313,4 @@ export type UpdateTrackingInput = z.infer<typeof updateTrackingSchema>;
 export type UpdateStageStatusInput = z.infer<typeof updateStageStatusSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

@@ -369,7 +369,7 @@ export async function sendInvestorInvite({
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
-            Choose your own password with the button below. The link works once and expires in ${passwordLink.ttlLabel}.
+            Use the button below to get your password. The link works once and expires in ${passwordLink.ttlLabel}.
           </td>
         </tr>
       </table>
@@ -415,7 +415,7 @@ export async function sendInvestorInvite({
           ${credentialsBlock}
           ${
             passwordLink
-              ? renderCta("Set your password", passwordLink.url)
+              ? renderCta("Get your password", passwordLink.url)
               : renderCta("Log in to portal", loginUrl)
           }
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">
