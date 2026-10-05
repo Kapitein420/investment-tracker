@@ -382,7 +382,7 @@ export async function sendInvestorInvite({
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
-            Your existing password still works — use it to log back in. Forgot it?
+            Your existing password still works. Use it to log back in. Forgot it?
             <a href="${getAppUrl()}/forgot-password" style="color: #101820; text-decoration: underline;">Reset your password</a>.
           </td>
         </tr>
@@ -400,7 +400,7 @@ export async function sendInvestorInvite({
   try {
     const result = await sendEmail({
       to: email,
-      subject: `Your access to ${asset.title} — DILS Investor Portal`,
+      subject: `Your access to ${asset.title} on the DILS Investor Portal`,
       // Invites carry a deal teaser (description, highlights, hero image) —
       // that's a commercial communication under Telecommunicatiewet 11.7,
       // so it's checked against EmailSuppression before sending.
@@ -409,7 +409,7 @@ export async function sendInvestorInvite({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below — ${asset.accessMode === "DIRECT_IM" ? "the full Information Memorandum opens in the portal as soon as you accept the terms of use." : "full details unlock in the portal once you sign the NDA."}
+            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below. ${asset.accessMode === "DIRECT_IM" ? "The full Information Memorandum opens in the portal as soon as you accept the terms of use." : "Full details unlock in the portal once you sign the NDA."}
           </p>
           ${teaserPreviewHtml}
           ${credentialsBlock}

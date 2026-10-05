@@ -171,7 +171,7 @@ export async function requestPasswordReset(
           heading: "Your DILS Investor Portal login is ready",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
-              Following up on the access request from the DILS Investor Portal — choose a password
+              Following up on the access request from the DILS Investor Portal. Choose a password
               below and you're in. You'll then see the live deal opportunities your DILS contact
               has shared with you.
             </p>
@@ -179,14 +179,14 @@ export async function requestPasswordReset(
           ctaLabel: "Set your password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-              If you didn't request access, you can safely ignore this email — no action is
+              If you didn't request access, you can safely ignore this email. No action is
               needed and your account stays inactive. For questions, reply to your DILS broker
               directly.
             </p>
           `,
         }
       : {
-          subject: "Set a new password — DILS Investor Portal",
+          subject: "Set a new password for the DILS Investor Portal",
           heading: "Password reset requested",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
@@ -197,7 +197,7 @@ export async function requestPasswordReset(
           ctaLabel: "Set a new password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
-              If you didn't request this reset, you can ignore this email — your current password
+              If you didn't request this reset, you can ignore this email. Your current password
               keeps working and nothing changes until the link above is used.
             </p>
           `,

@@ -818,7 +818,7 @@ async function sendOfferReceipt(args: {
         </table>
         <p style="color: #101820; font-size:13px; line-height:1.6; margin:0;">
           <a href="${downloadUrl}" style="color:#101820; text-decoration:underline; font-weight:700;">Download your offer letter</a>
-          — this link expires in 2 hours; the portal keeps a copy you can reach anytime from
+          This link expires in 2 hours. The portal keeps a copy you can reach anytime from
           the deal page.
         </p>
       `,
