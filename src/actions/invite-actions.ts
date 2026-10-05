@@ -382,7 +382,8 @@ export async function sendInvestorInvite({
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
-            Your existing password still works — use it to log back in.
+            Your existing password still works — use it to log back in. Forgot it?
+            <a href="${getAppUrl()}/forgot-password" style="color: #101820; text-decoration: underline;">Reset your password</a>.
           </td>
         </tr>
       </table>
