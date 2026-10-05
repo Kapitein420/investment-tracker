@@ -39,7 +39,7 @@ export default function ForgotPasswordPage() {
               Reset your password
             </p>
             <p className="text-xs text-muted-foreground">
-              Enter your email — we&rsquo;ll send you a link to set a new one.
+              Enter your email and we&rsquo;ll send you a link to get a new password.
             </p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
                   <p className="text-sm font-semibold text-foreground">Check your inbox</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     If an account exists for <strong>{email}</strong>, you&rsquo;ll receive a
-                    link to set a new password within a minute. The link works once and expires
+                    link to get a new password within a minute. The link works once and expires
                     in 60 minutes.
                   </p>
                 </div>

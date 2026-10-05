@@ -171,12 +171,12 @@ export async function requestPasswordReset(
           heading: "Your DILS Investor Portal login is ready",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
-              Following up on the access request from the DILS Investor Portal. Choose a password
-              below and you're in. You'll then see the live deal opportunities your DILS contact
+              Following up on the access request from the DILS Investor Portal. Use the button
+              below to get your password and you're in. You'll then see the live deal opportunities your DILS contact
               has shared with you.
             </p>
           `,
-          ctaLabel: "Set your password",
+          ctaLabel: "Get your password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
               If you didn't request access, you can safely ignore this email. No action is
@@ -186,15 +186,15 @@ export async function requestPasswordReset(
           `,
         }
       : {
-          subject: "Set a new password for the DILS Investor Portal",
+          subject: "Your new password for the DILS Investor Portal",
           heading: "Password reset requested",
           intro: `
             <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
               We received a request to reset the password for your DILS Investor Portal account.
-              Use the button below to choose a new one.
+              Use the button below to get a new one.
             </p>
           `,
-          ctaLabel: "Set a new password",
+          ctaLabel: "Get a new password",
           footer: `
             <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0; border-top: 1px solid #E6E8EB; padding-top: 20px;">
               If you didn't request this reset, you can ignore this email. Your current password

@@ -20,3 +20,21 @@ export const BCRYPT_COST = 12;
 export async function hashUnusablePassword(): Promise<string> {
   return bcrypt.hash(randomBytes(32).toString("base64url"), BCRYPT_COST);
 }
+
+// 31 symbols; no 0/O/1/I/L so it survives being read off a screen and typed
+// on a phone.
+const PASSWORD_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/** 12 CSPRNG symbols (~59 bits) in groups of four, e.g. `K7QX-M2PV-9RTD`. */
+export function generatePassword(): string {
+  const out: string[] = [];
+  while (out.length < 12) {
+    // Reject bytes >= 248 so the modulo stays unbiased (248 = 31 * 8).
+    for (const b of randomBytes(24)) {
+      if (b < 248 && out.length < 12) out.push(PASSWORD_ALPHABET[b % 31]);
+    }
+  }
+  return [out.slice(0, 4), out.slice(4, 8), out.slice(8, 12)]
+    .map((g) => g.join(""))
+    .join("-");
+}

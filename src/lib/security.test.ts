@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest";
 import bcrypt from "bcryptjs";
-import { BCRYPT_COST, hashUnusablePassword } from "./security";
+import { BCRYPT_COST, generatePassword, hashUnusablePassword } from "./security";
+
+describe("generatePassword", () => {
+  it("is three dash-separated groups of four unambiguous characters", () => {
+    for (let i = 0; i < 200; i++) {
+      expect(generatePassword()).toMatch(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
+    }
+  });
+
+  it("never repeats", () => {
+    const seen = new Set(Array.from({ length: 1000 }, generatePassword));
+    expect(seen.size).toBe(1000);
+  });
+});
 
 describe("hashUnusablePassword", () => {
   it("returns a real bcrypt hash at the configured cost", async () => {

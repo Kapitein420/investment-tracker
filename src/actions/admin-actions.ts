@@ -286,14 +286,14 @@ export async function resetUserPassword(userId: string) {
   try {
     await sendEmail({
       to: user.email,
-      subject: "Set a new password for the DILS Investor Portal",
+      subject: "Your new password for the DILS Investor Portal",
       html: renderEmail({
-        heading: "Set a new password",
+        heading: "Your new password",
         bodyHtml: `
           <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            An administrator has started a password reset for your account. Use the button below to choose a new password.
+            An administrator has started a password reset for your account. Use the button below to get a new password.
           </p>
-          ${renderCta("Set your password", link.url)}
+          ${renderCta("Get your password", link.url)}
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 24px 0;">
             This link works once and expires in ${link.ttlLabel}. Signing in afterwards is at
             <a href="${getAppUrl()}/login" style="color: #101820;">${getAppUrl()}/login</a>.

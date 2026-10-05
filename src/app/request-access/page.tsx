@@ -40,7 +40,7 @@ export default function RequestAccessPage() {
             </p>
             <p className="text-xs text-muted-foreground">
               Enter the email your DILS broker has on file. We&rsquo;ll send you a
-              link to set your password &mdash; usually within a minute.
+              link to get your password, usually within a minute.
             </p>
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function RequestAccessPage() {
                   <p className="text-sm font-semibold text-foreground">Check your inbox</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     If <strong>{email}</strong> is on the access list for the DILS
-                    Investor Portal, you&rsquo;ll receive an email with a link to set
+                    Investor Portal, you&rsquo;ll receive an email with a link to get
                     your password shortly.
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed pt-1">
@@ -89,7 +89,7 @@ export default function RequestAccessPage() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               <Lock className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
-              {loading ? "Sending..." : "Email me a set-password link"}
+              {loading ? "Sending..." : "Email me a password link"}
             </Button>
 
             <Link
