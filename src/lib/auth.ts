@@ -164,6 +164,21 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
+        // No IP/user-agent on purpose: the timestamp + user is all the deal
+        // team needs, and it keeps the row within the 24-month ActivityLog
+        // retention without extra personal data.
+        try {
+          await prisma.activityLog.create({
+            data: {
+              entityType: "User",
+              entityId: user.id,
+              action: "LOGIN",
+              metadata: { role: user.role },
+              userId: user.id,
+            },
+          });
+        } catch {}
+
         return {
           id: user.id,
           name: user.name,
