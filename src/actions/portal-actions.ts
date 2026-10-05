@@ -186,15 +186,19 @@ export async function recordInvestorStageEvent(input: {
     if (user.role !== "ADMIN") return { ok: false, transitioned: false };
   }
 
-  if (!user.companyId) return { ok: false, transitioned: false };
-
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: input.trackingId },
     select: { id: true, companyId: true, assetId: true },
   });
 
   if (!tracking) return { ok: false, transitioned: false };
-  if (tracking.companyId !== user.companyId) {
+
+  // Membership-aware: an investor invited under a second company keeps their
+  // original User.companyId, so comparing against it alone silently dropped
+  // every event for that deal.
+  const { getUserCompanyIds } = await import("@/lib/user-companies");
+  const companyIds = await getUserCompanyIds(user.id);
+  if (!companyIds.includes(tracking.companyId)) {
     return { ok: false, transitioned: false };
   }
 
