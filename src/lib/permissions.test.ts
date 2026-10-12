@@ -4,15 +4,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // is only used as an opaque handle; prisma + getServerSession are the seams
 // we drive.
 const findUnique = vi.fn();
+const trackingFindUnique = vi.fn();
 const getServerSession = vi.fn();
 
 vi.mock("next-auth", () => ({ getServerSession: (...a: unknown[]) => getServerSession(...a) }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
 vi.mock("@/lib/db", () => ({
-  prisma: { assetViewerAccess: { findUnique: (...a: unknown[]) => findUnique(...a) } },
+  prisma: {
+    assetViewerAccess: { findUnique: (...a: unknown[]) => findUnique(...a) },
+    assetCompanyTracking: { findUnique: (...a: unknown[]) => trackingFindUnique(...a) },
+  },
 }));
 
-import { requireRole, requireAssetAccess } from "./permissions";
+import { requireRole, requireAssetAccess, assertTrackingVisibleToInvestors } from "./permissions";
 
 function session(role: string) {
   return { user: { id: "u1", role, email: "x@y.z", name: "X", companyId: null } };
@@ -20,6 +24,7 @@ function session(role: string) {
 
 beforeEach(() => {
   findUnique.mockReset();
+  trackingFindUnique.mockReset();
   getServerSession.mockReset();
 });
 
@@ -65,5 +70,22 @@ describe("requireAssetAccess (VIEWER per-asset gate)", () => {
 
   it("forbids INVESTOR (wrong gate — they go through tracking)", async () => {
     await expect(requireAssetAccess("u1", "INVESTOR", "a1")).rejects.toThrow("Forbidden");
+  });
+});
+
+describe("assertTrackingVisibleToInvestors (hidden-asset gate for signing links)", () => {
+  it("passes when the asset is visible to investors", async () => {
+    trackingFindUnique.mockResolvedValue({ asset: { hiddenFromInvestors: false } });
+    await expect(assertTrackingVisibleToInvestors("t1")).resolves.toBeUndefined();
+  });
+
+  it("refuses when the asset is hidden from investors", async () => {
+    trackingFindUnique.mockResolvedValue({ asset: { hiddenFromInvestors: true } });
+    await expect(assertTrackingVisibleToInvestors("t1")).rejects.toThrow("no longer available");
+  });
+
+  it("refuses when the tracking no longer exists", async () => {
+    trackingFindUnique.mockResolvedValue(null);
+    await expect(assertTrackingVisibleToInvestors("t1")).rejects.toThrow("no longer available");
   });
 });

@@ -4,7 +4,12 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
+import {
+  requireRole,
+  requireUser,
+  getCurrentUser,
+  assertTrackingVisibleToInvestors,
+} from "@/lib/permissions";
 import {
   DEFAULT_NDA_TEMPLATE,
   extractTokens,
@@ -425,6 +430,7 @@ export async function signHtmlNda(data: {
   if (!signingToken) throw new Error("Invalid signing token");
   if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
   if (signingToken.usedAt !== null) throw new Error("Token already used");
+  await assertTrackingVisibleToInvestors(signingToken.document.trackingId);
 
   // Actor resolution — see signDocument in document-actions.ts.
   const actor = await getCurrentUser();

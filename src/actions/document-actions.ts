@@ -2,7 +2,12 @@
 
 import { createHash, randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
-import { requireRole, requireUser, getCurrentUser } from "@/lib/permissions";
+import {
+  requireRole,
+  requireUser,
+  getCurrentUser,
+  assertTrackingVisibleToInvestors,
+} from "@/lib/permissions";
 import { uploadFile, getSignedUrl, downloadFile, uploadBytes, deleteFile } from "@/lib/supabase-storage";
 import {
   generateSignedPdf,
@@ -956,6 +961,7 @@ export async function signDocument(data: {
   if (!token) throw new Error("Invalid signing token");
   if (token.expiresAt <= new Date()) throw new Error("Token expired");
   if (token.usedAt !== null) throw new Error("Token already used");
+  await assertTrackingVisibleToInvestors(token.document.trackingId);
 
   const document = token.document;
 
@@ -1215,6 +1221,7 @@ export async function uploadInvestorNda(formData: FormData) {
   if (!signingToken) throw new Error("Invalid signing token");
   if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
   if (signingToken.usedAt !== null) throw new Error("Token already used");
+  await assertTrackingVisibleToInvestors(signingToken.document.trackingId);
 
   const document = signingToken.document;
   const signedAt = new Date();
@@ -1346,6 +1353,7 @@ export async function rejectDocument(data: {
     if (!signingToken) throw new Error("Invalid signing token");
     if (signingToken.expiresAt <= new Date()) throw new Error("Token expired");
     if (signingToken.usedAt !== null) throw new Error("Token already used");
+    await assertTrackingVisibleToInvestors(signingToken.document.trackingId);
 
     await tx.signingToken.update({
       where: { id: signingToken.id, usedAt: null },
