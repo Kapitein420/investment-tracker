@@ -228,7 +228,7 @@ export async function getSignedContentUrl(storagePath: string) {
     if (!assetId) throw new Error("Forbidden");
 
     const tracking = await prisma.assetCompanyTracking.findFirst({
-      where: { assetId, companyId: user.companyId },
+      where: { assetId, companyId: user.companyId, asset: { hiddenFromInvestors: false } },
       select: { id: true },
     });
     if (!tracking) throw new Error("Forbidden: no access to this asset");

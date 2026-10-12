@@ -44,6 +44,8 @@ export default async function InvestorPortalPage() {
         where: {
           companyId: { in: companyIds },
           lifecycleStatus: { in: ["ACTIVE", "COMPLETED", "ON_HOLD"] },
+          // ADMINs previewing the portal still see hidden assets.
+          ...(user.role === "INVESTOR" && { asset: { hiddenFromInvestors: false } }),
         },
         include: {
           asset: true,

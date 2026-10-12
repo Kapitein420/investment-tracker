@@ -5,11 +5,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MapPin, Calendar, Building2 } from "lucide-react";
+import { Plus, Search, MapPin, Calendar, Building2, EyeOff } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
 import { canEdit } from "@/lib/permissions";
 import { Role } from "@prisma/client";
 import { CreateAssetDialog } from "@/components/dashboard/create-asset-dialog";
+import { AssetVisibilityMenu } from "@/components/asset/asset-visibility-menu";
 import { assetTypeToUnit } from "@/lib/stages";
 
 type AssetItem = {
@@ -21,6 +22,8 @@ type AssetItem = {
   assetType: string | null;
   transactionType: string | null;
   brokerLabel: string | null;
+  isHidden: boolean;
+  hiddenFromInvestors: boolean;
   updatedAt: Date;
   createdBy: { name: string };
   _count: { trackings: number };
@@ -36,8 +39,12 @@ export function DashboardContent({
 }) {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
 
-  const filtered = assets.filter(
+  const hiddenCount = assets.filter((a) => a.isHidden).length;
+  const listed = showHidden ? assets : assets.filter((a) => !a.isHidden);
+
+  const filtered = listed.filter(
     (a) =>
       a.title.toLowerCase().includes(search.toLowerCase()) ||
       a.city.toLowerCase().includes(search.toLowerCase()) ||
@@ -45,12 +52,12 @@ export function DashboardContent({
   );
 
   const stats = useMemo(() => {
-    const totalAssets = assets.length;
-    const totalPipeline = assets.reduce((sum, a) => sum + a._count.trackings, 0);
-    const activeAssets = assets.filter((a) => a._count.trackings > 0).length;
+    const totalAssets = listed.length;
+    const totalPipeline = listed.reduce((sum, a) => sum + a._count.trackings, 0);
+    const activeAssets = listed.filter((a) => a._count.trackings > 0).length;
 
     const byUnit = new Map<string, number>();
-    for (const a of assets) {
+    for (const a of listed) {
       const unit = assetTypeToUnit(a.assetType);
       byUnit.set(unit.label, (byUnit.get(unit.label) ?? 0) + 1);
     }
@@ -59,7 +66,7 @@ export function DashboardContent({
       .slice(0, 5);
 
     return { totalAssets, totalPipeline, activeAssets, topUnits };
-  }, [assets]);
+  }, [listed]);
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-10">
@@ -124,7 +131,8 @@ export function DashboardContent({
       )}
 
       {/* Search */}
-      <div className="mb-6 relative max-w-sm">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="relative w-full max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
         <Input
           placeholder="Search assets..."
@@ -132,6 +140,13 @@ export function DashboardContent({
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
         />
+      </div>
+        {canEdit(userRole) && hiddenCount > 0 && (
+          <Button variant="outline" size="sm" onClick={() => setShowHidden((v) => !v)}>
+            <EyeOff className="mr-2 h-4 w-4" strokeWidth={2} />
+            {showHidden ? "Hide" : "Show"} hidden ({hiddenCount})
+          </Button>
+        )}
       </div>
 
       {/* Asset list */}
@@ -146,7 +161,9 @@ export function DashboardContent({
               ? "No matches — try a different search."
               : userRole === "VIEWER" && assets.length === 0
                 ? "You haven't been granted access to any assets yet. Ask the deal team to add you to an asset."
-                : "Create your first asset to start tracking."}
+                : hiddenCount > 0
+                  ? "All assets are hidden — use Show hidden to bring them back."
+                  : "Create your first asset to start tracking."}
           </p>
         </div>
       ) : (
@@ -154,10 +171,13 @@ export function DashboardContent({
           {filtered.map((asset) => {
             const unit = assetTypeToUnit(asset.assetType);
             return (
+              <div key={asset.id} className="relative">
               <Link
-                key={asset.id}
                 href={`/assets/${asset.id}`}
-                className="group flex items-stretch overflow-hidden rounded-md border border-dils-200 bg-white shadow-soft-card transition-all duration-150 hover:-translate-y-px hover:border-soft-office/40 hover:shadow-soft-card-hover"
+                className={cn(
+                  "group flex items-stretch overflow-hidden rounded-md border border-dils-200 bg-white shadow-soft-card transition-all duration-150 hover:-translate-y-px hover:border-soft-office/40 hover:shadow-soft-card-hover",
+                  asset.isHidden && "opacity-60"
+                )}
               >
                 {/* Business-unit colored edge */}
                 <div className={`w-1.5 shrink-0 ${unit.bar}`} aria-hidden />
@@ -203,11 +223,21 @@ export function DashboardContent({
                         {asset.brokerLabel && (
                           <span className="text-xs">Broker: {asset.brokerLabel}</span>
                         )}
+                        {asset.isHidden && (
+                          <Badge variant="outline" className="border-dils-300 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Hidden
+                          </Badge>
+                        )}
+                        {asset.hiddenFromInvestors && (
+                          <Badge variant="outline" className="border-dils-300 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Hidden from investors
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 pl-16 sm:pl-0">
+                  <div className={cn("flex items-center gap-6 pl-16 sm:pl-0", canEdit(userRole) && "sm:pr-10")}>
                     <div className="text-left sm:text-right">
                       <p className="font-heading text-3xl font-bold leading-none text-dils-black tabular-nums">
                         {asset._count.trackings}
@@ -225,6 +255,16 @@ export function DashboardContent({
                   </div>
                 </div>
               </Link>
+              {canEdit(userRole) && (
+                <div className="absolute right-2 top-2">
+                  <AssetVisibilityMenu
+                    assetId={asset.id}
+                    isHidden={asset.isHidden}
+                    hiddenFromInvestors={asset.hiddenFromInvestors}
+                  />
+                </div>
+              )}
+              </div>
             );
           })}
         </div>

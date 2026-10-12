@@ -25,6 +25,7 @@ export default async function InvestorDealPage(props: { params: Promise<{ assetI
     where: {
       assetId: params.assetId,
       companyId: { in: companyIds },
+      ...(user.role === "INVESTOR" && { asset: { hiddenFromInvestors: false } }),
     },
     include: {
       asset: true,

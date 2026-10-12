@@ -336,7 +336,7 @@ export async function getHtmlNdaForSigning(token: string) {
           tracking: {
             include: {
               company: { select: { name: true } },
-              asset: { select: { id: true, title: true, fieldDefaults: true } },
+              asset: { select: { id: true, title: true, fieldDefaults: true, hiddenFromInvestors: true } },
             },
           },
         },
@@ -347,6 +347,8 @@ export async function getHtmlNdaForSigning(token: string) {
   if (!signingToken) return null;
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
+  // A hidden asset's emailed signing links go dead until it is shown again.
+  if (signingToken.document.tracking.asset.hiddenFromInvestors) return null;
 
   const doc = signingToken.document;
   if (doc.mimeType !== "text/html" || !doc.fileUrl.startsWith(HTML_NDA_FILEURL_PREFIX)) {
@@ -678,7 +680,7 @@ export async function getSignedHtmlNda(documentId: string) {
         select: {
           companyId: true,
           assetId: true,
-          asset: { select: { title: true } },
+          asset: { select: { title: true, hiddenFromInvestors: true } },
           company: { select: { name: true } },
         },
       },
@@ -703,7 +705,10 @@ export async function getSignedHtmlNda(documentId: string) {
     // signing for some test accounts. Use the membership shim instead.
     const { getUserCompanyIds } = await import("@/lib/user-companies");
     const companyIds = await getUserCompanyIds(user.id);
-    if (!companyIds.includes(doc.tracking.companyId)) {
+    if (
+      !companyIds.includes(doc.tracking.companyId) ||
+      doc.tracking.asset.hiddenFromInvestors
+    ) {
       throw new Error("Forbidden");
     }
   } else if (user.role === "VIEWER") {

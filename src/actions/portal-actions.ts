@@ -89,7 +89,7 @@ export async function getInvestorDeals() {
   }
 
   const trackings = await prisma.assetCompanyTracking.findMany({
-    where: { companyId: user.companyId },
+    where: { companyId: user.companyId, asset: { hiddenFromInvestors: false } },
     include: {
       asset: true,
       stageStatuses: {
@@ -315,7 +315,7 @@ export async function requestViewing(
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
     include: {
-      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true } },
+      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true, hiddenFromInvestors: true } },
       company: { select: { id: true, name: true, contactEmail: true, contactName: true } },
       ownerUser: { select: { id: true, name: true, email: true } },
       stageStatuses: {
@@ -324,7 +324,9 @@ export async function requestViewing(
     },
   });
 
-  if (!tracking) return { ok: false, error: "Deal not found" };
+  if (!tracking || (user.role === "INVESTOR" && tracking.asset.hiddenFromInvestors)) {
+    return { ok: false, error: "Deal not found" };
+  }
 
   if (isDirectIm(tracking.asset.accessMode)) {
     return { ok: false, error: "This asset has no viewing step." };
@@ -492,6 +494,7 @@ export async function getAssetContentForInvestor(
     where: {
       assetId,
       companyId: user.companyId,
+      asset: { hiddenFromInvestors: false },
     },
     include: {
       stageStatuses: {
@@ -583,7 +586,7 @@ export async function submitInvestorOffer(
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
     include: {
-      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true } },
+      asset: { select: { id: true, title: true, address: true, city: true, accessMode: true, hiddenFromInvestors: true } },
       company: {
         select: { id: true, name: true, contactEmail: true, contactName: true },
       },
@@ -592,7 +595,9 @@ export async function submitInvestorOffer(
     },
   });
 
-  if (!tracking) return { ok: false, error: "Deal not found" };
+  if (!tracking || (user.role === "INVESTOR" && tracking.asset.hiddenFromInvestors)) {
+    return { ok: false, error: "Deal not found" };
+  }
   if (tracking.lifecycleStatus === "DROPPED") {
     return { ok: false, error: "This deal is no longer active" };
   }

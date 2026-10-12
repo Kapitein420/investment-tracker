@@ -8,6 +8,7 @@ import {
   updateAssetSchema,
   createCompanySchema,
   assetFieldDefaultsSchema,
+  assetVisibilitySchema,
   type CreateAssetInput,
   type UpdateAssetInput,
   type CreateCompanyInput,
@@ -49,6 +50,37 @@ export async function updateAsset(id: string, data: UpdateAssetInput) {
 
   revalidatePath("/assets");
   revalidatePath(`/assets/${id}`);
+  return asset;
+}
+
+/** Hide/show an asset on the admin dashboard and/or in the investor portal. */
+export async function setAssetVisibility(
+  assetId: string,
+  visibility: { isHidden?: boolean; hiddenFromInvestors?: boolean }
+) {
+  const user = await requireRole("EDITOR");
+  const validated = assetVisibilitySchema.parse(visibility);
+
+  const asset = await prisma.asset.update({
+    where: { id: assetId },
+    data: validated,
+    select: { id: true, isHidden: true, hiddenFromInvestors: true },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      entityType: "Asset",
+      entityId: asset.id,
+      action: "ASSET_VISIBILITY_UPDATED",
+      metadata: validated,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/portal");
+  revalidatePath(`/portal/${assetId}`);
   return asset;
 }
 

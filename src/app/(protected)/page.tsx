@@ -17,7 +17,12 @@ export default async function DashboardPage() {
     viewerScope !== null && viewerScope.length === 0
       ? []
       : await prisma.asset.findMany({
-          where: viewerScope === null ? undefined : { id: { in: viewerScope } },
+          // Hidden assets only reach ADMIN/EDITOR (viewerScope === null), who
+          // can reveal them with the dashboard's "Show hidden" toggle.
+          where:
+            viewerScope === null
+              ? undefined
+              : { id: { in: viewerScope }, isHidden: false },
           include: {
             _count: { select: { trackings: true } },
             createdBy: { select: { name: true } },

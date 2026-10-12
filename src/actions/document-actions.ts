@@ -591,7 +591,15 @@ export async function getSignedDocumentUrl(documentId: string) {
   const user = await requireUser();
   const doc = await prisma.document.findUniqueOrThrow({
     where: { id: documentId },
-    include: { tracking: { select: { companyId: true, assetId: true } } },
+    include: {
+      tracking: {
+        select: {
+          companyId: true,
+          assetId: true,
+          asset: { select: { hiddenFromInvestors: true } },
+        },
+      },
+    },
   });
 
   // Investors can only access their own company's documents. Checked
@@ -600,7 +608,10 @@ export async function getSignedDocumentUrl(documentId: string) {
   // be refused their own offer letter (same fix requestViewing carries).
   if (user.role === "INVESTOR") {
     const companyIds = await getUserCompanyIds(user.id);
-    if (!companyIds.includes(doc.tracking.companyId)) {
+    if (
+      !companyIds.includes(doc.tracking.companyId) ||
+      doc.tracking.asset.hiddenFromInvestors
+    ) {
       throw new Error("Forbidden");
     }
   }
@@ -872,7 +883,7 @@ export async function getDocumentForSigning(token: string) {
           tracking: {
             include: {
               company: { select: { name: true } },
-              asset: { select: { title: true, fieldDefaults: true } },
+              asset: { select: { title: true, fieldDefaults: true, hiddenFromInvestors: true } },
             },
           },
           stage: { select: { label: true } },
@@ -884,6 +895,8 @@ export async function getDocumentForSigning(token: string) {
   if (!signingToken) return null;
   if (signingToken.expiresAt <= new Date()) return null;
   if (signingToken.usedAt !== null) return null;
+  // A hidden asset's emailed signing links go dead until it is shown again.
+  if (signingToken.document.tracking.asset.hiddenFromInvestors) return null;
 
   // HTML NDA tokens are routed via getHtmlNdaForSigning(); calling
   // getSignedUrl on an "html:<id>" sentinel would 500 inside Supabase.
