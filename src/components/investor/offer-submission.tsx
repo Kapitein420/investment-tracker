@@ -3,15 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Check, FileText, Mail, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { submitInvestorOffer } from "@/actions/portal-actions";
@@ -20,13 +12,11 @@ import { openInNewTab } from "@/lib/open-in-new-tab";
 import { formatBid, formatDate } from "@/lib/utils";
 import { PrivacyNotice } from "@/components/privacy-notice";
 
-// Mirrors the admin OfferSection's currency list — the same three the
-// bidCurrency column is written with anywhere else in the app.
-const CURRENCIES = ["EUR", "USD", "GBP"];
-
 interface OfferSubmissionProps {
   trackingId: string;
-  /** Decimal flattened to string by the server component. */
+  /** Decimal flattened to string by the server component. Only set on legacy
+   * offers (an amount typed in before the signed PDF became the offer) or an
+   * amount the deal team recorded; the investor can no longer enter one. */
   bidAmount: string | null;
   bidCurrency: string | null;
   bidSubmittedAt: string | Date | null;
@@ -47,11 +37,13 @@ export function OfferSubmission({
   companyName,
 }: OfferSubmissionProps) {
   const router = useRouter();
-  const hasOffer = bidAmount != null && String(bidAmount).trim() !== "";
+  // The signed PDF is the offer — no document, no offer. (A legacy
+  // amount-only offer has no letter, so it counts as not yet submitted and
+  // the investor is asked for the binding letter.)
+  const hasOffer = offerDocument != null;
+  const hasLegacyAmount = bidAmount != null && String(bidAmount).trim() !== "";
 
   const [editing, setEditing] = useState(!hasOffer);
-  const [amount, setAmount] = useState(hasOffer ? String(bidAmount) : "");
-  const [currency, setCurrency] = useState(bidCurrency ?? "EUR");
   const [fileName, setFileName] = useState<string | null>(null);
   const [attested, setAttested] = useState(false);
   const [submitting, startSubmit] = useTransition();
@@ -78,13 +70,13 @@ export function OfferSubmission({
   function handleSubmit() {
     const file = fileRef.current?.files?.[0] ?? null;
     const fd = new FormData();
-    fd.append("trackingId", trackingId);
-    fd.append("amount", amount.trim());
-    fd.append("currency", currency);
-    if (file) {
-      fd.append("file", file);
-      fd.append("attestation", attested ? "true" : "false");
+    if (!file) {
+      toast.error("Attach your signed, binding offer letter (PDF) to submit");
+      return;
     }
+    fd.append("trackingId", trackingId);
+    fd.append("file", file);
+    fd.append("attestation", attested ? "true" : "false");
 
     startSubmit(async () => {
       try {
@@ -93,7 +85,7 @@ export function OfferSubmission({
           toast.error(result.error ?? "Couldn't submit your offer");
           return;
         }
-        toast.success("Offer submitted. The deal team has been notified.");
+        toast.success("Binding offer submitted. The deal team has been notified.");
         setEditing(false);
         setFileName(null);
         setAttested(false);
@@ -118,11 +110,13 @@ export function OfferSubmission({
     <div className="rounded-md border-l-[3px] border-l-status-success bg-status-success-soft p-4">
       <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-status-success">
         <Check className="h-3.5 w-3.5" strokeWidth={2.4} />
-        Offer submitted
+        Binding offer submitted
       </p>
-      <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
-        {formatBid(bidAmount, bidCurrency ?? "EUR")}
-      </p>
+      {hasLegacyAmount && (
+        <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
+          {formatBid(bidAmount, bidCurrency ?? "EUR")}
+        </p>
+      )}
       {bidSubmittedAt && (
         <p className="mt-1 text-xs text-muted-foreground">
           Submitted {formatDate(bidSubmittedAt)}
@@ -159,7 +153,7 @@ export function OfferSubmission({
       <div className="space-y-3">
         {submittedSummary}
         <Button variant="outline" onClick={() => setEditing(true)}>
-          Revise offer
+          Submit a revised offer
         </Button>
       </div>
     );
@@ -170,51 +164,19 @@ export function OfferSubmission({
       {hasOffer && submittedSummary}
       <div className="rounded-lg border border-dils-200 bg-white p-5">
         <h4 className="font-heading text-base font-semibold tracking-tight text-foreground">
-          {hasOffer ? "Revise your offer" : "Submit your non-binding offer"}
+          {hasOffer ? "Submit a revised binding offer" : "Submit your binding offer"}
         </h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the amount you are offering. You can attach your signed offer
-          letter as a PDF now or add it on a later submission. The deal team is
+          Your offer must be a signed, binding offer letter, uploaded as a PDF.
+          The amount and terms are stated in the letter itself. The deal team is
           notified as soon as you submit.
+          {hasOffer && " A new letter replaces the one on file."}
         </p>
 
         <div className="mt-4 space-y-3">
           <div>
-            <Label
-              htmlFor="offer-amount"
-              className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground"
-            >
-              Offer amount
-            </Label>
-            <div className="mt-1.5 flex gap-2">
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger className="w-[84px] shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="offer-amount"
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                placeholder="11300000"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
             <Label className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
-              Signed offer letter (PDF, optional)
+              Signed binding offer letter (PDF, required)
             </Label>
             <input
               ref={fileRef}
@@ -230,20 +192,16 @@ export function OfferSubmission({
                 onClick={() => fileRef.current?.click()}
               >
                 <Upload className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
-                {fileName || offerDocument ? "Choose another PDF" : "Choose PDF"}
+                {fileName ? "Choose another PDF" : "Choose PDF"}
               </Button>
               {fileName ? (
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-foreground">
                   <Paperclip className="h-3 w-3 shrink-0" strokeWidth={2} />
                   <span className="truncate">{fileName}</span>
                 </span>
-              ) : offerDocument ? (
-                <span className="truncate text-xs text-muted-foreground">
-                  Keeping {offerDocument.fileName}
-                </span>
               ) : (
                 <span className="text-xs text-muted-foreground">
-                  Optional · max 10MB
+                  Required · PDF only · max 10MB
                 </span>
               )}
             </div>
@@ -267,10 +225,10 @@ export function OfferSubmission({
         <div className="mt-4 flex items-center gap-2">
           <Button
             className="bg-banner-info-foreground text-white hover:bg-banner-info-foreground/90"
-            disabled={submitting || amount.trim() === "" || (!!fileName && !attested)}
+            disabled={submitting || !fileName || !attested}
             onClick={handleSubmit}
           >
-            {submitting ? "Submitting…" : hasOffer ? "Submit revision" : "Submit offer"}
+            {submitting ? "Submitting…" : hasOffer ? "Submit revision" : "Submit binding offer"}
           </Button>
           {hasOffer && (
             <Button
@@ -278,8 +236,6 @@ export function OfferSubmission({
               disabled={submitting}
               onClick={() => {
                 setEditing(false);
-                setAmount(String(bidAmount));
-                setCurrency(bidCurrency ?? "EUR");
                 setFileName(null);
                 setAttested(false);
                 if (fileRef.current) fileRef.current.value = "";

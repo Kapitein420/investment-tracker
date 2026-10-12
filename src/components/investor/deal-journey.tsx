@@ -119,7 +119,7 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   nda: "Non-Disclosure Agreement — required before accessing detailed materials.",
   im: "The Information Memorandum with full details on the opportunity.",
   viewing: "Schedule and attend a property viewing or presentation.",
-  nbo: "Submit a Non-Binding Offer to express your interest.",
+  nbo: "Submit your binding offer as a signed PDF offer letter.",
 };
 
 const NEXT_STEP_TITLES: Record<string, string> = {
@@ -127,7 +127,7 @@ const NEXT_STEP_TITLES: Record<string, string> = {
   nda: "Sign the Non-Disclosure Agreement",
   im: "Review the Information Memorandum",
   viewing: "Schedule your property viewing",
-  nbo: "Submit your Non-Binding Offer",
+  nbo: "Submit your binding offer",
 };
 
 export function DealJourney({ tracking, contents }: DealJourneyProps) {
