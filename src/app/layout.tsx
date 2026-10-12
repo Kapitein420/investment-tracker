@@ -36,6 +36,7 @@ const nunitoSans = localFont({
 export const metadata: Metadata = {
   title: "Dils Investor Portal",
   description: "Deal pipeline tracking for Dils Investment Sales",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
