@@ -130,6 +130,15 @@ const NEXT_STEP_TITLES: Record<string, string> = {
   nbo: "Submit your binding offer",
 };
 
+// The IM itself first, then the rent roll, then the NEN. The contents query has
+// no orderBy, so without this the download order follows insertion order.
+function attachmentRank(content: any): number {
+  const km = content.keyMetrics as any;
+  if (km?.isNen === true) return 2;
+  if (km?.isRentRoll === true) return 1;
+  return 0;
+}
+
 export function DealJourney({ tracking, contents }: DealJourneyProps) {
   const router = useRouter();
   // Optimistically mark the teaser as COMPLETED on the very first render —
@@ -401,7 +410,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                 // don't see the source HTML rendered as text.
                 if (c.keyMetrics && (c.keyMetrics as any).isHtmlNda) return false;
                 return true;
-              });
+              }).sort((a: any, b: any) => attachmentRank(a) - attachmentRank(b));
           const isExpanded = state !== "locked";
           const description = STAGE_DESCRIPTIONS[ss.stage.key] || "";
 
