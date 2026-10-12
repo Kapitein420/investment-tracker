@@ -272,36 +272,24 @@ export type SignDocumentInput = z.infer<typeof signDocumentSchema>;
 export type RejectDocumentInput = z.infer<typeof rejectDocumentSchema>;
 
 // ─── Investor NBO offer submission ──────────────────────────────────────────
-// Offer amounts are stored as Decimal(14,2) — cap the input below that so a
-// fat-fingered figure fails validation instead of a Postgres numeric overflow.
-const MAX_BID = 999_999_999_999;
-
-const offerAmountFields = {
-  amount: z.coerce
-    .number({ invalid_type_error: "Enter a valid amount" })
-    .positive("Enter an amount greater than zero")
-    .max(MAX_BID, "That amount looks too large — check the figure"),
-  currency: z.enum(["EUR", "USD", "GBP"]),
-};
-
-// An amount-only submission needs no attestation. Attaching a PDF makes it a
-// binding signed offer letter (G8 / BW 3:15a), so the submitter must
-// affirmatively confirm it before the upload is accepted — a discriminated
-// union on `hasFile` keeps that requirement out of the no-file path entirely
-// rather than bolting a conditional onto one shared schema.
-export const submitOfferSchema = z.discriminatedUnion("hasFile", [
-  z.object({ hasFile: z.literal(false), ...offerAmountFields }),
-  z.object({
-    hasFile: z.literal(true),
-    ...offerAmountFields,
-    attestation: z.literal(true, {
-      errorMap: () => ({
-        message:
-          "Confirm this is your signed, binding offer letter before submitting",
-      }),
+// The offer is the signed, binding offer letter (PDF) — no amount is entered
+// in the app. A PDF is therefore mandatory on every submission (including a
+// revision, which replaces the letter on file), and attaching it makes it a
+// binding signed offer letter (G8 / BW 3:15a): the submitter must
+// affirmatively confirm it before the upload is accepted.
+export const submitOfferSchema = z.object({
+  hasFile: z.literal(true, {
+    errorMap: () => ({
+      message: "Attach your signed, binding offer letter (PDF) to submit",
     }),
   }),
-]);
+  attestation: z.literal(true, {
+    errorMap: () => ({
+      message:
+        "Confirm this is your signed, binding offer letter before submitting",
+    }),
+  }),
+});
 
 // Export types
 export type CreateAssetInput = z.infer<typeof createAssetSchema>;

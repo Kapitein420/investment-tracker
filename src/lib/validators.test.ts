@@ -2,56 +2,40 @@ import { describe, it, expect } from "vitest";
 import { submitOfferSchema } from "@/lib/validators";
 
 describe("submitOfferSchema (investor NBO offer, G8 offer-letter parity)", () => {
-  const base = { amount: 1_000_000, currency: "EUR" as const };
-
-  it("accepts an amount-only submission with no attestation", () => {
-    const result = submitOfferSchema.safeParse({ ...base, hasFile: false });
+  it("accepts a PDF with attestation ticked", () => {
+    const result = submitOfferSchema.safeParse({ hasFile: true, attestation: true });
     expect(result.success).toBe(true);
   });
 
-  it("ignores a stray attestation field on the no-file branch", () => {
-    const result = submitOfferSchema.safeParse({
-      ...base,
-      hasFile: false,
-      attestation: false,
-    });
-    expect(result.success).toBe(true);
+  it("requires a PDF: rejects a submission with no file", () => {
+    const result = submitOfferSchema.safeParse({ hasFile: false, attestation: true });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toMatch(/binding offer letter/i);
+    }
   });
 
   it("rejects a file submission missing attestation", () => {
-    const result = submitOfferSchema.safeParse({ ...base, hasFile: true });
+    const result = submitOfferSchema.safeParse({ hasFile: true });
     expect(result.success).toBe(false);
   });
 
   it("rejects a file submission with attestation explicitly false", () => {
-    const result = submitOfferSchema.safeParse({
-      ...base,
-      hasFile: true,
-      attestation: false,
-    });
+    const result = submitOfferSchema.safeParse({ hasFile: true, attestation: false });
     expect(result.success).toBe(false);
   });
 
-  it("accepts a file submission with attestation ticked", () => {
+  it("no longer takes an amount or currency", () => {
+    // Stray fields from an old client are ignored, not required.
     const result = submitOfferSchema.safeParse({
-      ...base,
       hasFile: true,
       attestation: true,
+      amount: 1_000_000,
+      currency: "EUR",
     });
     expect(result.success).toBe(true);
-  });
-
-  it("still enforces the shared amount/currency rules on both branches", () => {
-    expect(
-      submitOfferSchema.safeParse({ hasFile: false, amount: -5, currency: "EUR" }).success
-    ).toBe(false);
-    expect(
-      submitOfferSchema.safeParse({
-        hasFile: true,
-        attestation: true,
-        amount: 100,
-        currency: "JPY",
-      }).success
-    ).toBe(false);
+    if (result.success) {
+      expect(result.data).toEqual({ hasFile: true, attestation: true });
+    }
   });
 });

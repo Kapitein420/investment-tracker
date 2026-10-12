@@ -537,20 +537,20 @@ export async function getAssetContentForInvestor(
 /**
  * Investor-side NBO offer submission.
  *
- * The mirror image of the admin's OfferSection: writes the same
- * bidAmount / bidCurrency / bidSubmittedAt on the tracking and the same
- * Document(kind="OFFER"), so an investor-submitted offer is
- * indistinguishable downstream from one an admin keyed in on their
- * behalf — the seller-side VIEWER and the pipeline table pick it up with
- * no extra plumbing.
+ * The offer IS the signed, binding offer letter: a PDF is mandatory on every
+ * submission and no amount is entered. It writes the same
+ * Document(kind="OFFER") and bidSubmittedAt the admin's OfferSection does, so
+ * the seller-side VIEWER and the pipeline table pick it up with no extra
+ * plumbing (a row with an offer PDF and no amount already renders). Any
+ * bidAmount / bidCurrency left over from an earlier submission or an admin
+ * entry belongs to the superseded offer, so it is cleared.
  *
  * Gated on the NBO stage being unlocked (Viewing COMPLETED) and not yet
  * COMPLETED — once the deal team closes the stage the investor can no
  * longer overwrite the recorded bid.
  *
- * Re-submittable: the amount can be revised, and a new PDF atomically
- * replaces the previous one. Omitting the file on a re-submit keeps the
- * document already on file.
+ * Re-submittable: a revision carries a new PDF, which atomically replaces
+ * the previous one.
  */
 export async function submitInvestorOffer(
   formData: FormData
@@ -564,14 +564,12 @@ export async function submitInvestorOffer(
   const trackingId = (formData.get("trackingId") as string | null) ?? "";
   if (!trackingId) return { ok: false, error: "Missing deal reference" };
 
-  // Read the file up front — the schema needs to know whether one is
-  // attached to decide if attestation is required.
+  // The PDF is the offer, so it is mandatory — the schema rejects a
+  // submission without one and requires the attestation that goes with it.
   const file = formData.get("file") as File | null;
   const hasNewFile = !!file && file.size > 0;
 
   const parsed = submitOfferSchema.safeParse({
-    amount: formData.get("amount"),
-    currency: formData.get("currency"),
     hasFile: hasNewFile,
     attestation: formData.get("attestation") === "true",
   });
@@ -581,7 +579,6 @@ export async function submitInvestorOffer(
       error: parsed.error.issues[0]?.message ?? "Invalid offer",
     };
   }
-  const { amount, currency } = parsed.data;
 
   const tracking = await prisma.assetCompanyTracking.findUnique({
     where: { id: trackingId },
@@ -633,33 +630,24 @@ export async function submitInvestorOffer(
     };
   }
 
-  // The PDF is optional throughout — an investor can record an indicative
-  // figure now and attach the signed letter on a later submission. Omitting
-  // it on a re-submit keeps whatever is already on file rather than
-  // clearing it. (file / hasNewFile read above, ahead of schema validation.)
-  const existingOffer = hasNewFile
-    ? null
-    : await prisma.document.findFirst({
-        where: { trackingId, kind: "OFFER" },
-        select: { id: true },
-      });
-
   const oldBid =
     tracking.bidAmount == null ? null : tracking.bidAmount.toString();
   const submittedAt = new Date();
-  // Set below, before the transaction, when a file is attached — read by
-  // writeBid's OFFER_SUBMITTED log so the hash lands in the same audit
-  // entry as the bid, not just on the Document row.
+  // Set below, once the PDF is read — read by writeBid's OFFER_SUBMITTED log
+  // so the hash lands in the same audit entry as the submission, not just on
+  // the Document row.
   let offerFileSha256: string | null = null;
 
-  // Shared with the document path below so a submission carrying a PDF
-  // commits the bid and the document in a single transaction.
+  // Runs inside replaceOfferDocument's transaction so the submission
+  // timestamp and the document commit together.
   const writeBid = async (tx: Prisma.TransactionClient) => {
     await tx.assetCompanyTracking.update({
       where: { id: trackingId },
       data: {
-        bidAmount: amount,
-        bidCurrency: currency,
+        // A superseded amount (earlier investor submission or admin entry)
+        // would sit next to a letter it no longer describes. bidCurrency is
+        // non-nullable and meaningless without an amount, so it stays.
+        bidAmount: null,
         bidSubmittedAt: submittedAt,
       },
     });
@@ -668,13 +656,26 @@ export async function submitInvestorOffer(
       data: {
         trackingId,
         stageId: nboStatus.stageId,
-        fieldName: "bidAmount",
-        oldValue: oldBid,
-        newValue: String(amount),
+        fieldName: "bidSubmittedAt",
+        oldValue: tracking.bidSubmittedAt?.toISOString() ?? null,
+        newValue: submittedAt.toISOString(),
         changedByUserId: user.id,
         note: "investor:OFFER_SUBMITTED",
       },
     });
+    if (oldBid !== null) {
+      await tx.stageHistory.create({
+        data: {
+          trackingId,
+          stageId: nboStatus.stageId,
+          fieldName: "bidAmount",
+          oldValue: oldBid,
+          newValue: null,
+          changedByUserId: user.id,
+          note: "investor:OFFER_SUBMITTED (superseded by new offer letter)",
+        },
+      });
+    }
 
     if (nboStatus.status === "NOT_STARTED") {
       await tx.stageStatus.update({
@@ -704,8 +705,6 @@ export async function submitInvestorOffer(
           assetId: tracking.assetId,
           companyId: tracking.companyId,
           companyName: tracking.company.name,
-          amount: String(amount),
-          currency,
           ...(offerFileSha256 ? { pdfSha256: offerFileSha256 } : {}),
         },
         userId: user.id,
@@ -713,55 +712,41 @@ export async function submitInvestorOffer(
     });
   };
 
-  let offerDoc: Awaited<ReturnType<typeof replaceOfferDocument>> | null = null;
-  if (hasNewFile) {
-    const buffer = await readOfferPdf(file!);
-    offerFileSha256 = createHash("sha256").update(buffer).digest("hex");
-    const stageId = await resolveOfferStageId(trackingId);
-    offerDoc = await replaceOfferDocument({
-      trackingId,
-      stageId,
-      buffer,
-      fileName: file!.name,
-      fileSize: file!.size,
-      mimeType: file!.type,
-      uploadedByUserId: user.id,
-      action: "OFFER_DOCUMENT_SUBMITTED",
-      metadata: { amount: String(amount), currency, source: "investor" },
-      extraWrites: writeBid,
-      signedByName: user.name,
-      signedByEmail: user.email,
-      ip: await getClientIp(),
-      userAgent: await getClientUserAgent(),
-      attestedAt: submittedAt,
-    });
-  } else {
-    await prisma.$transaction(writeBid);
-  }
+  const buffer = await readOfferPdf(file!);
+  offerFileSha256 = createHash("sha256").update(buffer).digest("hex");
+  const stageId = await resolveOfferStageId(trackingId);
+  const offerDoc = await replaceOfferDocument({
+    trackingId,
+    stageId,
+    buffer,
+    fileName: file!.name,
+    fileSize: file!.size,
+    mimeType: file!.type,
+    uploadedByUserId: user.id,
+    action: "OFFER_DOCUMENT_SUBMITTED",
+    metadata: { source: "investor" },
+    extraWrites: writeBid,
+    signedByName: user.name,
+    signedByEmail: user.email,
+    ip: await getClientIp(),
+    userAgent: await getClientUserAgent(),
+    attestedAt: submittedAt,
+  });
 
   // POST-COMMIT: roll currentStageKey forward (NBO -> IN_PROGRESS).
   await syncCurrentStageKeyAfterCommit(trackingId);
 
-  await notifyDealTeamOfOffer({
-    tracking,
-    amount,
-    currency,
-    letter: hasNewFile ? "new" : existingOffer ? "existing" : "none",
-  });
+  await notifyDealTeamOfOffer({ tracking });
 
-  if (offerDoc) {
-    await sendOfferReceipt({
-      userId: user.id,
-      toEmail: user.email,
-      assetTitle: tracking.asset.title,
-      amount,
-      currency,
-      fileName: file!.name,
-      pdfSha256: offerDoc.pdfSha256,
-      submittedAt,
-      document: offerDoc,
-    });
-  }
+  await sendOfferReceipt({
+    userId: user.id,
+    toEmail: user.email,
+    assetTitle: tracking.asset.title,
+    fileName: file!.name,
+    pdfSha256: offerDoc.pdfSha256,
+    submittedAt,
+    document: offerDoc,
+  });
 
   return { ok: true };
 }
@@ -776,22 +761,14 @@ async function sendOfferReceipt(args: {
   userId: string;
   toEmail: string;
   assetTitle: string;
-  amount: number;
-  currency: string;
   fileName: string;
   pdfSha256: string | null;
   submittedAt: Date;
   document: { id: string; fileUrl: string };
 }): Promise<void> {
-  const { userId, toEmail, assetTitle, amount, currency, fileName, pdfSha256, submittedAt, document } =
-    args;
+  const { userId, toEmail, assetTitle, fileName, pdfSha256, submittedAt, document } = args;
 
   try {
-    const formatted = new Intl.NumberFormat("nl-NL", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
     const submittedAtAmsterdam = `${new Intl.DateTimeFormat("en-GB", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -807,12 +784,10 @@ async function sendOfferReceipt(args: {
       unsubscribeUrl: unsubscribeUrl(toEmail),
       bodyHtml: `
         <p style="color: #101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
-          We've received your offer for <strong>${escapeHtml(assetTitle)}</strong>, including
-          your uploaded offer letter.
+          We've received your binding offer letter for <strong>${escapeHtml(assetTitle)}</strong>.
         </p>
         <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
-          <tr><td style="padding:10px 14px; width:110px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Offer</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;"><strong>${escapeHtml(formatted)}</strong></td></tr>
-          <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">File</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(fileName)}</td></tr>
+          <tr><td style="padding:10px 14px; width:110px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">File</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(fileName)}</td></tr>
           ${pdfSha256 ? `<tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">SHA-256</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB; font-family:monospace; font-size:11px; word-break:break-all;">${escapeHtml(pdfSha256)}</td></tr>` : ""}
           <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Submitted</td><td style="padding:10px 14px;">${escapeHtml(submittedAtAmsterdam)}</td></tr>
         </table>
@@ -859,21 +834,11 @@ async function notifyDealTeamOfOffer(args: {
     };
     ownerUser: { email: string | null } | null;
   };
-  amount: number;
-  currency: string;
-  /** Whether this submission carried a PDF, reused the one on file, or has none. */
-  letter: "new" | "existing" | "none";
 }): Promise<void> {
-  const { tracking, amount, currency, letter } = args;
+  const { tracking } = args;
 
   const recipients = dealTeamRecipients(tracking.ownerUser?.email, "offer submitted");
   if (recipients.length === 0) return;
-
-  const formatted = new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
 
   const investorContact = tracking.company.contactName ?? tracking.company.name;
   const investorEmail = tracking.company.contactEmail ?? "(no contact email)";
@@ -883,21 +848,20 @@ async function notifyDealTeamOfOffer(args: {
   // One HTML string fanned out to the whole deal team, so no per-recipient
   // unsubscribe link (see renderEmail).
   const html = renderEmail({
-    heading: "Non-binding offer submitted",
+    heading: "Binding offer submitted",
     meta: tracking.asset.title,
     bodyHtml: `
       <p style="color:#101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
-        <strong>${escapeHtml(tracking.company.name)}</strong> has submitted an offer for
+        <strong>${escapeHtml(tracking.company.name)}</strong> has submitted a signed, binding offer letter for
         <strong>${escapeHtml(tracking.asset.title)}</strong>${location}.
       </p>
       <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
-        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Offer</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;"><strong>${escapeHtml(formatted)}</strong></td></tr>
         <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Investor contact</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorContact)}</td></tr>
         <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">Email</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(investorEmail)}</td></tr>
-        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Offer letter</td><td style="padding:10px 14px;">${letter === "new" ? "Attached to the deal (PDF)" : letter === "existing" ? "Unchanged - previously submitted PDF still on file" : "Not attached - amount only"}</td></tr>
+        <tr><td style="padding:10px 14px; color:#6B7280; background:#F5F6F7;">Offer letter</td><td style="padding:10px 14px;">Attached to the deal (PDF)</td></tr>
       </table>
       <p style="color:#101820; font-size:13px; line-height:1.6; margin:0;">
-        The offer and its PDF are on the deal row in the pipeline. Wwft reminder: buyer CDD
+        The offer letter is on the deal row in the pipeline. Wwft reminder: buyer CDD
         must be cleared before accepting.
       </p>
     `,
