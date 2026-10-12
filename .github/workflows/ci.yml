@@ -98,5 +98,7 @@ jobs:
       # generated Prisma client.
       - run: npm ci --ignore-scripts
 
+      # High and above, minus the allowlist in the script (advisories with
+      # no patched release).
       - name: npm audit (high and above)
-        run: npm audit --audit-level=high
+        run: node .github/scripts/audit-check.mjs
