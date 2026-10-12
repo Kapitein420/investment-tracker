@@ -75,7 +75,7 @@ The login page also has one-click "Quick Login" buttons for each role in dev.
 
 ## Features
 
-- **Asset management** — Create and manage real estate assets, content library (teasers, IMs, rent rolls, images)
+- **Asset management** — Create and manage real estate assets, content library (teasers, IMs, rent rolls, NEN, images)
 - **Pipeline tracking** — Track companies through deal stages (Teaser, NDA, Viewing, NBO)
 - **Document e-signing** — PDF placeholder/grid signing and HTML-templated NDAs, with placeholder auto-detection and admin field defaults
 - **Investor portal** — Authenticated deal-journey view per investor: unlocks content/stages as they progress, download signed documents, request viewings

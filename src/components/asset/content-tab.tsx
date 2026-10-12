@@ -36,7 +36,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addType, setAddType] = useState<"nda" | "im" | "rentRoll">("im");
+  const [addType, setAddType] = useState<"nda" | "im" | "rentRoll" | "nen">("im");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Separate NDA, Teaser, and IM content
@@ -54,8 +54,16 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
   const rentRollContent = contents.find(
     (c) => c.stageKey === "im" && (c.keyMetrics as any)?.isRentRoll === true
   );
+  // NEN works exactly like the rent roll: an "im" stage attachment flagged via
+  // keyMetrics, unlocked after NDA approval and download-only (no preview).
+  const nenContent = contents.find(
+    (c) => c.stageKey === "im" && (c.keyMetrics as any)?.isNen === true
+  );
   const imContents = contents.filter(
-    (c) => c.stageKey === "im" && (c.keyMetrics as any)?.isRentRoll !== true
+    (c) =>
+      c.stageKey === "im" &&
+      (c.keyMetrics as any)?.isRentRoll !== true &&
+      (c.keyMetrics as any)?.isNen !== true
   );
 
   // Teaser editor state
@@ -216,7 +224,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teaserContent, teaserImageUrls]);
 
-  async function handleUploadContent(kind: "nda" | "im" | "rentRoll", title: string) {
+  async function handleUploadContent(kind: "nda" | "im" | "rentRoll" | "nen", title: string) {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
 
@@ -229,13 +237,18 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
       const existingMaster =
         kind === "nda" ? ndaContent :
         kind === "rentRoll" ? rentRollContent :
+        kind === "nen" ? nenContent :
         null;
 
       // Rent roll lives under the "im" stage so it inherits the same
       // post-NDA-approval gating; the isRentRoll flag distinguishes it
       // from the actual IM PDFs in both the admin and investor views.
       const stageKey = kind === "nda" ? "nda" : "im";
-      const keyMetrics = kind === "rentRoll" ? { isRentRoll: true } : undefined;
+      const keyMetrics =
+        kind === "rentRoll" ? { isRentRoll: true } :
+        kind === "nen" ? { isNen: true } :
+        undefined;
+      const kindLabel = kind === "rentRoll" ? "Rent roll" : kind === "nen" ? "NEN" : kind.toUpperCase();
 
       if (existingMaster) {
         await updateAssetContent(existingMaster.id, {
@@ -245,7 +258,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
           isPublished: true,
           ...(keyMetrics ? { keyMetrics } : {}),
         });
-        toast.success(`${kind === "rentRoll" ? "Rent roll" : kind.toUpperCase()} document replaced`);
+        toast.success(`${kindLabel} document replaced`);
       } else {
         await createAssetContent({
           assetId,
@@ -257,7 +270,7 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
           isPublished: true,
           ...(keyMetrics ? { keyMetrics } : {}),
         });
-        toast.success(`${kind === "rentRoll" ? "Rent roll" : kind.toUpperCase()} document uploaded`);
+        toast.success(`${kindLabel} document uploaded`);
       }
 
       setAddDialogOpen(false);
@@ -782,6 +795,84 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
         )}
       </section>
 
+      <Separator />
+
+      {/* NEN Section — single file, download-only, gated by NDA approval */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">NEN</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Attachment — unlocks for investors after NDA approval, alongside the IM
+            </p>
+          </div>
+          {!nenContent && editable && (
+            <Button
+              size="sm"
+              onClick={() => { setAddType("nen"); setAddDialogOpen(true); }}
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Upload NEN
+            </Button>
+          )}
+        </div>
+
+        {nenContent ? (
+          <div className="rounded-lg border border-dils-200 bg-white p-5 shadow-soft-card sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-soft-research-soft text-soft-research">
+                  <FileText className="h-5 w-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{nenContent.fileName || nenContent.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Uploaded {formatDate(nenContent.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => handleDownload(nenContent.fileUrl, nenContent.fileName)}
+                >
+                  <Download className="mr-1 h-3 w-3" />
+                  Download
+                </Button>
+                {editable && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => { setAddType("nen"); setAddDialogOpen(true); }}
+                    >
+                      Replace
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs hover:border-status-danger/40 hover:text-status-danger"
+                      onClick={() => handleDelete(nenContent.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
+            <FileText className="mx-auto h-8 w-8 text-muted-foreground/40" />
+            <p className="mt-2 text-sm text-muted-foreground">No NEN uploaded yet</p>
+            <p className="text-xs text-muted-foreground/60">Upload a file (PDF or Excel) — investors download it after NDA approval</p>
+          </div>
+        )}
+      </section>
+
       {/* PDF Preview Modal */}
       {previewUrl && (
         <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
@@ -948,23 +1039,27 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                 ? "Upload NDA Document"
                 : addType === "rentRoll"
                   ? "Upload Rent Roll"
-                  : "Add IM Material"}
+                  : addType === "nen"
+                    ? "Upload NEN"
+                    : "Add IM Material"}
             </DialogTitle>
             <DialogDescription className="sr-only">
               {addType === "rentRoll"
                 ? "Upload the rent roll spreadsheet shown to investors after NDA approval."
-                : addType === "nda"
+                : addType === "nen"
+                  ? "Upload the NEN document shown to investors after NDA approval."
+                  : addType === "nda"
                   ? "Upload the NDA document that invited investors will sign."
                   : "Upload an Information Memorandum document for this asset."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{addType === "rentRoll" ? "Excel File (.xlsx)" : "PDF File"}</Label>
+              <Label>{addType === "rentRoll" ? "Excel File (.xlsx)" : addType === "nen" ? "NEN File (PDF or Excel)" : "PDF File"}</Label>
               <input
                 ref={fileRef}
                 type="file"
-                accept={addType === "rentRoll" ? ".xlsx,.xls" : ".pdf"}
+                accept={addType === "rentRoll" ? ".xlsx,.xls" : addType === "nen" ? ".pdf,.xlsx,.xls" : ".pdf"}
                 className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
               />
             </div>
@@ -978,7 +1073,9 @@ export function ContentTab({ assetId, contents, trackings, editable, assetFieldD
                   ? "NDA"
                   : addType === "rentRoll"
                     ? "Rent Roll"
-                    : "Information Memorandum"
+                    : addType === "nen"
+                      ? "NEN"
+                      : "Information Memorandum"
               )}
               disabled={uploading}
             >

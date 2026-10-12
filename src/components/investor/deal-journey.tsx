@@ -611,7 +611,10 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
 
                   {/* Content (IM materials etc.) */}
                   {stageContent.map((content: any) => {
-                    const isRentRoll = (content.keyMetrics as any)?.isRentRoll === true;
+                    // Rent roll and NEN are download-only attachments (no preview).
+                    const isNen = (content.keyMetrics as any)?.isNen === true;
+                    const isRentRoll = (content.keyMetrics as any)?.isRentRoll === true || isNen;
+                    const attachmentLabel = isNen ? "NEN" : "Rent Roll";
                     return (
                     <div key={content.id} className="overflow-hidden rounded-lg border border-dils-200 bg-white">
                       <div className="flex items-center justify-between gap-3 border-b border-dils-100 bg-soft-bg-surface-alt px-4 py-3">
@@ -621,7 +624,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                           ) : (
                             <FileText className="h-3.5 w-3.5" strokeWidth={2} />
                           )}
-                          {isRentRoll ? "Rent Roll" : content.title}
+                          {isRentRoll ? attachmentLabel : content.title}
                         </h4>
                         {content.contentType === "PDF" && content.fileUrl && (
                           <div className="flex items-center gap-2">
@@ -657,7 +660,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
                                 const sep = url.includes("?") ? "&" : "?";
                                 const fname = encodeURIComponent(
                                   content.fileName ??
-                                    (isRentRoll ? `${content.title}.xlsx` : `${content.title}.pdf`)
+                                    (isNen ? content.title : isRentRoll ? `${content.title}.xlsx` : `${content.title}.pdf`)
                                 );
                                 return `${url}${sep}download=${fname}`;
                               })()}
