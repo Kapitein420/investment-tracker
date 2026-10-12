@@ -360,16 +360,20 @@ export async function sendInvestorInvite({
     ? await issuePasswordSetToken(investorUser.id, "INVITE")
     : null;
 
+  // DIRECT_IM has no NDA: the terms click-accept opens the IM. The mail says
+  // so and walks them through login -> accept -> IM instead of "sign the NDA".
+  const directIm = asset.accessMode === "DIRECT_IM";
+
   const credentialsBlock = passwordLink
     ? `
       <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
         <tr>
           <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
-          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #101820; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
-            Use the button below to get your password. The link works once and expires in ${passwordLink.ttlLabel}.
+            Use the button below to ${directIm ? "request your login details" : "get your password"}. The link works once and expires in ${passwordLink.ttlLabel}.
           </td>
         </tr>
       </table>
@@ -378,7 +382,7 @@ export async function sendInvestorInvite({
       <table style="width: 100%; border: 1px solid #E6E8EB; border-collapse: collapse; margin: 0 0 28px 0;">
         <tr>
           <td style="padding: 14px 16px; width: 110px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #101820; font-weight: 700; border-bottom: 1px solid #E6E8EB;">Email</td>
-          <td style="padding: 14px 16px; font-size: 14px; color: #101820; font-family: 'Courier New', Courier, monospace; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
+          <td style="padding: 14px 16px; font-size: 14px; color: #101820; background: #F5F6F7; border-bottom: 1px solid #E6E8EB;">${escapeHtml(email)}</td>
         </tr>
         <tr>
           <td colspan="2" style="padding: 14px 16px; font-size: 13px; color: #101820; background: #F5F6F7;">
@@ -397,10 +401,31 @@ export async function sendInvestorInvite({
   let emailError: string | undefined;
   let messageId: string | null = null;
   let suppressed = false;
+
+  const where = `${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}`;
+  const introHtml = directIm
+    ? `
+      <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 12px 0;">
+        You have been invited to review <strong>${escapeHtml(asset.title)}</strong> in ${where}. A short preview is below.
+        There is no NDA to sign for this opportunity.
+      </p>
+      <ol style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0; padding-left: 20px;">
+        <li>${passwordLink ? "Follow the link below to request your login details." : "Follow the link below to log in."}</li>
+        <li>Accept the terms of use.</li>
+        <li>The full Information Memorandum opens right away in the portal.</li>
+      </ol>
+    `
+    : `
+      <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
+        You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${where}. A short preview is below. Full details unlock in the portal once you sign the NDA.
+      </p>
+    `;
   try {
     const result = await sendEmail({
       to: email,
-      subject: `Your access to ${asset.title} on the DILS Investor Portal`,
+      subject: directIm
+        ? `Information Memorandum for ${asset.title} on the DILS Investor Portal`
+        : `Your access to ${asset.title} on the DILS Investor Portal`,
       // Invites carry a deal teaser (description, highlights, hero image) —
       // that's a commercial communication under Telecommunicatiewet 11.7,
       // so it's checked against EmailSuppression before sending.
@@ -408,14 +433,12 @@ export async function sendInvestorInvite({
       html: renderEmail({
         heading: `Welcome, ${company.name}`,
         bodyHtml: `
-          <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
-            You have been granted access to review <strong>${escapeHtml(asset.title)}</strong> in ${escapeHtml(asset.city)}, ${escapeHtml(asset.country)}. A short preview is below. ${asset.accessMode === "DIRECT_IM" ? "The full Information Memorandum opens in the portal as soon as you accept the terms of use." : "Full details unlock in the portal once you sign the NDA."}
-          </p>
+          ${introHtml}
           ${teaserPreviewHtml}
           ${credentialsBlock}
           ${
             passwordLink
-              ? renderCta("Get your password", passwordLink.url)
+              ? renderCta(directIm ? "Request your login details" : "Get your password", passwordLink.url)
               : renderCta("Log in to portal", loginUrl)
           }
           <p style="color: #6B7280; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">

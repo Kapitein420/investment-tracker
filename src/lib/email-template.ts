@@ -65,7 +65,7 @@ function renderFooter(meta?: string, unsubscribeUrl?: string) {
 }
 
 /**
- * Wrap body HTML with the standard DILS header, brass-rule heading, and
+ * Wrap body HTML with the standard DILS header, heading, and
  * privacy-statement footer. Body content is fully owned by the caller —
  * pass arbitrary HTML (paragraphs, tables, CTAs, etc.) keyed off the
  * COLORS palette below.
@@ -85,10 +85,9 @@ export function renderEmail(opts: {
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: ${COLORS.paper};">
       ${renderHeader()}
       <div style="background: ${COLORS.paper}; padding: 40px 32px 32px 32px;">
-        <h1 style="font-family: Georgia, 'Times New Roman', serif; color: ${COLORS.ink}; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.2;">
+        <h1 style="font-family: Georgia, 'Times New Roman', serif; color: ${COLORS.ink}; margin: 0 0 24px 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.2;">
           ${escape(opts.heading)}
         </h1>
-        <div style="background: ${COLORS.brass}; height: 2px; width: 40px; margin: 14px 0 24px 0; line-height: 2px; font-size: 0;">&nbsp;</div>
         ${opts.bodyHtml}
       </div>
       ${renderFooter(opts.meta, opts.unsubscribeUrl)}
