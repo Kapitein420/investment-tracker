@@ -182,7 +182,7 @@ export async function approveStage(trackingId: string, stageKey: string) {
           );
         } else {
           const { sendEmail } = await import("@/lib/email");
-          const { renderEmail, renderCta } = await import("@/lib/email-template");
+          const { renderEmail, renderCta, escapeHtml } = await import("@/lib/email-template");
           const { unsubscribeUrl } = await import("@/lib/unsubscribe");
           // Built per-recipient (not once, shared) so each footer carries
           // that recipient's own unsubscribe link rather than someone else's.
@@ -191,14 +191,14 @@ export async function approveStage(trackingId: string, stageKey: string) {
               heading: "Your NDA has been approved",
               bodyHtml: `
               <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 16px 0;">
-                Your NDA for <strong>${tracking.asset.title}</strong> has been reviewed and approved.
+                Your NDA for <strong>${escapeHtml(tracking.asset.title)}</strong> has been reviewed and approved.
               </p>
               <p style="color: #101820; line-height: 1.6; font-size: 14px; margin: 0 0 24px 0;">
                 You now have access to the Information Memorandum. Log in to your investor portal to review the materials.
               </p>
               ${renderCta("View Information Memorandum", `${getAppUrl()}/portal/${tracking.assetId}`)}
             `,
-              meta: `${tracking.asset.title}`,
+              meta: escapeHtml(tracking.asset.title),
               unsubscribeUrl: unsubscribeUrl(to),
             });
           // Send in parallel; any individual failure is logged but doesn't
