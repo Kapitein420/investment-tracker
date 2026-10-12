@@ -21,6 +21,7 @@ import { TrackingDetailDrawer } from "@/components/asset/tracking-detail-drawer"
 import { ContentTab } from "@/components/asset/content-tab";
 import { ClickActivityTab } from "@/components/asset/click-activity-tab";
 import { AccessModeSelect } from "@/components/asset/access-mode-select";
+import { AssetVisibilityMenu } from "@/components/asset/asset-visibility-menu";
 import { ImportDialog } from "@/components/asset/import-dialog";
 import { BulkInviteDialog } from "@/components/asset/bulk-invite-dialog";
 import { Users } from "lucide-react";
@@ -142,6 +143,23 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
               )}
               {editable && (
                 <AccessModeSelect assetId={asset.id} value={asset.accessMode ?? "STANDARD"} />
+              )}
+              {editable && (
+                <AssetVisibilityMenu
+                  assetId={asset.id}
+                  isHidden={asset.isHidden}
+                  hiddenFromInvestors={asset.hiddenFromInvestors}
+                />
+              )}
+              {asset.isHidden && (
+                <span className="inline-flex items-center rounded border border-dils-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em]">
+                  Hidden
+                </span>
+              )}
+              {asset.hiddenFromInvestors && (
+                <span className="inline-flex items-center rounded border border-dils-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em]">
+                  Hidden from investors
+                </span>
               )}
               {asset.brokerLabel && <span>Broker: <strong className="font-medium text-dils-black">{asset.brokerLabel}</strong></span>}
               {isViewerRole && (

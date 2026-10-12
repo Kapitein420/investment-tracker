@@ -188,6 +188,11 @@ model Asset {
   // project-level info such as building name, vendor, address.
   fieldDefaults   Json?
   accessMode      AccessMode @default(STANDARD)
+  // isHidden only drops the asset from the default dashboard list (admins can
+  // reveal it again); hiddenFromInvestors makes it unreachable in the investor
+  // portal. Independent: an asset can be archived yet still open to investors.
+  isHidden            Boolean  @default(false)
+  hiddenFromInvestors Boolean  @default(false)
   createdById     String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

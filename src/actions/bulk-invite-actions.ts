@@ -86,8 +86,11 @@ export async function bulkInviteInvestors({
 
   const asset = await prisma.asset.findUniqueOrThrow({
     where: { id: assetId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, hiddenFromInvestors: true },
   });
+  if (asset.hiddenFromInvestors) {
+    throw new Error("This asset is hidden from investors — make it visible before inviting.");
+  }
 
   const batchId = randomUUID();
   await prisma.activityLog.create({

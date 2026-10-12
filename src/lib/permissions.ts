@@ -106,6 +106,23 @@ export async function getViewerAccessibleAssetIds(
 }
 
 /**
+ * Guard for the public, token-gated signing actions: refuses once the deal's
+ * asset is hidden from investors, so a link emailed earlier can't be used to
+ * sign or reject behind the admin's back. Call after the token is validated.
+ */
+export async function assertTrackingVisibleToInvestors(
+  trackingId: string
+): Promise<void> {
+  const tracking = await prisma.assetCompanyTracking.findUnique({
+    where: { id: trackingId },
+    select: { asset: { select: { hiddenFromInvestors: true } } },
+  });
+  if (!tracking || tracking.asset.hiddenFromInvestors) {
+    throw new Error("This deal is no longer available");
+  }
+}
+
+/**
  * Hard guard for asset-scoped pages — throws "Forbidden" so route handlers
  * can let it propagate to the error boundary (Next renders 500 with a
  * neutral message, never leaking that the asset exists). VIEWERs without

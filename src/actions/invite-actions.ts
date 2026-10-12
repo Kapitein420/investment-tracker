@@ -32,6 +32,9 @@ export async function sendInvestorInvite({
     prisma.asset.findUniqueOrThrow({ where: { id: assetId } }),
     prisma.company.findUniqueOrThrow({ where: { id: companyId } }),
   ]);
+  if (asset.hiddenFromInvestors) {
+    throw new Error("This asset is hidden from investors — make it visible before inviting.");
+  }
 
   // Sprint B PR-3: look up by EMAIL only (User.email is globally @unique).
   // Previously this was scoped to (email, companyId) which meant inviting

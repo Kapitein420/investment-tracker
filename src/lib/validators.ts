@@ -97,6 +97,11 @@ export const createAssetSchema = z.object({
 
 export const updateAssetSchema = createAssetSchema.partial();
 
+export const assetVisibilitySchema = z.object({
+  isHidden: z.boolean().optional(),
+  hiddenFromInvestors: z.boolean().optional(),
+});
+
 // Map of UPPERCASE placeholder token → default value. Used to pre-fill
 // project-level fields on NDA / IM documents before the investor signs.
 export const assetFieldDefaultsSchema = z.record(
