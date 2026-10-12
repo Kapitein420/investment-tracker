@@ -34,7 +34,8 @@ export async function createAssetContent(data: {
   // Scan PDFs for {{TOKEN}} / {TOKEN} placeholders so the admin sees them in
   // the Project fields panel and per-investor signing forms can be auto-built.
   // Skip for non-PDF attachments (e.g. rent roll xlsx) tagged via keyMetrics.
-  const isRentRoll = (data.keyMetrics as any)?.isRentRoll === true;
+  const isRentRoll =
+    (data.keyMetrics as any)?.isRentRoll === true || (data.keyMetrics as any)?.isNen === true;
   let placeholderMap: Record<string, unknown> | null = null;
   if (data.contentType === "PDF" && data.fileUrl && !isRentRoll) {
     try {
@@ -103,7 +104,9 @@ export async function updateAssetContent(
         where: { id },
         select: { contentType: true, keyMetrics: true },
       });
-      const existingIsRentRoll = (existing?.keyMetrics as any)?.isRentRoll === true;
+      const existingIsRentRoll =
+        (existing?.keyMetrics as any)?.isRentRoll === true ||
+        (existing?.keyMetrics as any)?.isNen === true;
       if (existing?.contentType === "PDF" && !existingIsRentRoll) {
         const bytes = await downloadFile(data.fileUrl);
         const map = await scanPlaceholders(Buffer.from(bytes));
