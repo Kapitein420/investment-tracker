@@ -39,7 +39,7 @@ export function OfferSubmission({
   const router = useRouter();
   // The signed PDF is the offer — no document, no offer. (A legacy
   // amount-only offer has no letter, so it counts as not yet submitted and
-  // the investor is asked for the binding letter.)
+  // the investor is asked for the offer letter.)
   const hasOffer = offerDocument != null;
   const hasLegacyAmount = bidAmount != null && String(bidAmount).trim() !== "";
 
@@ -71,7 +71,7 @@ export function OfferSubmission({
     const file = fileRef.current?.files?.[0] ?? null;
     const fd = new FormData();
     if (!file) {
-      toast.error("Attach your signed, binding offer letter (PDF) to submit");
+      toast.error("Attach your signed, non-binding offer letter (PDF) to submit");
       return;
     }
     fd.append("trackingId", trackingId);
@@ -85,7 +85,7 @@ export function OfferSubmission({
           toast.error(result.error ?? "Couldn't submit your offer");
           return;
         }
-        toast.success("Binding offer submitted. The deal team has been notified.");
+        toast.success("Non-binding offer submitted. The deal team has been notified.");
         setEditing(false);
         setFileName(null);
         setAttested(false);
@@ -110,7 +110,7 @@ export function OfferSubmission({
     <div className="rounded-md border-l-[3px] border-l-status-success bg-status-success-soft p-4">
       <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-status-success">
         <Check className="h-3.5 w-3.5" strokeWidth={2.4} />
-        Binding offer submitted
+        Non-binding offer submitted
       </p>
       {hasLegacyAmount && (
         <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
@@ -164,10 +164,10 @@ export function OfferSubmission({
       {hasOffer && submittedSummary}
       <div className="rounded-lg border border-dils-200 bg-white p-5">
         <h4 className="font-heading text-base font-semibold tracking-tight text-foreground">
-          {hasOffer ? "Submit a revised binding offer" : "Submit your binding offer"}
+          {hasOffer ? "Submit a revised non-binding offer" : "Submit your non-binding offer"}
         </h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your offer must be a signed, binding offer letter, uploaded as a PDF.
+          Your offer must be a signed, non-binding offer letter, uploaded as a PDF.
           The amount and terms are stated in the letter itself. The deal team is
           notified as soon as you submit.
           {hasOffer && " A new letter replaces the one on file."}
@@ -176,7 +176,7 @@ export function OfferSubmission({
         <div className="mt-4 space-y-3">
           <div>
             <Label className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
-              Signed binding offer letter (PDF, required)
+              Signed non-binding offer letter (PDF, required)
             </Label>
             <input
               ref={fileRef}
@@ -214,7 +214,7 @@ export function OfferSubmission({
                   className="mt-0.5 h-4 w-4 shrink-0"
                 />
                 <span className="text-xs leading-relaxed text-foreground">
-                  This is our signed, binding offer letter and I have authority to submit
+                  This is our signed, non-binding offer letter and I have authority to submit
                   it on behalf of {companyName}.
                 </span>
               </label>
@@ -228,7 +228,7 @@ export function OfferSubmission({
             disabled={submitting || !fileName || !attested}
             onClick={handleSubmit}
           >
-            {submitting ? "Submitting…" : hasOffer ? "Submit revision" : "Submit binding offer"}
+            {submitting ? "Submitting…" : hasOffer ? "Submit revision" : "Submit non-binding offer"}
           </Button>
           {hasOffer && (
             <Button

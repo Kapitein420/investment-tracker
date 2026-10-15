@@ -39,7 +39,7 @@ function getNextAction(stageStatuses: any[], documents: any[]): string {
     if (ss.status === "IN_PROGRESS") {
       if (ss.stage.key === "im") return "Information Memorandum is now available";
       if (ss.stage.key === "viewing") return "Schedule your property viewing";
-      if (ss.stage.key === "nbo") return "Submit your binding offer";
+      if (ss.stage.key === "nbo") return "Submit your non-binding offer";
       return `${ss.stage.label} \u2014 action required`;
     }
 

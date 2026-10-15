@@ -277,21 +277,21 @@ export type SignDocumentInput = z.infer<typeof signDocumentSchema>;
 export type RejectDocumentInput = z.infer<typeof rejectDocumentSchema>;
 
 // ─── Investor NBO offer submission ──────────────────────────────────────────
-// The offer is the signed, binding offer letter (PDF) — no amount is entered
+// The offer is the signed, non-binding offer letter (PDF) — no amount is entered
 // in the app. A PDF is therefore mandatory on every submission (including a
 // revision, which replaces the letter on file), and attaching it makes it a
-// binding signed offer letter (G8 / BW 3:15a): the submitter must
+// signed offer letter (G8 / BW 3:15a): the submitter must
 // affirmatively confirm it before the upload is accepted.
 export const submitOfferSchema = z.object({
   hasFile: z.literal(true, {
     errorMap: () => ({
-      message: "Attach your signed, binding offer letter (PDF) to submit",
+      message: "Attach your signed, non-binding offer letter (PDF) to submit",
     }),
   }),
   attestation: z.literal(true, {
     errorMap: () => ({
       message:
-        "Confirm this is your signed, binding offer letter before submitting",
+        "Confirm this is your signed, non-binding offer letter before submitting",
     }),
   }),
 });

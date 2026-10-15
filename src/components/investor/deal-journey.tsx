@@ -119,7 +119,7 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   nda: "Non-Disclosure Agreement — required before accessing detailed materials.",
   im: "The Information Memorandum with full details on the opportunity.",
   viewing: "Schedule and attend a property viewing or presentation.",
-  nbo: "Submit your binding offer as a signed PDF offer letter.",
+  nbo: "Submit your non-binding offer as a signed PDF offer letter.",
 };
 
 const NEXT_STEP_TITLES: Record<string, string> = {
@@ -127,7 +127,7 @@ const NEXT_STEP_TITLES: Record<string, string> = {
   nda: "Sign the Non-Disclosure Agreement",
   im: "Review the Information Memorandum",
   viewing: "Schedule your property viewing",
-  nbo: "Submit your binding offer",
+  nbo: "Submit your non-binding offer",
 };
 
 // The IM itself first, then the rent roll, then the NEN. The contents query has
