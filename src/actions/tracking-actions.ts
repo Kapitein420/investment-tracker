@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { ensureContactAccess } from "@/lib/contact-access";
 import { requireRole, requireUser } from "@/lib/permissions";
 import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
@@ -99,6 +100,26 @@ export async function createTracking(data: CreateTrackingInput) {
     }
   } catch (e) {
     console.error("[createTracking] auto-attach NDA failed:", e);
+  }
+
+  // Make sure the company's primary contact can get into the portal. Covers
+  // companies saved with only Company.contactEmail (no CompanyContact row, no
+  // account), which "request access" would otherwise turn away. Idempotent and
+  // email-free; non-fatal like the NDA attach above.
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: validated.companyId },
+      select: { contactName: true, contactEmail: true },
+    });
+    if (company?.contactEmail) {
+      await ensureContactAccess({
+        companyId: validated.companyId,
+        name: company.contactName,
+        email: company.contactEmail,
+      });
+    }
+  } catch (e) {
+    console.error("[createTracking] ensureContactAccess failed:", e);
   }
 
   revalidatePath(`/assets/${validated.assetId}`);

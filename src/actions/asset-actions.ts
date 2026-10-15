@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { ensureContactAccess } from "@/lib/contact-access";
 import { requireRole, requireUser } from "@/lib/permissions";
 import {
   createAssetSchema,
@@ -173,9 +174,31 @@ export async function createCompany(data: CreateCompanyInput) {
   await requireRole("EDITOR");
   const validated = createCompanySchema.parse(data);
 
+  // A named contact with no email can never request their password (access
+  // requests are matched on email), so refuse rather than save a dead contact.
+  if (validated.contactName?.trim() && !validated.contactEmail?.trim()) {
+    throw new Error(
+      "A contact email is required so the person can request their portal password."
+    );
+  }
+
   const company = await prisma.company.create({
     data: validated,
   });
+
+  // Give the contact a way in: a CompanyContact row plus a portal account.
+  // Sends no email — the invite stays an explicit opt-in in the dialog.
+  try {
+    await ensureContactAccess({
+      companyId: company.id,
+      name: validated.contactName,
+      email: validated.contactEmail,
+    });
+  } catch (e) {
+    // createTracking runs ensureContactAccess again for this company, so a
+    // transient failure here is retried rather than failing the whole add.
+    console.error("[createCompany] ensureContactAccess failed:", e);
+  }
 
   revalidatePath("/assets");
   return company;
