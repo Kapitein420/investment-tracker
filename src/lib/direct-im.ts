@@ -37,8 +37,22 @@ export async function promoteDirectImTrackings(userId: string): Promise<void> {
   for (const tracking of trackings) {
     const nda = tracking.stageStatuses.find((s) => s.stage.key === "nda");
     const im = tracking.stageStatuses.find((s) => s.stage.key === "im");
-    const ndaDone = nda?.status === "COMPLETED" && nda.approvedAt != null;
-    const imDone = im?.status === "COMPLETED";
+    // The IM only became open once BOTH the terms were accepted and this asset
+    // was shared. A returning investor accepted the terms long before a newly
+    // sent asset exists, so stamping the terms date would show the IM as
+    // completed before the investor was ever sent the deal.
+    const satisfiedAt =
+      acceptance.acceptedAt > tracking.createdAt ? acceptance.acceptedAt : tracking.createdAt;
+
+    // Earlier versions stamped the terms date unconditionally. Any stage dated
+    // before its tracking existed is that bug, so it is safe to re-stamp.
+    const isStale = (ss: typeof nda) =>
+      ss?.status === "COMPLETED" &&
+      ((ss.completedAt != null && ss.completedAt < tracking.createdAt) ||
+        (ss.approvedAt != null && ss.approvedAt < tracking.createdAt));
+
+    const ndaDone = nda?.status === "COMPLETED" && nda.approvedAt != null && !isStale(nda);
+    const imDone = im?.status === "COMPLETED" && !isStale(im);
     if (ndaDone && imDone) continue;
 
     await prisma.$transaction(async (tx) => {
@@ -46,15 +60,17 @@ export async function promoteDirectImTrackings(userId: string): Promise<void> {
         [nda, true],
         [im, false],
       ] as const) {
-        if (!ss || (ss.status === "COMPLETED" && (!approve || ss.approvedAt))) continue;
+        if (!ss) continue;
+        const stale = isStale(ss);
+        if (!stale && ss.status === "COMPLETED" && (!approve || ss.approvedAt)) continue;
         await tx.stageStatus.update({
           where: { id: ss.id },
           data: {
             status: "COMPLETED",
-            completedAt: ss.completedAt ?? acceptance.acceptedAt,
+            completedAt: stale ? satisfiedAt : (ss.completedAt ?? satisfiedAt),
             updatedByUserId: userId,
             ...(approve
-              ? { approvedAt: acceptance.acceptedAt }
+              ? { approvedAt: satisfiedAt }
               : {}),
           },
         });
