@@ -6,26 +6,55 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ArrowLeft, Mail, Lock } from "lucide-react";
 import { requestAccessEmail } from "@/actions/auth-actions";
 import { PrivacyNotice } from "@/components/privacy-notice";
+
+const CONTACT_EMAIL = "M.Burkens@dils.com";
+const CONTACT_NAME = "Mats";
+
+function accessRequestMailto(requesterEmail: string): string {
+  const subject = "Request for DILS Investor Portal access";
+  const body =
+    `Hi ${CONTACT_NAME},\n\n` +
+    `I tried to request access to the DILS Investor Portal, but my email address ` +
+    `is not on the access list.\n\n` +
+    `My email address: ${requesterEmail}\n\n` +
+    `Could you please add me so I can get my login?\n\n` +
+    `Kind regards`;
+  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 export default function RequestAccessPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [unknownOpen, setUnknownOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    let unknown = false;
     try {
-      await requestAccessEmail(email);
+      const result = await requestAccessEmail(email);
+      unknown = result.unknown === true;
     } catch {
       // requestAccessEmail is designed to never throw to the client; belt-
       // and-suspenders so a network blip doesn't reveal anything.
     } finally {
       setLoading(false);
-      setSubmitted(true);
+      // Unknown email: keep the form and show the contact popup instead of
+      // the "check your inbox" screen, since no email is on its way.
+      if (unknown) setUnknownOpen(true);
+      else setSubmitted(true);
     }
   }
 
@@ -106,6 +135,33 @@ export default function RequestAccessPage() {
           <PrivacyNotice variant="compact" />
         </div>
       </div>
+
+      <Dialog open={unknownOpen} onOpenChange={setUnknownOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>We couldn&rsquo;t find your email</DialogTitle>
+            <DialogDescription>
+              <strong>{email}</strong> isn&rsquo;t on the access list for the DILS
+              Investor Portal. Please get in contact with {CONTACT_NAME} at{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-foreground underline">
+                {CONTACT_EMAIL}
+              </a>{" "}
+              and he will get you set up.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setUnknownOpen(false)}>
+              Close
+            </Button>
+            <Button asChild>
+              <a href={accessRequestMailto(email.trim())}>
+                <Mail className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
+                Email {CONTACT_NAME}
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

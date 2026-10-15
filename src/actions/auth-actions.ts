@@ -34,8 +34,15 @@ export type AccessRequestFlavor = "reset" | "welcome";
 
 export async function requestPasswordReset(
   rawEmail: string,
-  opts?: { flavor?: AccessRequestFlavor; restrictToInvestor?: boolean }
-): Promise<{ ok: true }> {
+  opts?: {
+    flavor?: AccessRequestFlavor;
+    restrictToInvestor?: boolean;
+    /** Report `unknown: true` when the email has no investor account, so the
+     *  caller can point the person at the deal team. Off by default: the
+     *  forgot-password path must stay uniform. */
+    revealUnknown?: boolean;
+  }
+): Promise<{ ok: true; unknown?: boolean }> {
   // Kill switch: setting INVITES_PAUSED=true on Vercel pauses every
   // self-serve set-password email without a redeploy. Used to halt
   // mid-rollout if Mailgun reputation tanks or a wave goes sideways.
@@ -138,7 +145,11 @@ export async function requestPasswordReset(
     // can introduce a separate AuthAuditEvent table if we need queryable
     // unknown-email audit.
     console.info(`[requestPasswordReset] no user for email "${redactEmail(email)}" (flavor=${flavor})`);
-    return { ok: true };
+    // Only the public request-access page opts in: a person who isn't on the
+    // list needs to be told to contact the deal team rather than wait for an
+    // email that will never arrive. Rate limits above still apply, so this
+    // can't be probed in bulk.
+    return opts?.revealUnknown ? { ok: true, unknown: true } : { ok: true };
   }
 
   if (!user.isActive) {
@@ -259,13 +270,18 @@ export async function requestPasswordReset(
  * Convenience wrapper for the "broker sends a marketing email via
  * ActiveCampaign with a 'request access' link" flow.
  *
- * Behaves identically to `requestPasswordReset` (silent no-op if email
- * isn't pre-loaded), but locked to INVESTOR role so an attacker who
- * harvests an admin email from somewhere can't use the public access
- * page to rotate that admin's password. Uses welcome-tone email copy so
- * first-time recipients don't see a "your password was reset" notice
- * they never asked for.
+ * Behaves like `requestPasswordReset`, but locked to INVESTOR role so an
+ * attacker who harvests an admin email from somewhere can't use the public
+ * access page to rotate that admin's password. Uses welcome-tone email copy
+ * so first-time recipients don't see a "your password was reset" notice
+ * they never asked for. Returns `unknown: true` when the email isn't
+ * pre-loaded (non-investor addresses included) so the page can offer a
+ * contact route.
  */
 export async function requestAccessEmail(rawEmail: string) {
-  return requestPasswordReset(rawEmail, { flavor: "welcome", restrictToInvestor: true });
+  return requestPasswordReset(rawEmail, {
+    flavor: "welcome",
+    restrictToInvestor: true,
+    revealUnknown: true,
+  });
 }
