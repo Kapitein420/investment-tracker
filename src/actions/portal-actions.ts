@@ -540,7 +540,7 @@ export async function getAssetContentForInvestor(
 /**
  * Investor-side NBO offer submission.
  *
- * The offer IS the signed, binding offer letter: a PDF is mandatory on every
+ * The offer IS the signed, non-binding offer letter: a PDF is mandatory on every
  * submission and no amount is entered. It writes the same
  * Document(kind="OFFER") and bidSubmittedAt the admin's OfferSection does, so
  * the seller-side VIEWER and the pipeline table pick it up with no extra
@@ -789,7 +789,7 @@ async function sendOfferReceipt(args: {
       unsubscribeUrl: unsubscribeUrl(toEmail),
       bodyHtml: `
         <p style="color: #101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
-          We've received your binding offer letter for <strong>${escapeHtml(assetTitle)}</strong>.
+          We've received your non-binding offer letter for <strong>${escapeHtml(assetTitle)}</strong>.
         </p>
         <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">
           <tr><td style="padding:10px 14px; width:110px; color:#6B7280; background:#F5F6F7; border-bottom:1px solid #E6E8EB;">File</td><td style="padding:10px 14px; border-bottom:1px solid #E6E8EB;">${escapeHtml(fileName)}</td></tr>
@@ -853,11 +853,11 @@ async function notifyDealTeamOfOffer(args: {
   // One HTML string fanned out to the whole deal team, so no per-recipient
   // unsubscribe link (see renderEmail).
   const html = renderEmail({
-    heading: "Binding offer submitted",
+    heading: "Non-binding offer submitted",
     meta: tracking.asset.title,
     bodyHtml: `
       <p style="color:#101820; font-size:14px; line-height:1.6; margin:0 0 20px;">
-        <strong>${escapeHtml(tracking.company.name)}</strong> has submitted a signed, binding offer letter for
+        <strong>${escapeHtml(tracking.company.name)}</strong> has submitted a signed, non-binding offer letter for
         <strong>${escapeHtml(tracking.asset.title)}</strong>${location}.
       </p>
       <table style="width:100%; font-size:13px; line-height:1.6; margin:0 0 24px; border-collapse:collapse; border:1px solid #E6E8EB;">

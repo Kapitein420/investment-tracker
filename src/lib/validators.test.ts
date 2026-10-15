@@ -11,7 +11,7 @@ describe("submitOfferSchema (investor NBO offer, G8 offer-letter parity)", () =>
     const result = submitOfferSchema.safeParse({ hasFile: false, attestation: true });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toMatch(/binding offer letter/i);
+      expect(result.error.issues[0]?.message).toMatch(/non-binding offer letter/i);
     }
   });
 
