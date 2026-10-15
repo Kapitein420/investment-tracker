@@ -806,7 +806,7 @@ async function sendOfferReceipt(args: {
 
     await sendEmail({
       to: toEmail,
-      subject: `Your offer for ${assetTitle} has been received`,
+      subject: `Your non-binding offer for ${assetTitle} has been received`,
       category: "transactional",
       html,
     });
@@ -876,7 +876,7 @@ async function notifyDealTeamOfOffer(args: {
     recipients.map((to) =>
       sendEmail({
         to,
-        subject: `Offer submitted · ${tracking.asset.title} · ${tracking.company.name}`,
+        subject: `Non-binding offer submitted · ${tracking.asset.title} · ${tracking.company.name}`,
         html,
       })
     )
