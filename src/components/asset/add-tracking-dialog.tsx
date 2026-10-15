@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Company } from "@prisma/client";
-import { createTracking } from "@/actions/tracking-actions";
+import { createTracking, addPersonToCompany } from "@/actions/tracking-actions";
 import { createCompany } from "@/actions/asset-actions";
 import { sendInvestorInvite } from "@/actions/invite-actions";
 import { toast } from "sonner";
@@ -46,9 +46,15 @@ export function AddTrackingDialog({
   const [sendInvite, setSendInvite] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // "Add Person" tab: any company, including ones already on this asset.
+  const [personCompanyId, setPersonCompanyId] = useState("");
+  const [personName, setPersonName] = useState("");
+  const [personEmail, setPersonEmail] = useState("");
+
   const availableCompanies = companies.filter((c) => !existingCompanyIds.includes(c.id));
   const selectedCompany = availableCompanies.find((c) => c.id === selectedCompanyId);
   const selectedCompanyEmail = selectedCompany?.contactEmail ?? "";
+  const personEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personEmail.trim());
 
   const {
     register,
@@ -98,6 +104,38 @@ export function AddTrackingDialog({
       router.refresh();
     } catch {
       toast.error("Failed to add company");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddPerson() {
+    if (!personCompanyId || !personEmailValid) return;
+    setLoading(true);
+    try {
+      const result = await addPersonToCompany({
+        assetId,
+        companyId: personCompanyId,
+        name: personName,
+        email: personEmail,
+        relationshipType,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        result.contactAdded
+          ? `Added to ${result.companyName}${result.trackingAdded ? " and the pipeline" : ""}`
+          : `Already a contact at ${result.companyName}`
+      );
+      await maybeSendInvite(personCompanyId, personEmail.trim().toLowerCase());
+      setPersonName("");
+      setPersonEmail("");
+      onOpenChange(false);
+      router.refresh();
+    } catch {
+      toast.error("Failed to add person");
     } finally {
       setLoading(false);
     }
@@ -164,6 +202,7 @@ export function AddTrackingDialog({
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full">
               <TabsTrigger value="existing" className="flex-1">Existing Company</TabsTrigger>
+              <TabsTrigger value="person" className="flex-1">Add Person</TabsTrigger>
               <TabsTrigger value="new" className="flex-1">New Company</TabsTrigger>
             </TabsList>
 
@@ -182,6 +221,51 @@ export function AddTrackingDialog({
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                 <Button onClick={handleAddExisting} disabled={loading || !selectedCompanyId}>
                   {loading ? "Adding..." : "Add Company"}
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+
+            <TabsContent value="person" className="space-y-3 mt-3">
+              <p className="text-xs text-muted-foreground">
+                Add another person at a company, including one already on this asset.
+              </p>
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select value={personCompanyId} onValueChange={setPersonCompanyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a company..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {existingCompanyIds.includes(c.id) ? " · on this asset" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Name</Label>
+                  <Input value={personName} onChange={(e) => setPersonName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={personEmail}
+                    onChange={(e) => setPersonEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button
+                  onClick={handleAddPerson}
+                  disabled={loading || !personCompanyId || !personEmailValid}
+                >
+                  {loading ? "Adding..." : "Add Person"}
                 </Button>
               </DialogFooter>
             </TabsContent>

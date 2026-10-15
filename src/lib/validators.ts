@@ -146,6 +146,18 @@ export const createTrackingSchema = z.object({
   ownerUserId: z.string().optional(),
 });
 
+// Adds one person to a company that may already be on the asset (the Add
+// Company dialog hides those, so a second contact at a tracked firm had no
+// way in). Email is normalised here so the (companyId, email) unique index
+// and the User lookup in sendInvestorInvite see one canonical form.
+export const addPersonToCompanySchema = z.object({
+  assetId: z.string().min(1),
+  companyId: z.string().min(1, "Choose a company"),
+  name: z.string().trim().max(200).optional(),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  relationshipType: z.string().default("Investor"),
+});
+
 export const updateTrackingSchema = z.object({
   relationshipType: z.string().optional(),
   lifecycleStatus: z.enum(["ACTIVE", "COMPLETED", "DROPPED", "ON_HOLD"]).optional(),
@@ -302,6 +314,7 @@ export type UpdateAssetInput = z.infer<typeof updateAssetSchema>;
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 export type SetCompanyCddInput = z.infer<typeof setCompanyCddSchema>;
 export type CreateTrackingInput = z.infer<typeof createTrackingSchema>;
+export type AddPersonToCompanyInput = z.input<typeof addPersonToCompanySchema>;
 export type UpdateTrackingInput = z.infer<typeof updateTrackingSchema>;
 export type UpdateStageStatusInput = z.infer<typeof updateStageStatusSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

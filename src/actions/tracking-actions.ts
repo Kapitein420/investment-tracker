@@ -7,8 +7,10 @@ import { cloneHtmlNdaForInvestor } from "@/actions/html-nda-actions";
 import { syncCurrentStageKeyAfterCommit } from "@/lib/stage-sync";
 import {
   createTrackingSchema,
+  addPersonToCompanySchema,
   updateTrackingSchema,
   updateStageStatusSchema,
+  type AddPersonToCompanyInput,
   type CreateTrackingInput,
   type UpdateTrackingInput,
   type UpdateStageStatusInput,
@@ -101,6 +103,76 @@ export async function createTracking(data: CreateTrackingInput) {
 
   revalidatePath(`/assets/${validated.assetId}`);
   return tracking;
+}
+
+/**
+ * Add one person (contact) to a company on this asset. Works for a company
+ * that is already in the pipeline, which the Add Company dropdown hides, and
+ * for one that isn't yet (then it is added to the pipeline too).
+ *
+ * Idempotent: re-adding the same email is a no-op that reports
+ * `contactAdded: false`. No email is sent here — the dialog calls
+ * sendInvestorInvite afterwards only if the admin ticked the invite box.
+ * Expected failures come back as `{ ok: false, error }` because Next hides
+ * thrown messages from server actions in production.
+ */
+export async function addPersonToCompany(data: AddPersonToCompanyInput) {
+  const user = await requireRole("EDITOR");
+  const parsed = addPersonToCompanySchema.safeParse(data);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const { assetId, companyId, email, relationshipType } = parsed.data;
+  const name = parsed.data.name || null;
+
+  const [asset, company] = await Promise.all([
+    prisma.asset.findUnique({ where: { id: assetId }, select: { id: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true } }),
+  ]);
+  if (!asset || !company) {
+    return { ok: false as const, error: "Asset or company not found" };
+  }
+
+  const existingContact = await prisma.companyContact.findUnique({
+    where: { companyId_email: { companyId, email } },
+  });
+  if (existingContact) {
+    if (!existingContact.name && name) {
+      await prisma.companyContact.update({
+        where: { id: existingContact.id },
+        data: { name },
+      });
+    }
+  } else {
+    const contact = await prisma.companyContact.create({
+      data: { companyId, name, email, source: "STAFF" },
+    });
+    await prisma.activityLog.create({
+      data: {
+        entityType: "Company",
+        entityId: companyId,
+        action: "CONTACT_ADDED",
+        metadata: { assetId, contactId: contact.id },
+        userId: user.id,
+      },
+    });
+  }
+
+  const existingTracking = await prisma.assetCompanyTracking.findUnique({
+    where: { assetId_companyId: { assetId, companyId } },
+    select: { id: true },
+  });
+  if (!existingTracking) {
+    await createTracking({ assetId, companyId, relationshipType });
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  return {
+    ok: true as const,
+    companyName: company.name,
+    contactAdded: !existingContact,
+    trackingAdded: !existingTracking,
+  };
 }
 
 export async function updateTracking(
