@@ -254,7 +254,7 @@ export function UsersAdmin({ users }: { users: UserRow[] }) {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-dils-black">
             Team
           </h1>
           <p className="mt-2 text-sm text-muted-foreground max-w-prose">

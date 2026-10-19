@@ -280,7 +280,7 @@ export function DealJourney({ tracking, contents }: DealJourneyProps) {
           <Building className="h-7 w-7 text-dils-black" strokeWidth={1.8} />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="dils-accent inline-block font-heading text-3xl font-semibold tracking-tight text-dils-black sm:text-[34px]">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-dils-black sm:text-[34px]">
             {tracking.asset.title}
           </h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">

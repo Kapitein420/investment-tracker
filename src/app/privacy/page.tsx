@@ -30,7 +30,7 @@ export default function PrivacyPage() {
             className="mx-auto h-10 w-auto object-contain sm:h-11"
           />
           <div className="space-y-1">
-            <h1 className="dils-accent inline-block text-lg font-medium text-dils-black">
+            <h1 className="text-lg font-medium text-dils-black">
               Investor Portal privacy notice
             </h1>
             <p className="text-xs text-muted-foreground">

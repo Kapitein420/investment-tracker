@@ -55,7 +55,7 @@ export function StagesAdmin({ stages }: { stages: PipelineStage[] }) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-dils-black">
           Pipeline Stages
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">

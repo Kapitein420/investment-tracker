@@ -74,7 +74,7 @@ export default async function InvestorPortalPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-dils-black">
           Welcome, {company?.name ?? user.name}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">
