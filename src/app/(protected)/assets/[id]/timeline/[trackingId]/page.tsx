@@ -30,7 +30,7 @@ export default async function TimelinePage(
             {tracking.asset.title} &rsaquo; {tracking.company.name}
           </span>
         </div>
-        <h1 className="dils-accent inline-block font-heading text-3xl font-bold tracking-tight text-dils-black">
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-dils-black">
           Timeline
         </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-prose">

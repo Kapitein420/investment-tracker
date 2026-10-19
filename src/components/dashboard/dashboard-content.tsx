@@ -76,7 +76,7 @@ export function DashboardContent({
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-banner-info-foreground">
             Investment Sales · Pipeline
           </p>
-          <h1 className="dils-accent mt-3 inline-block font-heading text-3xl font-bold tracking-tight text-dils-black sm:text-4xl">
+          <h1 className="mt-3 font-heading text-3xl font-bold tracking-tight text-dils-black sm:text-4xl">
             Assets
           </h1>
           <p className="mt-3 max-w-prose text-sm text-muted-foreground">
@@ -155,8 +155,7 @@ export function DashboardContent({
           <p className="font-heading text-xl text-dils-black">
             {userRole === "VIEWER" && assets.length === 0 ? "No access yet" : "No assets yet"}
           </p>
-          <div className="mt-2 h-px w-12 bg-dils-brass" />
-          <p className="mt-3 text-sm text-muted-foreground max-w-sm">
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
             {search
               ? "No matches — try a different search."
               : userRole === "VIEWER" && assets.length === 0

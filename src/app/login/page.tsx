@@ -96,7 +96,7 @@ export default function LoginPage() {
             className="mx-auto h-10 w-auto object-contain sm:h-11"
           />
           <div className="space-y-1">
-            <p className="dils-accent inline-block text-sm font-medium text-dils-black">
+            <p className="text-sm font-medium text-dils-black">
               Investor Portal
             </p>
             <p className="text-xs text-muted-foreground">Sign in to your account</p>

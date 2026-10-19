@@ -123,7 +123,7 @@ export function AssetDetailView({ asset, stages, users, companies, contents, cur
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="dils-accent inline-block font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-dils-black sm:text-3xl">
               {asset.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">

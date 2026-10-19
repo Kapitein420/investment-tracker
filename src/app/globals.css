@@ -109,18 +109,3 @@
     letter-spacing: -0.01em;
   }
 }
-
-@layer components {
-  /* Editorial accent bar — narrow red underline under section headings */
-  .dils-accent {
-    position: relative;
-  }
-  .dils-accent::after {
-    content: "";
-    display: block;
-    width: 2rem;
-    height: 2px;
-    background-color: #EE2E24;
-    margin-top: 0.5rem;
-  }
-}
