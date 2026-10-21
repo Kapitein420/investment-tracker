@@ -8,7 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { updateHtmlNdaTemplate } from "@/actions/html-nda-actions";
-import { extractTokens, RESERVED_TOKENS, type TemplateField } from "@/lib/html-nda-template";
+import {
+  extractTokens,
+  NDA_TEMPLATE_OPTIONS,
+  RESERVED_TOKENS,
+  type TemplateField,
+} from "@/lib/html-nda-template";
 import { Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,6 +61,22 @@ export function HtmlNdaEditor({ htmlNda }: Props) {
       next[i] = { ...next[i], label };
       return next;
     });
+  }
+
+  // Swap the editor contents for one of the built-in templates. Nothing is
+  // persisted until "Save template"; admin pre-fills for keys that still exist
+  // in the new template are kept.
+  function loadBuiltIn(key: string) {
+    const option = NDA_TEMPLATE_OPTIONS.find((o) => o.key === key);
+    if (!option) return;
+    if (
+      html.trim() !== option.template.html.trim() &&
+      !confirm(`Replace the current HTML with the "${option.label}" template? Unsaved edits in the editor are lost.`)
+    ) {
+      return;
+    }
+    setHtml(option.template.html);
+    setFields(option.template.fields);
   }
 
   async function handleSave() {
@@ -147,7 +168,22 @@ export function HtmlNdaEditor({ htmlNda }: Props) {
 
           <div className="grid gap-6 sm:grid-cols-[2fr_1fr]">
             <section className="space-y-2">
-              <Label htmlFor="nda-html">HTML body</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="nda-html">HTML body</Label>
+                <select
+                  aria-label="Load a built-in NDA template"
+                  className="h-7 rounded-md border bg-background px-2 text-xs"
+                  value=""
+                  onChange={(e) => loadBuiltIn(e.target.value)}
+                >
+                  <option value="">Load built-in template…</option>
+                  {NDA_TEMPLATE_OPTIONS.map((o) => (
+                    <option key={o.key} value={o.key}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <p className="text-[11px] text-muted-foreground">
                 Use{" "}
                 <code className="rounded bg-muted px-1">{"{{TOKEN}}"}</code> for any field — they'll appear on the right.

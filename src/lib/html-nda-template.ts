@@ -5,6 +5,8 @@
 // If a future asset needs a different vendor block, edit the template
 // per-asset via the admin UI.
 
+import { ECLIPSE_NDA_TEMPLATE } from "./html-nda-template-eclipse";
+
 export interface TemplateField {
   key: string;
   label: string;
@@ -166,6 +168,21 @@ export const DEFAULT_NDA_TEMPLATE: HtmlNdaTemplate = {
 </article>
 `.trim(),
 };
+
+/** Built-in templates an admin can start an asset's NDA from. */
+export const NDA_TEMPLATE_OPTIONS = [
+  { key: "default", label: "Default DILS NDA (Dutch, Orizon / Noventa)", template: DEFAULT_NDA_TEMPLATE },
+  { key: "eclipse", label: "Eclipse Building NDA (English, Laagraven Investment)", template: ECLIPSE_NDA_TEMPLATE },
+] as const;
+
+/**
+ * Template a freshly enabled HTML NDA starts from. The Eclipse Building has
+ * its own NDA; every other asset gets the default. Admins can still switch
+ * template afterwards from the template editor.
+ */
+export function pickNdaTemplateForAsset(assetTitle: string | null | undefined): HtmlNdaTemplate {
+  return /\beclipse\b/i.test(assetTitle ?? "") ? ECLIPSE_NDA_TEMPLATE : DEFAULT_NDA_TEMPLATE;
+}
 
 // Accepts both {{TOKEN}} and {token}. Case-insensitive — keys are normalised
 // to UPPERCASE so the same field works regardless of how the lawyer typed it
