@@ -11,9 +11,9 @@ import {
   assertTrackingVisibleToInvestors,
 } from "@/lib/permissions";
 import {
-  DEFAULT_NDA_TEMPLATE,
   extractTokens,
   injectSignature,
+  pickNdaTemplateForAsset,
   renderTemplate,
   RESERVED_TOKENS,
   type TemplateField,
@@ -75,8 +75,8 @@ async function findHtmlNda(assetId: string) {
 
 /**
  * Enables the HTML NDA flow for an asset. Idempotent — if one already
- * exists, returns it. Otherwise seeds a new AssetContent with the default
- * NDA template and the standard field set.
+ * exists, returns it. Otherwise seeds a new AssetContent with the NDA template
+ * for the asset (default, or the Eclipse Building one) and the standard field set.
  */
 export async function enableHtmlNdaForAsset(assetId: string) {
   const user = await requireRole("EDITOR");
@@ -84,16 +84,22 @@ export async function enableHtmlNdaForAsset(assetId: string) {
   const existing = await findHtmlNda(assetId);
   if (existing) return existing;
 
+  const asset = await prisma.asset.findUnique({
+    where: { id: assetId },
+    select: { title: true },
+  });
+  const template = pickNdaTemplateForAsset(asset?.title);
+
   const created = await prisma.assetContent.create({
     data: {
       assetId,
       stageKey: "nda",
       contentType: "LANDING_PAGE",
       title: "HTML NDA",
-      htmlContent: DEFAULT_NDA_TEMPLATE.html,
+      htmlContent: template.html,
       keyMetrics: {
         isHtmlNda: true,
-        fields: DEFAULT_NDA_TEMPLATE.fields,
+        fields: template.fields,
         adminFieldDefaults: {},
       } as any,
       isPublished: true,
