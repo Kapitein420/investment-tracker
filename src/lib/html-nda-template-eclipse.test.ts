@@ -5,6 +5,7 @@ import {
   pickNdaTemplateForAsset,
   renderTemplate,
   RESERVED_TOKENS,
+  splitFullName,
   DEFAULT_NDA_TEMPLATE,
 } from "./html-nda-template";
 import { ECLIPSE_NDA_TEMPLATE } from "./html-nda-template-eclipse";
@@ -71,5 +72,31 @@ describe("pickNdaTemplateForAsset", () => {
     expect(pickNdaTemplateForAsset("The Eclipse building, Rotterdam")).toBe(ECLIPSE_NDA_TEMPLATE);
     expect(pickNdaTemplateForAsset("Anderlechtlaan")).toBe(DEFAULT_NDA_TEMPLATE);
     expect(pickNdaTemplateForAsset(undefined)).toBe(DEFAULT_NDA_TEMPLATE);
+  });
+});
+
+describe("splitFullName", () => {
+  it.each([
+    ["Jan Pieter de Vries", "Jan Pieter", "de Vries"],
+    ["Anna van der Berg", "Anna", "van der Berg"],
+    ["Pim van den Heuvel", "Pim", "van den Heuvel"],
+    ["Anna in 't Veld", "Anna", "in 't Veld"],
+    ["Anna in \u2019t Veld", "Anna", "in \u2019t Veld"],
+    ["Maria De La Cruz", "Maria", "De La Cruz"],
+    ["Jan Jansen", "Jan", "Jansen"],
+    ["Jan Pieter Jansen", "Jan Pieter", "Jansen"],
+    ["  Jan   de   Vries  ", "Jan", "de Vries"],
+  ])("splits %j", (input, firstNames, surname) => {
+    expect(splitFullName(input)).toEqual({ firstNames, surname });
+  });
+
+  it("always keeps one word as the first name", () => {
+    expect(splitFullName("de Vries")).toEqual({ firstNames: "de", surname: "Vries" });
+    expect(splitFullName("Jan de")).toEqual({ firstNames: "Jan", surname: "de" });
+  });
+
+  it("treats a single word as a first name and an empty input as empty", () => {
+    expect(splitFullName("Madonna")).toEqual({ firstNames: "Madonna", surname: "" });
+    expect(splitFullName("   ")).toEqual({ firstNames: "", surname: "" });
   });
 });

@@ -16,6 +16,7 @@ import {
   pickNdaTemplateForAsset,
   renderTemplate,
   RESERVED_TOKENS,
+  splitFullName,
   type TemplateField,
 } from "@/lib/html-nda-template";
 import { formatDate } from "@/lib/utils";
@@ -511,18 +512,13 @@ export async function signHtmlNda(data: {
     ...assetDefaults,
     ...(meta.adminFieldDefaults ?? {}),
     // Single full-name field on the signing form drives three name tokens
-    // — NAME (full string), FIRST_NAMES (everything except the last word),
-    // SURNAME (last word). The Orizon-style template renders Voornamen +
-    // Achternaam separately; legacy templates only reference {{NAME}}.
+    // — NAME (full string), FIRST_NAMES and SURNAME (splitFullName keeps
+    // prefixes such as "de" / "van der" with the surname). The Orizon-style
+    // template renders Voornamen + Achternaam separately; legacy templates
+    // only reference {{NAME}}.
     NAME: data.signedByName.trim(),
-    FIRST_NAMES: (() => {
-      const parts = data.signedByName.trim().split(/\s+/);
-      return parts.length === 1 ? parts[0] : parts.slice(0, -1).join(" ");
-    })(),
-    SURNAME: (() => {
-      const parts = data.signedByName.trim().split(/\s+/);
-      return parts.length > 1 ? parts[parts.length - 1] : "";
-    })(),
+    FIRST_NAMES: splitFullName(data.signedByName).firstNames,
+    SURNAME: splitFullName(data.signedByName).surname,
     EMAIL: data.signedByEmail,
     DATE: formatDate(new Date()),
   };

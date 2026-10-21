@@ -9,7 +9,7 @@ import { SignaturePad } from "@/components/signing/signature-pad";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { signHtmlNda } from "@/actions/html-nda-actions";
 import { uploadInvestorNda } from "@/actions/document-actions";
-import { renderTemplate, injectSignature } from "@/lib/html-nda-template";
+import { renderTemplate, injectSignature, splitFullName } from "@/lib/html-nda-template";
 import type { TemplateField } from "@/lib/html-nda-template";
 import { toast } from "sonner";
 import { Building2, Check, FileText, Upload, Loader2 } from "lucide-react";
@@ -123,23 +123,14 @@ export function HtmlNdaSigningPage({ data, token }: Props) {
       EMAIL: email,
     };
     if (name) {
-      // Single full-name input drives three tokens. NAME = the whole
-      // string (used in the signature line + by legacy templates).
-      // FIRST_NAMES = everything except the last word, SURNAME = the last
-      // word — Dutch templates render Voornamen / Achternaam separately
-      // but we don't want to ask the signer twice. Imperfect for surnames
-      // with particles ("de Vries"), but close enough; admin can override
-      // by editing the rendered NDA before approval if needed.
+      // Single full-name input drives three tokens: NAME = the whole string,
+      // FIRST_NAMES / SURNAME = splitFullName() (keeps "de", "van der", …
+      // with the surname) — the signer isn't asked twice.
       const trimmed = name.trim();
-      const parts = trimmed.split(/\s+/);
+      const { firstNames, surname } = splitFullName(trimmed);
       merged.NAME = trimmed;
-      if (parts.length === 1) {
-        merged.FIRST_NAMES = trimmed;
-        merged.SURNAME = "";
-      } else {
-        merged.SURNAME = parts[parts.length - 1];
-        merged.FIRST_NAMES = parts.slice(0, -1).join(" ");
-      }
+      merged.FIRST_NAMES = firstNames;
+      merged.SURNAME = surname;
     }
     const html = renderTemplate(data.html, merged);
     return injectSignature(
