@@ -221,6 +221,32 @@ export function extractTokens(html: string): string[] {
   return Array.from(set).sort();
 }
 
+// Surname prefixes (tussenvoegsels) that belong to the surname, not to the
+// first names: "Jan de Vries" -> surname "de Vries", "Anna van der Berg" ->
+// "van der Berg". Compared lowercase with curly apostrophes normalised.
+const SURNAME_PARTICLES = new Set([
+  "van", "von", "de", "der", "den", "het", "'t", "te", "ten", "ter",
+  "op", "aan", "in", "la", "le", "du", "da", "di", "dos", "das",
+]);
+
+const normaliseParticle = (w: string) => w.toLowerCase().replace(/[\u2019\u02bc]/g, "'");
+
+/**
+ * Split a single "Full name" input into the FIRST_NAMES / SURNAME tokens.
+ * The surname is the last word plus any directly preceding prefixes; at least
+ * one word always stays with the first names. A single word is all first name.
+ */
+export function splitFullName(fullName: string): { firstNames: string; surname: string } {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return { firstNames: words.join(" "), surname: "" };
+  let start = words.length - 1;
+  while (start > 1 && SURNAME_PARTICLES.has(normaliseParticle(words[start - 1]))) start -= 1;
+  return {
+    firstNames: words.slice(0, start).join(" "),
+    surname: words.slice(start).join(" "),
+  };
+}
+
 /** Tokens the system fills automatically — never shown to admin or investor as inputs. */
 export const RESERVED_TOKENS = new Set([
   "SIGNATURE",
