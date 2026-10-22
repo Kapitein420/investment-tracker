@@ -19,8 +19,14 @@ concurrency:
 
 jobs:
   verify:
-    name: Test & build
+    name: Test & build (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+
+    # 22.x covers the Dockerfile; 24.x is what production runs on Vercel.
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
 
     # src/actions/asset-actions.test.ts is an integration test that runs
     # real Prisma queries against seeded data. It self-skips when
@@ -57,9 +63,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # engines: >=20.9.0 <25. Production runs on Vercel; the Dockerfile
-          # is still on 20.
-          node-version: 22.x
+          # engines: >=22.23.4 <25. Production runs on Vercel (24.x); the
+          # Dockerfile is pinned to 22.23.4.
+          node-version: ${{ matrix.node }}
           cache: npm
 
       # postinstall runs `prisma generate`, which the build depends on.
