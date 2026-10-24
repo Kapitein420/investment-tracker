@@ -95,6 +95,9 @@ const nextConfig = {
           { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Invite-only portal: keep every route (incl. PDFs and API
+          // responses, which carry no meta tag) out of search indexes.
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
         ],
