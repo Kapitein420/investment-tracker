@@ -17,12 +17,18 @@ import { createCompany } from "@/actions/asset-actions";
 import { sendInvestorInvite } from "@/actions/invite-actions";
 import { toast } from "sonner";
 
-const newCompanySchema = z.object({
-  name: z.string().min(1, "Name required"),
-  type: z.enum(["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"]),
-  contactName: z.string().optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
-});
+const newCompanySchema = z
+  .object({
+    name: z.string().min(1, "Name required"),
+    type: z.enum(["INVESTOR", "BROKER", "ADVISOR", "TENANT", "OTHER"]),
+    contactName: z.string().optional(),
+    contactEmail: z.string().email().optional().or(z.literal("")),
+  })
+  // A contact without an email can't request a portal password.
+  .refine((d) => !d.contactName?.trim() || !!d.contactEmail?.trim(), {
+    message: "Email required so this person can request their password",
+    path: ["contactEmail"],
+  });
 
 export function AddTrackingDialog({
   open,
@@ -195,7 +201,10 @@ export function AddTrackingDialog({
             />
             <span>
               <span className="font-medium">Also send invite email</span>{" "}
-              — creates a portal account for the contact and emails them a sign-in link. Skipped if no email is on file.
+              — emails the contact a link to set their password. Skipped if no email is on file.{" "}
+              <span className="text-muted-foreground">
+                Their portal account is created either way, so they can also request their password themselves.
+              </span>
             </span>
           </label>
 
@@ -298,6 +307,7 @@ export function AddTrackingDialog({
                   <div className="space-y-2">
                     <Label>Contact Email</Label>
                     <Input {...register("contactEmail")} type="email" />
+                    {errors.contactEmail && <p className="text-xs text-destructive">{errors.contactEmail.message}</p>}
                   </div>
                 </div>
                 <DialogFooter>
